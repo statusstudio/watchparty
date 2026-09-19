@@ -179,6 +179,7 @@ export function App() {
 
     const mySeat = seats.find((s) => s.user?.id === currentUser.id);
     const seatedSpeakers = seats.filter((s) => s.user && s.user.id !== currentUser.id);
+    const seatedSpeakerIds = new Set(seatedSpeakers.map((s) => s.user!.id));
 
     seatedSpeakers.forEach((seat) => {
       if (seat.user) {
@@ -188,6 +189,9 @@ export function App() {
         webrtcRef.current?.connectToPeer(seat.user.id, isInitiator);
       }
     });
+
+    // Clean up peer connections to people who are no longer on stage
+    webrtcRef.current?.cleanupPeersExcept(seatedSpeakerIds);
   }, [seats, currentUser.id]);
 
   // Handle URL Hash change (Room vs Home)
