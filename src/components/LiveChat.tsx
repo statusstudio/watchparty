@@ -82,8 +82,8 @@ export const LiveChat: React.FC<LiveChatProps> = ({
 
   return (
     <div className="bg-[#151722]/80 backdrop-blur-md rounded-2xl border border-gray-800/80 flex flex-col h-full min-h-0 shadow-xl overflow-hidden">
-      {/* Tab Header - strictly without message count badge as requested */}
-      <div className="px-4 py-2.5 sm:py-3 border-b border-gray-800/80 flex items-center justify-between shrink-0">
+      {/* Tab Header - visible on desktop, hidden on mobile to maximize chat view */}
+      <div className="hidden lg:flex px-4 py-2.5 sm:py-3 border-b border-gray-800/80 items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-pink-400" />
           <h3 className="text-sm font-semibold text-white tracking-wide">
@@ -150,14 +150,14 @@ export const LiveChat: React.FC<LiveChatProps> = ({
       </div>
 
       {/* Input Area with Profile Avatar in front */}
-      <form onSubmit={handleSend} className="p-2.5 sm:p-3 bg-[#151722] border-t border-gray-800/80 shrink-0">
+      <form onSubmit={handleSend} className="p-2 sm:p-3 bg-[#151722] border-t border-gray-800/80 shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         <div className="flex items-center gap-2">
           {/* User Profile Avatar in front of chat input */}
           <button
             type="button"
             onClick={onOpenProfile}
             title="คลิกเพื่อแก้ไขโปรไฟล์ของคุณ"
-            className="w-9 h-9 rounded-full overflow-hidden shrink-0 border-2 hover:opacity-80 transition-opacity cursor-pointer group relative"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden shrink-0 border-2 hover:opacity-80 transition-opacity cursor-pointer group relative"
             style={{ borderColor: currentUser.color }}
           >
             <img
@@ -174,7 +174,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder="พิมพ์ข้อความ... หรือใส่เวลา เช่น 01:23"
-              className="w-full pl-3.5 pr-10 py-2 bg-[#0f0f13] border border-gray-800 focus:border-purple-500 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none transition-colors"
+              className="w-full pl-3.5 pr-10 py-2 bg-[#0f0f13] border border-gray-800 focus:border-purple-500 rounded-xl text-base sm:text-xs text-white placeholder-gray-500 focus:outline-none transition-colors"
             />
             <button
               type="submit"

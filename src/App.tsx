@@ -269,13 +269,23 @@ export function App() {
 
       // Detect downward drag when page is scrolled to top
       if (deltaY > 15 && deltaY > Math.abs(deltaX) * 1.2) {
+        // If touching inside a scrollable container (e.g. chat messages or queue) that is scrolled down, do not trigger pull-to-refresh
+        let target = e.target as HTMLElement | null;
+        let isInnerScrolled = false;
+        while (target && target !== document.body) {
+          if (target.scrollTop > 5) {
+            isInnerScrolled = true;
+            break;
+          }
+          target = target.parentElement;
+        }
+        if (isInnerScrolled) return;
+
         const mainEl = document.querySelector('main');
         const homeEl = document.getElementById('home-view-scroll');
-        const currentScrollTop = mainEl
-          ? mainEl.scrollTop
-          : homeEl
-          ? homeEl.scrollTop
-          : window.scrollY || document.documentElement.scrollTop || 0;
+        const currentScrollTop = currentView === 'home'
+          ? (homeEl ? homeEl.scrollTop : window.scrollY || 0)
+          : (mainEl ? mainEl.scrollTop : 0);
 
         if (currentScrollTop <= 5) {
           isPullingRef.current = true;
@@ -906,7 +916,7 @@ export function App() {
   };
 
   return (
-    <div className="h-screen max-h-screen bg-[#0f0f13] text-gray-100 flex flex-col overflow-hidden selection:bg-purple-500 selection:text-white">
+    <div className="h-[100dvh] max-h-[100dvh] bg-[#0f0f13] text-gray-100 flex flex-col overflow-hidden selection:bg-purple-500 selection:text-white">
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
@@ -1020,11 +1030,11 @@ export function App() {
           onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
         />
       ) : (
-        <main className="flex-1 min-h-0 max-w-[1920px] w-full mx-auto p-2 sm:p-3 lg:p-3.5 flex flex-col lg:grid lg:grid-cols-12 gap-2 sm:gap-3 lg:gap-3.5 overflow-y-auto lg:overflow-hidden">
+        <main className="flex-1 min-h-0 max-w-[1920px] w-full mx-auto p-2 sm:p-3 lg:p-3.5 flex flex-col lg:grid lg:grid-cols-12 gap-2 sm:gap-3 lg:gap-3.5 overflow-hidden">
           {/* Left Column: Synchronized Video Player & Open Voice Bar (Desktop: 8 cols) */}
           <div className="w-full lg:col-span-8 flex flex-col shrink-0 lg:shrink lg:h-full min-h-0 gap-2 sm:gap-2.5">
             {/* Synchronized YouTube Video Player */}
-            <div className="w-full aspect-video max-h-[36vh] sm:max-h-[46vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black/50 rounded-2xl overflow-hidden border border-gray-800/80 shadow-2xl relative shrink-0">
+            <div className="w-full aspect-video max-h-[25vh] sm:max-h-[34vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black/50 rounded-2xl overflow-hidden border border-gray-800/80 shadow-2xl relative shrink-0">
               <VideoPlayer
                 video={video}
                 reactions={reactions}
@@ -1049,7 +1059,7 @@ export function App() {
             </div>
 
             {/* Current Video Info Banner & Quick Controls */}
-            <div className="bg-[#13141c]/90 border border-gray-800/80 rounded-xl px-3 py-2 flex flex-wrap items-center justify-between shrink-0 gap-2">
+            <div className="bg-[#13141c]/90 border border-gray-800/80 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center justify-between shrink-0 gap-1.5 sm:gap-2">
               {/* Video Title & Channel */}
               <div className="min-w-0 flex-1 pr-2">
                 <h2 className="text-xs sm:text-sm font-semibold text-white truncate" title={video.title}>
@@ -1221,7 +1231,7 @@ export function App() {
             </div>
 
             {/* Open Voice Channel (Visible on desktop or when mobileTab === 'voice') */}
-            <div className={`${activeMobileTab === 'voice' ? 'block' : 'hidden'} lg:block shrink-0`}>
+            <div className={`${activeMobileTab === 'voice' ? 'flex-1 min-h-0 overflow-y-auto' : 'hidden'} lg:block shrink-0`}>
               <VoiceStage
                 seats={seats}
                 currentUser={currentUser}
@@ -1244,7 +1254,7 @@ export function App() {
           </div>
 
           {/* Right Column: GroupTube Multi-Tab Sidebar (Desktop 4 cols, Mobile conditional) */}
-          <div className={`w-full lg:col-span-4 h-[440px] sm:h-[500px] lg:h-full min-h-0 flex flex-col bg-[#13141c]/90 backdrop-blur-md rounded-2xl border border-gray-800/80 shadow-xl overflow-hidden ${
+          <div className={`w-full lg:col-span-4 flex-1 lg:h-full min-h-0 flex flex-col bg-[#13141c]/90 backdrop-blur-md rounded-2xl border border-gray-800/80 shadow-xl overflow-hidden ${
             activeMobileTab === 'voice' ? 'hidden lg:flex' : 'flex'
           }`}>
             {/* Desktop Tab Switcher */}
