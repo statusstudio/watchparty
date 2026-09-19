@@ -20,7 +20,7 @@ import {
 import { getStoredUser, saveUser, clearUser } from './services/auth.js';
 import { socketService } from './services/socket.js';
 import { WebRTCVoiceEngine } from './services/webrtc.js';
-import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Plus, Radio } from 'lucide-react';
+import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Plus, Radio, RefreshCw } from 'lucide-react';
 import { Navbar } from './components/Navbar.js';
 import { VideoPlayer } from './components/VideoPlayer.js';
 import { VoiceStage } from './components/VoiceStage.js';
@@ -209,6 +209,87 @@ export function App() {
   useEffect(() => {
     fetchPublicRooms();
   }, [fetchPublicRooms]);
+
+  // Refresh Room & Pull-to-Refresh
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const touchStartYRef = useRef(0);
+  const touchStartXRef = useRef(0);
+  const isPullingRef = useRef(false);
+
+  const handleRefreshRoom = useCallback(() => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    showToast('กำลังรีเฟรชข้อมูลห้อง... 🔄', 'info');
+
+    const currentRoom = roomId || getHashRoomId();
+    if (currentRoom) {
+      socketService.send({
+        type: 'JOIN_ROOM',
+        roomId: currentRoom,
+        user: currentUser,
+      });
+    }
+    fetchPublicRooms();
+
+    setTimeout(() => {
+      setIsRefreshing(false);
+      showToast('รีเฟรชห้องสำเร็จ เรียลไทม์พร้อมใช้งาน! ✨', 'success');
+    }, 800);
+  }, [isRefreshing, roomId, currentUser, showToast, fetchPublicRooms]);
+
+  // Pull-to-refresh listener on touch devices
+  useEffect(() => {
+    if (currentView !== 'room') return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      touchStartYRef.current = touch.clientY;
+      touchStartXRef.current = touch.clientX;
+      isPullingRef.current = false;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1 || isRefreshing) return;
+      const touch = e.touches[0];
+      const deltaY = touch.clientY - touchStartYRef.current;
+      const deltaX = touch.clientX - touchStartXRef.current;
+
+      // Detect downward drag when page is scrolled to top
+      if (deltaY > 15 && deltaY > Math.abs(deltaX) * 1.2) {
+        const mainEl = document.querySelector('main');
+        const isAtTop = !mainEl || mainEl.scrollTop <= 5;
+        if (isAtTop) {
+          isPullingRef.current = true;
+          const distance = Math.min(85, (deltaY - 15) * 0.45);
+          setPullDistance(distance);
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (isPullingRef.current) {
+        if (pullDistance >= 50) {
+          handleRefreshRoom();
+        }
+        setPullDistance(0);
+        isPullingRef.current = false;
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [currentView, isRefreshing, pullDistance, handleRefreshRoom]);
 
   // WebRTC Signal Sender
   const sendWebRTCSignal = useCallback((targetId: string, data: any) => {
@@ -793,6 +874,8 @@ export function App() {
         currentUser={currentUser}
         myRole={myRole}
         isSuperAdmin={isSuperAdmin}
+        isRefreshing={isRefreshing}
+        onRefreshRoom={handleRefreshRoom}
         onNavigateHome={handleNavigateHome}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
@@ -805,6 +888,34 @@ export function App() {
         }}
         onShowToast={showToast}
       />
+
+      {/* Pull-to-refresh floating indicator */}
+      {(pullDistance > 0 || isRefreshing) && currentView === 'room' && (
+        <div
+          className="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-transform duration-75 ease-out"
+          style={{
+            transform: `translate(-50%, ${pullDistance > 0 ? pullDistance - 25 : 8}px)`,
+          }}
+        >
+          <div className="bg-[#1a1c2b]/95 border border-purple-500/40 text-white px-4 py-2 rounded-full shadow-2xl flex items-center gap-2.5 text-xs font-semibold backdrop-blur-md">
+            <RefreshCw
+              className={`w-4 h-4 text-pink-400 ${
+                isRefreshing || pullDistance >= 50 ? 'animate-spin' : ''
+              }`}
+              style={{
+                transform: isRefreshing ? undefined : `rotate(${pullDistance * 4}deg)`,
+              }}
+            />
+            <span className="text-gray-200">
+              {isRefreshing
+                ? 'กำลังรีเฟรชข้อมูลห้อง...'
+                : pullDistance >= 50
+                ? 'ปล่อยนิ้วเพื่อรีเฟรช 🚀'
+                : 'แตะแล้วปัดลงเพื่อรีเฟรช ⬇️'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Main View Router */}
       {currentView === 'home' ? (

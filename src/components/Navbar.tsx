@@ -8,6 +8,7 @@ import {
   Crown,
   Shield,
   Lock,
+  RefreshCw,
 } from 'lucide-react';
 import { UserProfile, UserRole } from '../types/index.js';
 
@@ -20,6 +21,8 @@ interface NavbarProps {
   currentUser: UserProfile;
   myRole?: UserRole;
   isSuperAdmin?: boolean;
+  isRefreshing?: boolean;
+  onRefreshRoom?: () => void;
   onNavigateHome: () => void;
   onOpenProfile: () => void;
   onOpenPlaylist?: () => void;
@@ -37,6 +40,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   myRole = 'member',
   isSuperAdmin = false,
+  isRefreshing = false,
+  onRefreshRoom,
   onNavigateHome,
   onOpenProfile,
   onOpenAdminPanel,
@@ -123,6 +128,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Users className="w-3.5 h-3.5 text-cyan-400" />
               <span className="font-semibold text-white">{onlineCount}</span>
             </div>
+
+            {/* Refresh Room Button */}
+            {onRefreshRoom && (
+              <button
+                onClick={onRefreshRoom}
+                disabled={isRefreshing}
+                className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 border border-gray-700/60 hover:text-white text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 shrink-0"
+                title="รีเฟรชข้อมูลห้อง (Sync ใหม่)"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-pink-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">{isRefreshing ? 'รีเฟรช...' : 'รีเฟรช'}</span>
+              </button>
+            )}
 
             {/* Room Owner / Admin Management Button (Only visible to Room Owner/Admin) */}
             {isAdminOrOwner && onOpenAdminPanel && (
