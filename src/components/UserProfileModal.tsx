@@ -18,6 +18,7 @@ import {
   Youtube,
   Radio,
   ExternalLink,
+  LogOut,
 } from 'lucide-react';
 import { UserProfile, FavoriteSong } from '../types/index.js';
 import { PRESET_AVATARS, COLOR_PALETTE } from '../data/presets.js';
@@ -37,6 +38,7 @@ interface UserProfileModalProps {
   onUpdateCurrentUser: (user: UserProfile) => void;
   onPlaySong?: (videoId: string, title: string, channel: string, thumbnail: string) => void;
   onOpenAuth?: () => void;
+  onLogout?: () => void;
 }
 
 const AVAILABLE_GENRES = [
@@ -70,6 +72,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onUpdateCurrentUser,
   onPlaySong,
   onOpenAuth,
+  onLogout,
 }) => {
   const [activeTab, setActiveTab] = useState<'favorites' | 'about' | 'edit'>('favorites');
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -278,21 +281,38 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </div>
             </div>
 
-            {/* Action buttons (Follow or Edit) */}
+            {/* Action buttons (Follow, Edit, or Sign Out) */}
             <div className="shrink-0 pb-1 flex items-center gap-2">
               {isOwnProfile ? (
-                <button
-                  type="button"
-                  onClick={() => setActiveTab(activeTab === 'edit' ? 'about' : 'edit')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    activeTab === 'edit'
-                      ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30'
-                      : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/10'
-                  }`}
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>{activeTab === 'edit' ? 'ดูโปรไฟล์' : 'แก้ไขโปรไฟล์'}</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab(activeTab === 'edit' ? 'about' : 'edit')}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      activeTab === 'edit'
+                        ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30'
+                        : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/10'
+                    }`}
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>{activeTab === 'edit' ? 'ดูโปรไฟล์' : 'แก้ไขโปรไฟล์'}</span>
+                  </button>
+
+                  {onLogout && (currentUser.provider === 'google' || currentUser.provider === 'facebook') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onLogout();
+                      }}
+                      title="ออกจากระบบ (Sign Out)"
+                      className="px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 backdrop-blur-md transition-all cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">ออกจากระบบ</span>
+                    </button>
+                  )}
+                </>
               ) : (
                 <button
                   type="button"

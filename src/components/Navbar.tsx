@@ -10,6 +10,7 @@ import {
   Lock,
   RefreshCw,
   Moon,
+  LogOut,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { UserProfile, UserRole } from '../types/index.js';
@@ -30,6 +31,7 @@ interface NavbarProps {
   onOpenProfile: () => void;
   onOpenFullProfile?: () => void;
   onOpenAuth?: () => void;
+  onLogout?: () => void;
   onOpenAdminPanel: () => void;
   onOpenSuperAdminDashboard: () => void;
   onShowToast: (msg: string, type?: 'info' | 'success' | 'warning') => void;
@@ -51,6 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenProfile,
   onOpenFullProfile,
   onOpenAuth,
+  onLogout,
   onOpenAdminPanel,
   onOpenSuperAdminDashboard,
   onShowToast,
@@ -220,6 +223,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" title="Facebook Account" />
           )}
         </button>
+
+        {/* Quick Sign Out icon button if logged in as Member */}
+        {(currentUser.provider === 'google' || currentUser.provider === 'facebook') && onLogout && (
+          <button
+            onClick={onLogout}
+            title="ออกจากระบบ (Sign Out)"
+            className="p-1.5 sm:p-2 rounded-xl text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 border border-gray-800 hover:border-rose-500/30 transition-colors cursor-pointer shrink-0"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </header>
   );

@@ -1072,6 +1072,7 @@ export function App() {
           setIsUserProfileModalOpen(true);
         }}
         onOpenAuth={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         onOpenSuperAdminDashboard={() => {
           if (isSuperAdmin) {
@@ -1625,6 +1626,7 @@ export function App() {
           setIsUserProfileModalOpen(false);
           setIsAuthModalOpen(true);
         }}
+        onLogout={handleLogout}
       />
 
       <UserCardModal
