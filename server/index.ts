@@ -50,7 +50,7 @@ async function startServer() {
 
   // Create room endpoint
   app.post('/api/rooms/create', (req, res) => {
-    const { name, description, isPrivate, password, category, coverImage, onlyAdminManagePlaylist, initialVideoId, stageAccessMode, user } = req.body;
+    const { name, description, isPrivate, password, category, coverImage, onlyAdminManagePlaylist, initialVideoId, initialVideoTitle, initialVideoChannel, stageAccessMode, user } = req.body;
     if (!name || !user) {
       return res.status(400).json({ error: 'Missing name or user' });
     }
@@ -65,6 +65,8 @@ async function startServer() {
       coverImage,
       onlyAdminManagePlaylist,
       initialVideoId,
+      initialVideoTitle,
+      initialVideoChannel,
       stageAccessMode,
     }, user);
 

@@ -12,6 +12,9 @@ import {
   Music,
   VideoOff,
   Link as LinkIcon,
+  Search,
+  Loader2,
+  Trash2,
 } from 'lucide-react';
 import { SAMPLE_VIDEOS, ROOM_CATEGORIES, PRESET_ROOM_COVERS } from '../data/presets.js';
 import { RoomCategory, StageAccessMode } from '../types/index.js';
@@ -24,6 +27,8 @@ export interface CreateRoomForm {
   category: RoomCategory;
   coverImage?: string;
   initialVideoId?: string;
+  initialVideoTitle?: string;
+  initialVideoChannel?: string;
   onlyAdminManagePlaylist: boolean;
   stageAccessMode?: StageAccessMode;
 }
@@ -54,7 +59,21 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
   // Initial video state (Optional)
   const [hasInitialVideo, setHasInitialVideo] = useState(false);
-  const [initialVideoId, setInitialVideoId] = useState('');
+  const [selectedVideo, setSelectedVideo] = useState<{
+    videoId: string;
+    title: string;
+    channel: string;
+    thumbnail: string;
+  } | null>(null);
+  const [ytSearchQuery, setYtSearchQuery] = useState('');
+  const [isSearchingYt, setIsSearchingYt] = useState(false);
+  const [ytResults, setYtResults] = useState<Array<{
+    videoId: string;
+    title: string;
+    channel: string;
+    thumbnail: string;
+    duration?: string;
+  }>>([]);
   const [customVideoInput, setCustomVideoInput] = useState('');
 
   const [onlyAdminManagePlaylist, setOnlyAdminManagePlaylist] = useState(false);
@@ -117,6 +136,36 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
     return match ? match[1] : trimmed;
   };
 
+  const handleYtSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const query = ytSearchQuery.trim();
+    if (!query) return;
+
+    const directId = parseYouTubeId(query);
+    if (directId && directId !== query && directId.length === 11) {
+      setSelectedVideo({
+        videoId: directId,
+        title: 'YouTube Video',
+        channel: 'YouTube',
+        thumbnail: `https://img.youtube.com/vi/${directId}/hqdefault.jpg`,
+      });
+      setYtSearchQuery('');
+      setYtResults([]);
+      return;
+    }
+
+    setIsSearchingYt(true);
+    try {
+      const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      setYtResults(data.results || []);
+    } catch (err) {
+      console.error('YouTube search error:', err);
+    } finally {
+      setIsSearchingYt(false);
+    }
+  };
+
   const getEffectiveCover = () => {
     if (coverType === 'url') return customCoverUrl.trim() || undefined;
     return selectedCover || undefined;
@@ -135,11 +184,18 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
     }
 
     let finalVideoId: string | undefined = undefined;
+    let finalVideoTitle: string | undefined = undefined;
+    let finalVideoChannel: string | undefined = undefined;
+
     if (hasInitialVideo) {
-      if (customVideoInput.trim()) {
+      if (selectedVideo) {
+        finalVideoId = selectedVideo.videoId;
+        finalVideoTitle = selectedVideo.title;
+        finalVideoChannel = selectedVideo.channel;
+      } else if (customVideoInput.trim()) {
         finalVideoId = parseYouTubeId(customVideoInput);
-      } else if (initialVideoId) {
-        finalVideoId = initialVideoId;
+        finalVideoTitle = 'YouTube Video';
+        finalVideoChannel = 'YouTube';
       }
     }
 
@@ -151,6 +207,8 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
       isPrivate,
       password: isPrivate ? password.trim() : undefined,
       initialVideoId: finalVideoId,
+      initialVideoTitle: finalVideoTitle,
+      initialVideoChannel: finalVideoChannel,
       onlyAdminManagePlaylist,
       stageAccessMode,
     });
@@ -440,7 +498,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
           )}
 
           {/* 5. Starting Video (COMPLETELY OPTIONAL) */}
-          <div className="p-3 bg-[#0f0f13] border border-gray-800 rounded-xl space-y-2">
+          <div className="p-3 bg-[#0f0f13] border border-gray-800 rounded-xl space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-300">
                 <Tv className="w-3.5 h-3.5 text-cyan-400" />
@@ -450,7 +508,15 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                 <input
                   type="checkbox"
                   checked={hasInitialVideo}
-                  onChange={(e) => setHasInitialVideo(e.target.checked)}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setHasInitialVideo(checked);
+                    if (!checked) {
+                      setSelectedVideo(null);
+                      setCustomVideoInput('');
+                      setYtResults([]);
+                    }
+                  }}
                   className="w-3.5 h-3.5 rounded text-purple-600 focus:ring-purple-500 border-gray-700"
                 />
                 <span className="text-[11px] text-purple-300">ต้องการระบุเพลงแรก</span>
@@ -461,44 +527,130 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
               <div className="p-2.5 rounded-lg bg-[#151722] border border-gray-800/80 flex items-center gap-2 text-gray-400 text-xs">
                 <VideoOff className="w-4 h-4 text-gray-500 shrink-0" />
                 <span>
-                  ห้องจะเปิดแบบพร้อมใช้งาน (Standby) คุณหรือเพื่อนๆ สามารถกดขอเพลงหรือเปิดคลิป YouTube เมื่อเข้าห้องได้ตลอดเวลา
+                  ห้องจะเปิดแบบไม่มีคิวเพลง (เริ่มด้วยคิวว่างเปล่า) คุณหรือเพื่อนๆ สามารถค้นหาและเปิดเพลงจาก YouTube ได้ตลอดเวลา
                 </span>
+              </div>
+            ) : selectedVideo ? (
+              <div className="p-2.5 bg-purple-950/20 border border-purple-500/40 rounded-xl flex items-center justify-between gap-3 animate-fade-in">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <img
+                    src={selectedVideo.thumbnail}
+                    alt={selectedVideo.title}
+                    className="w-14 h-9 rounded-lg object-cover border border-purple-500/30 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <span className="inline-block px-1.5 py-0.5 text-[9px] font-semibold bg-purple-500/30 text-purple-200 rounded mb-0.5">
+                      เพลงแรกของห้อง ✅
+                    </span>
+                    <h4 className="text-xs font-medium text-white truncate">{selectedVideo.title}</h4>
+                    <p className="text-[10px] text-gray-400 truncate">{selectedVideo.channel}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedVideo(null)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0 cursor-pointer"
+                  title="เปลี่ยน / ลบคลิปนี้"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             ) : (
               <div className="space-y-2 pt-1 animate-fade-in">
-                <input
-                  type="text"
-                  value={customVideoInput}
-                  onChange={(e) => {
-                    setCustomVideoInput(e.target.value);
-                    setInitialVideoId('');
-                  }}
-                  placeholder="วาง YouTube URL หรือ Video ID (เช่น https://youtu.be/...)"
-                  className="w-full px-3 py-1.5 bg-[#151722] border border-gray-700 rounded-lg text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
-                />
+                {/* Search / URL input */}
+                <div className="flex gap-1.5">
+                  <div className="relative flex-1">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={ytSearchQuery}
+                      onChange={(e) => setYtSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleYtSearch();
+                        }
+                      }}
+                      placeholder="ค้นหาชื่อเพลง ศิลปิน หรือวาง YouTube URL..."
+                      className="w-full pl-8 pr-3 py-1.5 bg-[#151722] border border-gray-700 rounded-lg text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleYtSearch()}
+                    disabled={isSearchingYt || !ytSearchQuery.trim()}
+                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-medium rounded-lg flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                  >
+                    {isSearchingYt ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                    <span>ค้นหา</span>
+                  </button>
+                </div>
 
-                <div className="grid grid-cols-2 gap-1.5">
-                  {SAMPLE_VIDEOS.slice(0, 4).map((v) => {
-                    const isSelected = initialVideoId === v.videoId && !customVideoInput.trim();
-                    return (
+                {/* Search Results */}
+                {ytResults.length > 0 && (
+                  <div className="max-h-44 overflow-y-auto space-y-1 p-1 bg-[#12141c] border border-gray-800 rounded-lg">
+                    {ytResults.map((item) => (
+                      <div
+                        key={item.videoId}
+                        className="p-1.5 rounded-md hover:bg-gray-800/60 border border-transparent hover:border-gray-700 flex items-center justify-between gap-2 transition-colors"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <img
+                            src={item.thumbnail}
+                            alt={item.title}
+                            className="w-12 h-8 rounded object-cover shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-medium text-white truncate">{item.title}</p>
+                            <p className="text-[9px] text-gray-400 truncate">
+                              {item.channel} {item.duration ? `• ${item.duration}` : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedVideo({
+                              videoId: item.videoId,
+                              title: item.title,
+                              channel: item.channel,
+                              thumbnail: item.thumbnail,
+                            });
+                            setYtResults([]);
+                            setYtSearchQuery('');
+                          }}
+                          className="px-2 py-1 bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-medium rounded transition-colors cursor-pointer shrink-0"
+                        >
+                          เลือกคลิปนี้
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Or Quick Presets */}
+                <div className="pt-1">
+                  <span className="text-[10px] text-gray-400 block mb-1">หรือเลือกคลิปตัวอย่างยอดนิยม:</span>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {SAMPLE_VIDEOS.slice(0, 4).map((v) => (
                       <button
                         key={v.videoId}
                         type="button"
                         onClick={() => {
-                          setInitialVideoId(v.videoId);
-                          setCustomVideoInput('');
+                          setSelectedVideo({
+                            videoId: v.videoId,
+                            title: v.title,
+                            channel: 'Lofi / Preset',
+                            thumbnail: v.thumbnail,
+                          });
                         }}
-                        className={`p-1.5 rounded-lg border flex items-center gap-2 text-left transition-all cursor-pointer ${
-                          isSelected
-                            ? 'border-purple-500 bg-purple-500/20 ring-1 ring-purple-500'
-                            : 'border-gray-800 bg-[#151722] hover:border-gray-700'
-                        }`}
+                        className="p-1.5 rounded-lg border border-gray-800 bg-[#151722] hover:border-purple-500/50 flex items-center gap-2 text-left transition-all cursor-pointer"
                       >
                         <img src={v.thumbnail} alt={v.title} className="w-8 h-6 rounded object-cover shrink-0" />
                         <span className="text-[10px] font-medium text-gray-200 truncate">{v.title}</span>
                       </button>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

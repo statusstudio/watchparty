@@ -70,10 +70,13 @@ export class RoomManager {
       onlyAdminManagePlaylist?: boolean;
       stageAccessMode?: StageAccessMode;
       initialVideoId?: string;
+      initialVideoTitle?: string;
+      initialVideoChannel?: string;
     },
     creator: UserProfile
   ): InternalRoomData {
-    const videoId = settings.initialVideoId?.trim() || 'jfKfPfyJRdk';
+    const rawVideoId = settings.initialVideoId?.trim();
+    const hasInitialVideo = !!rawVideoId;
     const stageAccessMode = settings.stageAccessMode || 'everyone';
 
     const newRoom: InternalRoomData = {
@@ -93,35 +96,38 @@ export class RoomManager {
         createdAt: Date.now(),
       },
       seats: this.createDefaultSeats(),
-      video: {
-        videoId,
-        title: 'lofi hip hop radio - beats to relax/study to',
-        channel: 'Lofi Girl',
-        duration: 0,
-        currentTime: 0,
-        isPlaying: true,
-        lastUpdated: Date.now(),
-      },
-      playlist: [
-        {
-          id: 'init-1',
-          videoId,
-          title: 'lofi hip hop radio 📚 - beats to relax/study to',
-          channel: 'Lofi Girl',
-          thumbnail: 'https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg',
-          duration: 'LIVE',
-          addedBy: creator.name,
-        },
-        {
-          id: 'init-2',
-          videoId: '5yx6BWlEVcY',
-          title: 'Chillhop Radio - jazzy & lofi hip hop beats',
-          channel: 'Chillhop Music',
-          thumbnail: 'https://i.ytimg.com/vi/5yx6BWlEVcY/hqdefault.jpg',
-          duration: 'LIVE',
-          addedBy: 'System',
-        },
-      ],
+      video: hasInitialVideo
+        ? {
+            videoId: rawVideoId,
+            title: settings.initialVideoTitle || 'YouTube Video',
+            channel: settings.initialVideoChannel || '',
+            duration: 0,
+            currentTime: 0,
+            isPlaying: true,
+            lastUpdated: Date.now(),
+          }
+        : {
+            videoId: '',
+            title: '',
+            channel: '',
+            duration: 0,
+            currentTime: 0,
+            isPlaying: false,
+            lastUpdated: Date.now(),
+          },
+      playlist: hasInitialVideo
+        ? [
+            {
+              id: 'init-' + Date.now(),
+              videoId: rawVideoId,
+              title: settings.initialVideoTitle || 'YouTube Video',
+              channel: settings.initialVideoChannel || '',
+              thumbnail: `https://i.ytimg.com/vi/${rawVideoId}/hqdefault.jpg`,
+              duration: 'YouTube',
+              addedBy: creator.name,
+            },
+          ]
+        : [],
       loopMode: 'all',
       isShuffle: false,
       lastVideoEndedTime: 0,
