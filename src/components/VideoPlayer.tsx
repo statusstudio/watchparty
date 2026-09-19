@@ -14,6 +14,8 @@ interface VideoPlayerProps {
   onPause: (currentTime: number, duration?: number) => void;
   onSeek: (currentTime: number, duration?: number) => void;
   onVideoEnd: () => void;
+  onNextTrack?: () => void;
+  onPrevTrack?: () => void;
   onShowToast: (msg: string, type?: 'info' | 'success' | 'warning') => void;
 }
 
@@ -35,6 +37,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onPause,
   onSeek,
   onVideoEnd,
+  onNextTrack,
+  onPrevTrack,
   onShowToast,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -313,42 +317,115 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   }, [isSomeoneSpeaking, isAudioDuckingEnabled, isMuted]);
 
-  // MediaSession API integration (Lock screen / Control Center player on mobile)
+  // Top-level HTML5 Audio Keep-Alive for background playback & lock screen control on mobile
+  const silentAudioRef = useRef<HTMLAudioElement | null>(null);
+
   useEffect(() => {
-    if ('mediaSession' in navigator && video.videoId) {
-      try {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: video.title || 'Vibe Video',
-          artist: video.channel || 'WatchParty',
-          album: 'Vibe Party',
-          artwork: [
-            {
-              src: `https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`,
-              sizes: '480x360',
-              type: 'image/jpeg',
-            },
-          ],
-        });
+    // 1-second silent WAV base64
+    const audio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+    audio.loop = true;
+    audio.volume = 0.05;
+    silentAudioRef.current = audio;
 
-        navigator.mediaSession.setActionHandler('play', () => {
-          if (playerRef.current?.playVideo) {
-            playerRef.current.playVideo();
-          }
-        });
-
-        navigator.mediaSession.setActionHandler('pause', () => {
-          if (playerRef.current?.pauseVideo) {
-            playerRef.current.pauseVideo();
-          }
-        });
-      } catch (err) {
-        console.warn('MediaSession error:', err);
+    const startAudioOnInteraction = () => {
+      if (silentAudioRef.current && silentAudioRef.current.paused) {
+        silentAudioRef.current.play().catch(() => {});
       }
+    };
+
+    window.addEventListener('click', startAudioOnInteraction, { once: true });
+    window.addEventListener('touchstart', startAudioOnInteraction, { once: true });
+
+    return () => {
+      window.removeEventListener('click', startAudioOnInteraction);
+      window.removeEventListener('touchstart', startAudioOnInteraction);
+      audio.pause();
+      audio.src = '';
+      silentAudioRef.current = null;
+    };
+  }, []);
+
+  // MediaSession API integration (Lock screen, Dynamic Island, Control Center, Bluetooth earphones)
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !video.videoId) return;
+
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: video.title || 'Vibe Video',
+        artist: video.channel || 'WatchParty',
+        album: 'Vibe WatchParty',
+        artwork: [
+          {
+            src: `https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`,
+            sizes: '480x360',
+            type: 'image/jpeg',
+          },
+          {
+            src: `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`,
+            sizes: '320x180',
+            type: 'image/jpeg',
+          },
+        ],
+      });
+
+      // Sync playback state to OS lock screen
+      navigator.mediaSession.playbackState = video.isPlaying ? 'playing' : 'paused';
+
+      // Keep silent audio loop in sync to retain background audio session on iOS/Android
+      if (video.isPlaying) {
+        silentAudioRef.current?.play().catch(() => {});
+      } else {
+        silentAudioRef.current?.pause();
+      }
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        silentAudioRef.current?.play().catch(() => {});
+        if (playerRef.current?.playVideo) {
+          playerRef.current.playVideo();
+        }
+        navigator.mediaSession.playbackState = 'playing';
+        onPlay(videoRef.current.currentTime);
+      });
+
+      navigator.mediaSession.setActionHandler('pause', () => {
+        silentAudioRef.current?.pause();
+        if (playerRef.current?.pauseVideo) {
+          playerRef.current.pauseVideo();
+        }
+        navigator.mediaSession.playbackState = 'paused';
+        onPause(videoRef.current.currentTime);
+      });
+
+      if (onNextTrack) {
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+          onNextTrack();
+        });
+      }
+
+      if (onPrevTrack) {
+        navigator.mediaSession.setActionHandler('previoustrack', () => {
+          onPrevTrack();
+        });
+      }
+
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime !== undefined && details.seekTime !== null) {
+          if (playerRef.current?.seekTo) {
+            playerRef.current.seekTo(details.seekTime, true);
+          }
+          onSeek(details.seekTime);
+        }
+      });
+    } catch (err) {
+      console.warn('MediaSession error:', err);
     }
-  }, [video.videoId, video.title, video.channel]);
+  }, [video.videoId, video.title, video.channel, video.isPlaying, onNextTrack, onPrevTrack, onPlay, onPause, onSeek]);
 
   // Unmute handler
   const handleUnmute = () => {
+    if (silentAudioRef.current && silentAudioRef.current.paused) {
+      silentAudioRef.current.play().catch(() => {});
+    }
     if (playerRef.current) {
       try {
         playerRef.current.unMute();

@@ -1023,6 +1023,8 @@ export function App() {
                 onPause={handleVideoPause}
                 onSeek={handleVideoSeek}
                 onVideoEnd={handleVideoEnd}
+                onNextTrack={handleNextTrack}
+                onPrevTrack={handlePrevTrack}
                 onShowToast={showToast}
               />
             </div>
