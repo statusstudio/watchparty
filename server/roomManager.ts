@@ -774,26 +774,36 @@ export class RoomManager {
       return s;
     });
 
-    const targetIndex = seatNumber - 1;
-    if (room.seats[targetIndex].user === null) {
-      room.seats[targetIndex] = {
-        seatNumber,
-        user: client.user,
+    // Find first empty seat or allocate a new seat dynamically (no seat limit!)
+    let assignedSeat = seatNumber ? room.seats.find((s) => s.seatNumber === seatNumber && s.user === null) : null;
+    if (!assignedSeat) {
+      assignedSeat = room.seats.find((s) => s.user === null);
+    }
+    if (!assignedSeat) {
+      const nextSeatNum = room.seats.length + 1;
+      assignedSeat = {
+        seatNumber: nextSeatNum,
+        user: null,
         isMuted: false,
         isSpeaking: false,
       };
-
-      this.broadcastToRoom(client.roomId, {
-        type: 'SEATS_UPDATED',
-        seats: room.seats,
-      });
-
-      this.broadcastToRoom(client.roomId, {
-        type: 'SYNC_TOAST',
-        message: `${client.user.name} ขึ้นนั่งบนเวทีไมค์ #${seatNumber}`,
-        toastType: 'info',
-      });
+      room.seats.push(assignedSeat);
     }
+
+    assignedSeat.user = client.user;
+    assignedSeat.isMuted = false;
+    assignedSeat.isSpeaking = false;
+
+    this.broadcastToRoom(client.roomId, {
+      type: 'SEATS_UPDATED',
+      seats: room.seats,
+    });
+
+    this.broadcastToRoom(client.roomId, {
+      type: 'SYNC_TOAST',
+      message: `${client.user.name} เข้าร่วมคุยในสายไมค์ 🎙️`,
+      toastType: 'info',
+    });
   }
 
   public handleRequestToSpeak(ws: WebSocket, seatNumber?: number) {
@@ -998,7 +1008,7 @@ export class RoomManager {
 
       this.broadcastToRoom(client.roomId, {
         type: 'SYNC_TOAST',
-        message: `${client.user.name} ลงจากเวทีไมค์ #${oldSeatNum}`,
+        message: `${client.user.name} ออกจากสายไมค์ 🎧`,
         toastType: 'info',
       });
     }

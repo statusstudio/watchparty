@@ -95,44 +95,47 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={onNavigateHome}
           className="flex items-center gap-2 cursor-pointer group"
         >
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-rose-500 to-purple-600 flex items-center justify-center shadow-lg shadow-rose-500/20 group-hover:scale-105 transition-transform">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-violet-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-violet-500/25 group-hover:scale-105 transition-transform border border-white/10">
             <Tv className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
-          <div className="hidden lg:block">
-            <h1 className="text-sm sm:text-base font-bold text-white tracking-wide flex items-center gap-1.5">
-              WatchParty
-              <span className="text-[9px] uppercase font-semibold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-pink-400 border border-pink-500/30">
-                Stage 9
-              </span>
+          <div className="hidden sm:block">
+            <h1 className="text-base font-black text-white tracking-tight flex items-center gap-1">
+              <span>Vibe</span>
+              <span className="text-pink-400">.</span>
             </h1>
           </div>
         </div>
 
-        {/* If inside a Room, show Room Indicator & Privacy */}
+        {/* If inside a Room, show Room Indicator & 1-Click Invite */}
         {currentView === 'room' && (
-          <div className="flex items-center gap-1.5 bg-[#0f0f13] border border-gray-800/90 px-2.5 py-1 sm:py-1.5 rounded-xl">
-            <div className="flex items-center gap-1.5 text-xs text-gray-300">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 bg-[#0f0f13] border border-gray-800/90 px-2.5 py-1.5 rounded-xl">
               {isPrivate ? (
                 <Lock className="w-3.5 h-3.5 text-purple-400" />
               ) : (
                 <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
               )}
-              <span className="font-semibold text-white truncate max-w-[90px] sm:max-w-[150px]">
+              <span className="font-semibold text-xs text-white truncate max-w-[90px] sm:max-w-[160px]">
                 {roomName || roomId}
               </span>
             </div>
 
+            {/* Prominent 1-Click Invite Button */}
             <button
               onClick={handleCopyLink}
-              title="คัดลอกลิงก์ชวนเพื่อน"
-              className="ml-1 p-1 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-1 text-[11px] cursor-pointer"
+              title="คัดลอกลิงก์ชวนเพื่อนเข้าร่วมห้อง"
+              className={`px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                copied
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                  : 'bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border-violet-500/30 hover:border-violet-500/50'
+              }`}
             >
               {copied ? (
                 <Check className="w-3.5 h-3.5 text-emerald-400" />
               ) : (
-                <Copy className="w-3.5 h-3.5" />
+                <Copy className="w-3.5 h-3.5 text-violet-400" />
               )}
-              <span className="hidden xl:inline">{copied ? 'คัดลอกแล้ว' : 'แชร์'}</span>
+              <span className="hidden md:inline">{copied ? 'คัดลอกลิงก์แล้ว' : 'ชวนเพื่อน'}</span>
             </button>
           </div>
         )}

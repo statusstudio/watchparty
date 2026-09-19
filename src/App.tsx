@@ -20,11 +20,12 @@ import {
 import { getStoredUser, saveUser, clearUser } from './services/auth.js';
 import { socketService } from './services/socket.js';
 import { WebRTCVoiceEngine } from './services/webrtc.js';
-import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1 } from 'lucide-react';
+import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Plus, Radio } from 'lucide-react';
 import { Navbar } from './components/Navbar.js';
 import { VideoPlayer } from './components/VideoPlayer.js';
 import { VoiceStage } from './components/VoiceStage.js';
 import { LiveChat } from './components/LiveChat.js';
+import { SidebarQueue } from './components/SidebarQueue.js';
 import { HomeView } from './components/HomeView.js';
 import { ProfileModal } from './components/ProfileModal.js';
 import { PlaylistModal } from './components/PlaylistModal.js';
@@ -102,7 +103,9 @@ export function App() {
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [pendingStageRequests, setPendingStageRequests] = useState<StageRequest[]>([]);
   const [approvedSpeakerIds, setApprovedSpeakerIds] = useState<string[]>([]);
-  const [activeMobileTab, setActiveMobileTab] = useState<'stage' | 'chat'>('stage');
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'queue' | 'chat' | 'members'>('queue');
+  const [activeMobileTab, setActiveMobileTab] = useState<'voice' | 'queue' | 'chat' | 'members'>('voice');
+  const [quickUrlText, setQuickUrlText] = useState('');
 
   // Modals State
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -762,7 +765,7 @@ export function App() {
         />
       ) : (
         <main className="flex-1 min-h-0 max-w-[1920px] w-full mx-auto p-2 sm:p-3 lg:p-3.5 flex flex-col lg:grid lg:grid-cols-12 gap-2 sm:gap-3 lg:gap-3.5 overflow-y-auto lg:overflow-hidden">
-          {/* Left Column: Synchronized Video Player & 9-Seat Voice Stage */}
+          {/* Left Column: Synchronized Video Player & Open Voice Bar (Desktop: 8 cols) */}
           <div className="w-full lg:col-span-8 flex flex-col shrink-0 lg:shrink lg:h-full min-h-0 gap-2 sm:gap-2.5">
             {/* Synchronized YouTube Video Player */}
             <div className="w-full aspect-video max-h-[36vh] sm:max-h-[46vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black/50 rounded-2xl overflow-hidden border border-gray-800/80 shadow-2xl relative shrink-0">
@@ -787,23 +790,24 @@ export function App() {
               />
             </div>
 
-            {/* Current Video Info Banner & Quick Playback Controls */}
-            <div className="bg-[#151722]/80 border border-gray-800/80 rounded-xl px-3 py-1.5 flex items-center justify-between shrink-0 gap-2 overflow-x-auto">
+            {/* Current Video Info Banner & Quick Controls */}
+            <div className="bg-[#13141c]/90 border border-gray-800/80 rounded-xl px-3 py-2 flex flex-wrap items-center justify-between shrink-0 gap-2">
+              {/* Video Title & Channel */}
               <div className="min-w-0 flex-1 pr-2">
                 <h2 className="text-xs sm:text-sm font-semibold text-white truncate" title={video.title}>
                   {video.title}
                 </h2>
-                <div className="flex items-center gap-2 text-[11px] text-gray-400">
-                  <span className="truncate max-w-[140px] sm:max-w-[220px]">{video.channel}</span>
+                <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-0.5">
+                  <span className="truncate max-w-[140px] sm:max-w-[200px]">{video.channel}</span>
                   {playlist.length > 0 && (
-                    <span className="text-[10px] text-purple-300 font-mono bg-purple-950/50 px-1.5 py-0.5 rounded border border-purple-500/30 shrink-0">
+                    <span className="text-[10px] text-violet-300 font-mono bg-violet-950/50 px-1.5 py-0.5 rounded border border-violet-500/30 shrink-0">
                       คิว: {playlist.findIndex((p) => p.videoId === video.videoId) >= 0 ? playlist.findIndex((p) => p.videoId === video.videoId) + 1 : 1}/{playlist.length}
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Quick Playback & Queue Buttons */}
+              {/* Quick Playback Buttons */}
               <div className="flex items-center gap-1.5 shrink-0">
                 {/* Prev Track */}
                 <button
@@ -811,7 +815,7 @@ export function App() {
                   onClick={handlePrevTrack}
                   title="เพลงก่อนหน้า (Previous Track)"
                   disabled={playlist.length === 0}
-                  className="p-1.5 rounded-lg bg-gray-800/70 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-700/60 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                  className="p-1.5 rounded-lg bg-gray-800/70 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-700/60 disabled:opacity-30 transition-all cursor-pointer"
                 >
                   <SkipBack className="w-3.5 h-3.5" />
                 </button>
@@ -823,11 +827,11 @@ export function App() {
                   title={isShuffle ? 'สุ่มเพลง: เปิด (คลิกเพื่อปิด)' : 'สุ่มเพลง: ปิด (คลิกเพื่อเปิด)'}
                   className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
                     isShuffle
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
+                      ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-sm'
                       : 'bg-gray-800/70 text-gray-400 border-gray-700/60 hover:text-gray-200'
                   }`}
                 >
-                  <Shuffle className={`w-3.5 h-3.5 ${isShuffle ? 'text-amber-400' : 'opacity-60'}`} />
+                  <Shuffle className={`w-3.5 h-3.5 ${isShuffle ? 'text-purple-400' : 'opacity-60'}`} />
                 </button>
 
                 {/* Loop Mode Cycle Button */}
@@ -841,13 +845,7 @@ export function App() {
                     };
                     handleSetLoopMode(nextMode[loopMode]);
                   }}
-                  title={
-                    loopMode === 'single'
-                      ? 'โหมด: ซ้ำเพลงเดิม 🔂 (คลิกเพื่อเปลี่ยน)'
-                      : loopMode === 'all'
-                      ? 'โหมด: วนทุกเพลงตามคิว 🔁 (คลิกเพื่อเปลี่ยน)'
-                      : 'โหมด: เล่นรอบเดียว ➡️ (คลิกเพื่อเปิดวนซ้ำ)'
-                  }
+                  title={`โหมดเล่นวน: ${loopMode}`}
                   className={`px-2 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-all cursor-pointer ${
                     loopMode !== 'off'
                       ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
@@ -878,59 +876,75 @@ export function App() {
                   onClick={handleNextTrack}
                   title="เพลงถัดไป (Next Track)"
                   disabled={playlist.length === 0}
-                  className="p-1.5 rounded-lg bg-gray-800/70 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-700/60 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                  className="p-1.5 rounded-lg bg-gray-800/70 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-700/60 disabled:opacity-30 transition-all cursor-pointer"
                 >
                   <SkipForward className="w-3.5 h-3.5" />
-                </button>
-
-                {/* Open Playlist Modal Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsPlaylistModalOpen(true)}
-                  className="px-2.5 py-1 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5"
-                >
-                  <ListMusic className="w-3.5 h-3.5 text-purple-400" />
-                  <span>จัดการคิว</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-purple-500/30 text-[10px] font-mono">
-                    {playlist.length}
-                  </span>
                 </button>
               </div>
             </div>
 
             {/* Mobile / Tablet Tab Switcher (Visible on < lg screens only) */}
-            <div className="flex lg:hidden items-center bg-[#151722] border border-gray-800 rounded-xl p-1 shrink-0">
+            <div className="flex lg:hidden items-center bg-[#13141c] border border-gray-800 rounded-xl p-1 shrink-0 overflow-x-auto">
               <button
                 type="button"
-                onClick={() => setActiveMobileTab('stage')}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  activeMobileTab === 'stage'
-                    ? 'bg-purple-600 text-white shadow-md'
+                onClick={() => setActiveMobileTab('voice')}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                  activeMobileTab === 'voice'
+                    ? 'bg-violet-600 text-white shadow-md'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                <span>🎙️ เวทีไมค์ 9 ที่นั่ง</span>
+                <Radio className="w-3.5 h-3.5" />
+                <span>สายไมค์ ({seats.filter((s) => s.user).length})</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveMobileTab('queue')}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                  activeMobileTab === 'queue'
+                    ? 'bg-violet-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <ListMusic className="w-3.5 h-3.5" />
+                <span>คิวเพลง ({playlist.length})</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setActiveMobileTab('chat')}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   activeMobileTab === 'chat'
-                    ? 'bg-purple-600 text-white shadow-md'
+                    ? 'bg-violet-600 text-white shadow-md'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                <span>💬 แชทสด</span>
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>แชทสด</span>
                 {chat.length > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full bg-white/20 text-[10px]">
                     {chat.length}
                   </span>
                 )}
               </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveMobileTab('members')}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                  activeMobileTab === 'members'
+                    ? 'bg-violet-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>สมาชิก ({members.length || onlineCount})</span>
+              </button>
             </div>
 
-            {/* 9-Seat Voice Stage */}
-            <div className={`${activeMobileTab === 'stage' ? 'block' : 'hidden'} lg:block shrink-0`}>
+            {/* Open Voice Channel (Visible on desktop or when mobileTab === 'voice') */}
+            <div className={`${activeMobileTab === 'voice' ? 'block' : 'hidden'} lg:block shrink-0`}>
               <VoiceStage
                 seats={seats}
                 currentUser={currentUser}
@@ -952,17 +966,191 @@ export function App() {
             </div>
           </div>
 
-          {/* Right Column: Live Chat Panel */}
-          <div className={`${activeMobileTab === 'chat' ? 'flex' : 'hidden'} lg:flex w-full lg:col-span-4 h-[440px] sm:h-[500px] lg:h-full min-h-0 flex-col overflow-hidden`}>
-            <LiveChat
-              messages={chat}
-              currentUser={currentUser}
-              onSendMessage={handleSendMessage}
-              onSendReaction={handleSendReaction}
-              onSeekTo={handleVideoSeek}
-              onOpenProfile={() => setIsProfileModalOpen(true)}
-              onShowToast={showToast}
-            />
+          {/* Right Column: GroupTube Multi-Tab Sidebar (Desktop 4 cols, Mobile conditional) */}
+          <div className={`w-full lg:col-span-4 h-[440px] sm:h-[500px] lg:h-full min-h-0 flex flex-col bg-[#13141c]/90 backdrop-blur-md rounded-2xl border border-gray-800/80 shadow-xl overflow-hidden ${
+            activeMobileTab === 'voice' ? 'hidden lg:flex' : 'flex'
+          }`}>
+            {/* Desktop Tab Switcher */}
+            <div className="hidden lg:flex items-center p-1.5 border-b border-gray-800/80 bg-[#171824]/60 shrink-0 gap-1">
+              <button
+                type="button"
+                onClick={() => setActiveSidebarTab('queue')}
+                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeSidebarTab === 'queue'
+                    ? 'bg-violet-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <ListMusic className="w-3.5 h-3.5" />
+                <span>คิวเพลง</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-black/30 text-[10px] font-mono">
+                  {playlist.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveSidebarTab('chat')}
+                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeSidebarTab === 'chat'
+                    ? 'bg-violet-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>แชทสด</span>
+                {chat.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-black/30 text-[10px]">
+                    {chat.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveSidebarTab('members')}
+                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeSidebarTab === 'members'
+                    ? 'bg-violet-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>สมาชิก</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-black/30 text-[10px] font-mono">
+                  {members.length || onlineCount}
+                </span>
+              </button>
+            </div>
+
+            {/* Content: Queue & Search Tab */}
+            <div className={`flex-1 min-h-0 overflow-hidden ${
+              (activeSidebarTab === 'queue' && activeMobileTab !== 'chat' && activeMobileTab !== 'members') ||
+              activeMobileTab === 'queue'
+                ? 'block'
+                : 'hidden'
+            }`}>
+              <SidebarQueue
+                playlist={playlist}
+                currentVideo={video}
+                loopMode={loopMode}
+                isShuffle={isShuffle}
+                myRole={myRole}
+                onlyAdminManagePlaylist={roomMetadata.onlyAdminManagePlaylist}
+                onPlayNow={handleVideoChange}
+                onAddToPlaylist={handleAddToPlaylist}
+                onRemoveItem={handleRemovePlaylistItem}
+                onClearPlaylist={handleClearPlaylist}
+                onSetLoopMode={handleSetLoopMode}
+                onToggleShuffle={handleToggleShuffle}
+                onNextTrack={handleNextTrack}
+                onShowToast={showToast}
+              />
+            </div>
+
+            {/* Content: Live Chat Tab */}
+            <div className={`flex-1 min-h-0 overflow-hidden ${
+              (activeSidebarTab === 'chat' && activeMobileTab !== 'queue' && activeMobileTab !== 'members') ||
+              activeMobileTab === 'chat'
+                ? 'flex flex-col'
+                : 'hidden'
+            }`}>
+              <LiveChat
+                messages={chat}
+                currentUser={currentUser}
+                onSendMessage={handleSendMessage}
+                onSendReaction={handleSendReaction}
+                onSeekTo={handleVideoSeek}
+                onOpenProfile={() => setIsProfileModalOpen(true)}
+                onShowToast={showToast}
+              />
+            </div>
+
+            {/* Content: Members Tab */}
+            <div className={`flex-1 min-h-0 overflow-y-auto p-3 space-y-2 ${
+              (activeSidebarTab === 'members' && activeMobileTab !== 'queue' && activeMobileTab !== 'chat') ||
+              activeMobileTab === 'members'
+                ? 'block'
+                : 'hidden'
+            }`}>
+              <div className="flex items-center justify-between pb-2 border-b border-gray-800/80">
+                <span className="text-xs font-semibold text-gray-300">สมาชิกออนไลน์ทั้งหมด</span>
+                <span className="text-[11px] text-violet-400 font-mono">
+                  {members.length || onlineCount} คน
+                </span>
+              </div>
+
+              {members.map((m) => {
+                const isMemberInVoice = seats.some((s) => s.user?.id === m.user.id);
+                const isMemberSpeaking = seats.some(
+                  (s) => s.user?.id === m.user.id && s.isSpeaking && !s.isMuted
+                );
+                return (
+                  <div
+                    key={m.user.id}
+                    className="flex items-center justify-between p-2 rounded-xl bg-[#171824]/60 hover:bg-[#1a1c2b] border border-gray-800/60 transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className="w-8 h-8 rounded-full overflow-hidden shrink-0 border-2 relative"
+                        style={{ borderColor: m.user.color }}
+                      >
+                        <img
+                          src={m.user.avatar}
+                          alt={m.user.name}
+                          className="w-full h-full object-cover"
+                        />
+                        {isMemberSpeaking && (
+                          <div className="absolute inset-0 rounded-full border-2 border-emerald-400 animate-ping" />
+                        )}
+                      </div>
+
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="text-xs font-semibold truncate max-w-[110px]"
+                            style={{ color: m.user.color }}
+                          >
+                            {m.user.name}
+                          </span>
+                          {m.user.id === currentUser.id && (
+                            <span className="text-[10px] text-gray-500">(คุณ)</span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1 mt-0.5">
+                          {m.role === 'owner' ? (
+                            <span className="px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300 text-[9px] font-bold border border-amber-500/20 flex items-center gap-0.5">
+                              <Crown className="w-2.5 h-2.5 text-amber-400" />
+                              เจ้าของ
+                            </span>
+                          ) : m.role === 'admin' ? (
+                            <span className="px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-300 text-[9px] font-bold border border-purple-500/20 flex items-center gap-0.5">
+                              <Shield className="w-2.5 h-2.5 text-purple-400" />
+                              แอดมิน
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-gray-500">สมาชิก</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Voice indicator tag */}
+                    <div>
+                      {isMemberInVoice ? (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-semibold flex items-center gap-1">
+                          <Mic className="w-3 h-3" />
+                          <span>ในสาย</span>
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-gray-500">ผู้ฟัง</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </main>
       )}

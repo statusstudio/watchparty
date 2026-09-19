@@ -73,44 +73,30 @@ export const HomeView: React.FC<HomeViewProps> = ({
         {/* Decorative Glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 space-y-4">
-          {/* Featured Photo with Glowing Aura */}
-          <div className="relative inline-block mx-auto group">
-            {/* Glowing Gradient Aura */}
-            <div className="absolute -inset-1.5 bg-gradient-to-r from-pink-500 via-purple-500 to-amber-400 rounded-3xl blur-md opacity-75 group-hover:opacity-100 transition duration-500 animate-pulse" />
-
-            {/* Image Frame */}
-            <div className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl bg-black">
-              <img
-                src="/tengpan.jpg"
-                alt="เตงป่านดื้อ"
-                className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
-              />
-            </div>
-
-            {/* Cute Badge */}
-            <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white text-[11px] font-bold shadow-lg flex items-center gap-1 border border-white/30 whitespace-nowrap">
-              <span>💖 เตงป่านดื้อ</span>
+        <div className="relative z-10 flex flex-col items-center gap-3">
+          {/* Sleek Vibe Brand Icon */}
+          <div className="inline-flex items-center justify-center">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-violet-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-xl shadow-violet-500/25 border border-white/20">
+              <Sparkles className="w-7 h-7 text-white animate-pulse" />
             </div>
           </div>
 
-          <div className="pt-2">
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white tracking-tight flex items-center justify-center gap-2">
-              <span className="text-white">เตง</span>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-purple-400 to-amber-300">
-                ป่านดื้อ
+          <div className="pt-1">
+            <h1 className="text-4xl sm:text-6xl md:text-7xl font-black text-white tracking-tight flex items-center justify-center gap-1">
+              <span>Vibe</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-400 to-amber-300">
+                .
               </span>
-              <span className="text-2xl sm:text-4xl animate-bounce">✨</span>
             </h1>
           </div>
 
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-medium">
-            <Sparkles className="w-3.5 h-3.5 text-pink-400" />
-            ห้องดู YouTube ซิงค์ตรงกัน พร้อมเวทีไมค์ 9 ที่นั่ง & ซาวด์บอร์ดสด
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300 text-xs font-medium backdrop-blur-sm">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            Watch Together • Open Voice • Real-time Sync
           </div>
 
-          <p className="text-xs sm:text-sm text-gray-400 max-w-xl mx-auto">
-            สร้างห้องปาร์ตี้ส่วนตัว ล็อครหัสผ่าน หรือเข้าร่วมห้องสาธารณะเพื่อฟังเพลงและคุยไมค์กับเพื่อนแบบเรียลไทม์
+          <p className="text-xs sm:text-sm text-gray-400 max-w-xl mx-auto leading-relaxed">
+            ดู YouTube ซิงค์ตรงกันทุกคน พร้อมห้องคุยไมค์อิสระและแชทสด สร้างห้องแล้วส่งลิงก์ชวนเพื่อนได้ทันที
           </p>
 
           {/* Action buttons */}
