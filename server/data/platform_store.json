@@ -1,0 +1,136 @@
+{
+  "users": [
+    {
+      "id": "usr-admin-system",
+      "name": "System Admin 👑",
+      "email": "admin@watchparty.live",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80",
+      "color": "#8b5cf6",
+      "provider": "google",
+      "isSuperAdmin": true,
+      "isSuspended": false,
+      "createdAt": 1789162435919,
+      "lastActiveAt": 1789767235919
+    },
+    {
+      "id": "usr-1789765781907-mfkm3",
+      "name": "Guest #239",
+      "avatar": "data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><defs><linearGradient id=\"g5\" x1=\"0%\" y1=\"0%\" x2=\"0%\" y2=\"100%\"><stop offset=\"0%\" stop-color=\"%23f43f5e\"/><stop offset=\"100%\" stop-color=\"%23fbbf24\"/></linearGradient></defs><circle cx=\"50\" cy=\"50\" r=\"50\" fill=\"%2309090b\"/><circle cx=\"50\" cy=\"45\" r=\"25\" fill=\"url(%23g5)\"/><line x1=\"25\" y1=\"42\" x2=\"75\" y2=\"42\" stroke=\"%2309090b\" stroke-width=\"2\"/><line x1=\"28\" y1=\"48\" x2=\"72\" y2=\"48\" stroke=\"%2309090b\" stroke-width=\"2.5\"/><line x1=\"33\" y1=\"54\" x2=\"67\" y2=\"54\" stroke=\"%2309090b\" stroke-width=\"3\"/><polygon points=\"50,22 60,42 40,42\" fill=\"%23ffffff\" opacity=\"0.8\"/><path d=\"M20 92 C30 76 70 76 80 92\" fill=\"%2306b6d4\"/></svg>",
+      "color": "#a855f7",
+      "provider": "guest",
+      "isSuperAdmin": false,
+      "isSuspended": false,
+      "createdAt": 1789767236362,
+      "lastActiveAt": 1789767237599,
+      "currentRoomId": "room-mu7gboiw-g7vc"
+    },
+    {
+      "id": "g-YWxleC5zcXVh",
+      "name": "Alex (Squad Leader)",
+      "email": "alex.squad@gmail.com",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80",
+      "color": "#10b981",
+      "provider": "google",
+      "isSuperAdmin": false,
+      "isSuspended": false,
+      "createdAt": 1789767238105,
+      "lastActiveAt": 1789770424873,
+      "currentRoomId": "room-mu7iwqyz-a7ia"
+    },
+    {
+      "id": "test-user",
+      "name": "Tester",
+      "avatar": "",
+      "color": "#ff0000",
+      "provider": "guest",
+      "isSuperAdmin": false,
+      "isSuspended": false,
+      "createdAt": 1789769194310,
+      "lastActiveAt": 1789769200649,
+      "currentRoomId": "squad-chill"
+    },
+    {
+      "id": "user-owner-1",
+      "name": "Room Owner",
+      "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=owner",
+      "color": "#8b5cf6",
+      "provider": "guest",
+      "isSuperAdmin": false,
+      "isSuspended": false,
+      "createdAt": 1789770104471,
+      "lastActiveAt": 1789770104471,
+      "currentRoomId": "room-mu7iwqyz-a7ia"
+    },
+    {
+      "id": "user-member-1",
+      "name": "Room Member",
+      "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=member",
+      "color": "#10b981",
+      "provider": "guest",
+      "isSuperAdmin": false,
+      "isSuspended": false,
+      "createdAt": 1789770104473,
+      "lastActiveAt": 1789770104473,
+      "currentRoomId": "room-mu7iwqyz-a7ia"
+    }
+  ],
+  "tickets": [
+    {
+      "id": "ticket-welcome",
+      "userId": "usr-admin-system",
+      "userName": "System Admin",
+      "userEmail": "admin@watchparty.live",
+      "userAvatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80",
+      "category": "general",
+      "title": "ยินดีต้อนรับสู่ระบบ Support & Feedback 🎉",
+      "description": "ศูนย์ติดต่อเจ้าของเว็บ ยินดีรับฟังทุกปัญหาและข้อเสนอแนะเพื่อพัฒนาแพลตฟอร์มให้ดียิ่งขึ้นครับ",
+      "status": "resolved",
+      "messages": [
+        {
+          "id": "msg-init",
+          "senderId": "usr-admin-system",
+          "senderName": "System Admin 👑",
+          "senderAvatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80",
+          "isSuperAdmin": true,
+          "text": "ยินดีต้อนรับสู่ระบบแจ้งปัญหา! ผู้ใช้สามารถส่งข้อความมาหาเจ้าของเว็บได้ตลอด 24 ชั่วโมงครับ",
+          "timestamp": 1789763635919
+        }
+      ],
+      "createdAt": 1789763635919,
+      "updatedAt": 1789763635919
+    },
+    {
+      "id": "ticket-mu7h7fq5-35kk",
+      "userId": "usr-tester-1",
+      "userName": "Bob Tester",
+      "userEmail": "bob@example.com",
+      "userAvatar": "",
+      "category": "bug",
+      "title": "ปุ่มปรับเสียงกระตุกบางครั้ง",
+      "description": "พบปัญหาเสียงกระตุกเมื่อเปิดไมค์พร้อมกัน 3 คน",
+      "status": "resolved",
+      "messages": [
+        {
+          "id": "msg-1789767243869",
+          "senderId": "usr-tester-1",
+          "senderName": "Bob Tester",
+          "senderAvatar": "",
+          "isSuperAdmin": false,
+          "text": "พบปัญหาเสียงกระตุกเมื่อเปิดไมค์พร้อมกัน 3 คน",
+          "timestamp": 1789767243869
+        },
+        {
+          "id": "msg-1789767243872-02m",
+          "senderId": "usr-admin-system",
+          "senderName": "System Admin (Owner)",
+          "senderAvatar": "",
+          "isSuperAdmin": true,
+          "text": "รับทราบครับ กำลังตรวจสอบตัว AudioContext Buffer ให้นะครับ",
+          "timestamp": 1789767243872
+        }
+      ],
+      "createdAt": 1789767243869,
+      "updatedAt": 1789767243874
+    }
+  ]
+}
