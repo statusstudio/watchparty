@@ -120,6 +120,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Right: Clean & Uncluttered Controls */}
       <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        {/* Refresh Button (Available on both Home and Room) */}
+        {onRefreshRoom && (
+          <button
+            onClick={onRefreshRoom}
+            disabled={isRefreshing}
+            className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 border border-gray-700/60 hover:text-white text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 shrink-0"
+            title={currentView === 'home' ? 'รีเฟรชรายการห้อง' : 'รีเฟรชข้อมูลห้อง (Sync ใหม่)'}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-pink-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">{isRefreshing ? 'รีเฟรช...' : 'รีเฟรช'}</span>
+          </button>
+        )}
+
         {/* In-Room Controls */}
         {currentView === 'room' && (
           <>
@@ -131,19 +144,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Users className="w-3.5 h-3.5 text-cyan-400" />
               <span className="font-semibold text-white">{onlineCount}</span>
             </div>
-
-            {/* Refresh Room Button */}
-            {onRefreshRoom && (
-              <button
-                onClick={onRefreshRoom}
-                disabled={isRefreshing}
-                className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 border border-gray-700/60 hover:text-white text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 shrink-0"
-                title="รีเฟรชข้อมูลห้อง (Sync ใหม่)"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 text-pink-400 ${isRefreshing ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">{isRefreshing ? 'รีเฟรช...' : 'รีเฟรช'}</span>
-              </button>
-            )}
 
             {/* OLED Sleep Mode Button */}
             {onToggleOledSleep && (

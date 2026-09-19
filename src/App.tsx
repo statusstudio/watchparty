@@ -217,31 +217,42 @@ export function App() {
   const touchStartXRef = useRef(0);
   const isPullingRef = useRef(false);
 
-  const handleRefreshRoom = useCallback(() => {
+  // Unified Refresh (Home Lobby or Room)
+  const handleRefresh = useCallback(() => {
     if (isRefreshing) return;
     setIsRefreshing(true);
-    showToast('กำลังรีเฟรชข้อมูลห้อง... 🔄', 'info');
 
-    const currentRoom = roomId || getHashRoomId();
-    if (currentRoom) {
-      socketService.send({
-        type: 'JOIN_ROOM',
-        roomId: currentRoom,
-        user: currentUser,
-      });
+    if (currentView === 'home') {
+      showToast('กำลังรีเฟรชรายการห้อง... 🔄', 'info');
+      fetchPublicRooms();
+      socketService.send({ type: 'GET_ROOMS' });
+
+      setTimeout(() => {
+        setIsRefreshing(false);
+        showToast('รีเฟรชหน้าหลักเรียบร้อยแล้ว ✨', 'success');
+      }, 600);
+    } else {
+      showToast('กำลังรีเฟรชข้อมูลห้อง... 🔄', 'info');
+
+      const currentRoom = roomId || getHashRoomId();
+      if (currentRoom) {
+        socketService.send({
+          type: 'JOIN_ROOM',
+          roomId: currentRoom,
+          user: currentUser,
+        });
+      }
+      fetchPublicRooms();
+
+      setTimeout(() => {
+        setIsRefreshing(false);
+        showToast('รีเฟรชห้องสำเร็จ เรียลไทม์พร้อมใช้งาน! ✨', 'success');
+      }, 800);
     }
-    fetchPublicRooms();
+  }, [isRefreshing, currentView, roomId, currentUser, showToast, fetchPublicRooms]);
 
-    setTimeout(() => {
-      setIsRefreshing(false);
-      showToast('รีเฟรชห้องสำเร็จ เรียลไทม์พร้อมใช้งาน! ✨', 'success');
-    }, 800);
-  }, [isRefreshing, roomId, currentUser, showToast, fetchPublicRooms]);
-
-  // Pull-to-refresh listener on touch devices
+  // Pull-to-refresh listener on touch devices (Supported on both Home and Room)
   useEffect(() => {
-    if (currentView !== 'room') return;
-
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       const touch = e.touches[0];
@@ -259,8 +270,14 @@ export function App() {
       // Detect downward drag when page is scrolled to top
       if (deltaY > 15 && deltaY > Math.abs(deltaX) * 1.2) {
         const mainEl = document.querySelector('main');
-        const isAtTop = !mainEl || mainEl.scrollTop <= 5;
-        if (isAtTop) {
+        const homeEl = document.getElementById('home-view-scroll');
+        const currentScrollTop = mainEl
+          ? mainEl.scrollTop
+          : homeEl
+          ? homeEl.scrollTop
+          : window.scrollY || document.documentElement.scrollTop || 0;
+
+        if (currentScrollTop <= 5) {
           isPullingRef.current = true;
           const distance = Math.min(85, (deltaY - 15) * 0.45);
           setPullDistance(distance);
@@ -271,7 +288,7 @@ export function App() {
     const handleTouchEnd = () => {
       if (isPullingRef.current) {
         if (pullDistance >= 50) {
-          handleRefreshRoom();
+          handleRefresh();
         }
         setPullDistance(0);
         isPullingRef.current = false;
@@ -289,7 +306,7 @@ export function App() {
       window.removeEventListener('touchend', handleTouchEnd);
       window.removeEventListener('touchcancel', handleTouchEnd);
     };
-  }, [currentView, isRefreshing, pullDistance, handleRefreshRoom]);
+  }, [isRefreshing, pullDistance, handleRefresh]);
 
   // OLED Sleep Mode state (โหมดพักหน้าจอประหยัดแบตเตอรี่)
   const [isOledSleepMode, setIsOledSleepMode] = useState(false);
@@ -904,7 +921,7 @@ export function App() {
         myRole={myRole}
         isSuperAdmin={isSuperAdmin}
         isRefreshing={isRefreshing}
-        onRefreshRoom={handleRefreshRoom}
+        onRefreshRoom={handleRefresh}
         onToggleOledSleep={() => setIsOledSleepMode(true)}
         onNavigateHome={handleNavigateHome}
         onOpenProfile={() => setIsProfileModalOpen(true)}
@@ -919,8 +936,8 @@ export function App() {
         onShowToast={showToast}
       />
 
-      {/* Pull-to-refresh floating indicator */}
-      {(pullDistance > 0 || isRefreshing) && currentView === 'room' && (
+      {/* Pull-to-refresh floating indicator (Active on both Home and Room) */}
+      {(pullDistance > 0 || isRefreshing) && (
         <div
           className="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-transform duration-75 ease-out"
           style={{
@@ -938,7 +955,9 @@ export function App() {
             />
             <span className="text-gray-200">
               {isRefreshing
-                ? 'กำลังรีเฟรชข้อมูลห้อง...'
+                ? currentView === 'home'
+                  ? 'กำลังรีเฟรชหน้าหลัก...'
+                  : 'กำลังรีเฟรชข้อมูลห้อง...'
                 : pullDistance >= 50
                 ? 'ปล่อยนิ้วเพื่อรีเฟรช 🚀'
                 : 'แตะแล้วปัดลงเพื่อรีเฟรช ⬇️'}

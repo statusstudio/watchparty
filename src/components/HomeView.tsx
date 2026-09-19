@@ -53,7 +53,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   };
 
   return (
-    <div className="min-h-full flex flex-col bg-[#0f0f13] text-gray-100 overflow-y-auto">
+    <div id="home-view-scroll" className="flex-1 min-h-0 flex flex-col bg-[#0f0f13] text-gray-100 overflow-y-auto">
       {/* Hero Section */}
       <section className="relative px-4 py-8 md:py-12 max-w-6xl mx-auto w-full text-center">
         {/* Decorative Glow */}
