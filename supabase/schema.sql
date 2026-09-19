@@ -114,7 +114,7 @@ BEGIN
   raw_avatar := COALESCE(
     NEW.raw_user_meta_data->>'avatar_url',
     NEW.raw_user_meta_data->>'picture',
-    'https://api.dicebear.com/7.x/bottts/svg?seed=' || encode(digest(NEW.id::text, 'sha1'), 'hex')
+    'https://api.dicebear.com/7.x/bottts/svg?seed=' || md5(NEW.id::text)
   );
 
   -- Generate friendly username from email or name
