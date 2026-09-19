@@ -12,8 +12,6 @@ interface LiveChatProps {
   onShowToast: (msg: string, type?: 'info' | 'success' | 'warning') => void;
 }
 
-const QUICK_EMOJIS = ['❤️', '🔥', '👏', '😂', '🎵', '🍿', '🚀', '🎉', '🙌', '💯'];
-
 export const LiveChat: React.FC<LiveChatProps> = ({
   messages,
   currentUser,
@@ -38,11 +36,6 @@ export const LiveChat: React.FC<LiveChatProps> = ({
 
     onSendMessage(inputText);
     setInputText('');
-  };
-
-  const handleQuickEmoji = (emoji: string) => {
-    onSendReaction?.(emoji);
-    onSendMessage(emoji);
   };
 
   // Parses timestamps like "01:23", "2:45", "1:15:30" into clickable buttons
@@ -154,21 +147,6 @@ export const LiveChat: React.FC<LiveChatProps> = ({
           );
         })}
         <div ref={messagesEndRef} />
-      </div>
-
-      {/* Quick Emoji Reaction Bar */}
-      <div className="px-3 py-1 bg-[#12141d]/70 border-t border-gray-800/60 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
-        <span className="text-[10px] text-gray-400 shrink-0 mr-0.5">ด่วน:</span>
-        {QUICK_EMOJIS.map((emoji) => (
-          <button
-            key={emoji}
-            type="button"
-            onClick={() => handleQuickEmoji(emoji)}
-            className="text-sm px-1.5 py-0.5 rounded-lg hover:bg-gray-800 transition-transform active:scale-125 cursor-pointer shrink-0"
-          >
-            {emoji}
-          </button>
-        ))}
       </div>
 
       {/* Input Area with Profile Avatar in front */}

@@ -918,11 +918,6 @@ export function App() {
               >
                 <MessageSquare className="w-3.5 h-3.5" />
                 <span>แชทสด</span>
-                {chat.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-white/20 text-[10px]">
-                    {chat.length}
-                  </span>
-                )}
               </button>
 
               <button
@@ -995,11 +990,6 @@ export function App() {
               >
                 <MessageSquare className="w-3.5 h-3.5" />
                 <span>แชทสด</span>
-                {chat.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-black/30 text-[10px]">
-                    {chat.length}
-                  </span>
-                )}
               </button>
 
               <button
