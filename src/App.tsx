@@ -134,9 +134,9 @@ export function App() {
   // Sync unread chat count to page title
   useEffect(() => {
     if (unreadChatCount > 0) {
-      document.title = `(${unreadChatCount}) Vibe – แชทใหม่`;
+      document.title = `(${unreadChatCount}) pleng.online – แชทใหม่`;
     } else {
-      document.title = 'Vibe – Meet, Watch & Listen Together';
+      document.title = 'pleng.online – ฟังเพลง ดูคลิป คุยไมค์สดไปด้วยกัน';
     }
   }, [unreadChatCount]);
 

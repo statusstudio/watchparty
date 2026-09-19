@@ -351,9 +351,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: video.title || 'Vibe Video',
-        artist: video.channel || 'WatchParty',
-        album: 'Vibe WatchParty',
+        title: video.title || 'pleng.online Music',
+        artist: video.channel || 'pleng.online',
+        album: 'pleng.online',
         artwork: [
           {
             src: `https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`,

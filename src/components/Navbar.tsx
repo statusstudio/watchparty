@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Moon,
 } from 'lucide-react';
+import { PlengLogo } from './PlengLogo.js';
 import { UserProfile, UserRole } from '../types/index.js';
 
 interface NavbarProps {
@@ -20,16 +21,15 @@ interface NavbarProps {
   isPrivate?: boolean;
   onlineCount: number;
   currentUser: UserProfile;
-  myRole?: UserRole;
+  myRole: UserRole;
   isSuperAdmin?: boolean;
   isRefreshing?: boolean;
-  onRefreshRoom?: () => void;
-  onToggleOledSleep?: () => void;
+  onRefreshRoom: () => void;
+  onToggleOledSleep: () => void;
   onNavigateHome: () => void;
   onOpenProfile: () => void;
-  onOpenPlaylist?: () => void;
-  onOpenAdminPanel?: () => void;
-  onOpenSuperAdminDashboard?: () => void;
+  onOpenAdminPanel: () => void;
+  onOpenSuperAdminDashboard: () => void;
   onShowToast: (msg: string, type?: 'info' | 'success' | 'warning') => void;
 }
 
@@ -40,9 +40,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   isPrivate,
   onlineCount,
   currentUser,
-  myRole = 'member',
-  isSuperAdmin = false,
-  isRefreshing = false,
+  myRole,
+  isSuperAdmin,
+  isRefreshing,
   onRefreshRoom,
   onToggleOledSleep,
   onNavigateHome,
@@ -55,12 +55,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   const isAdminOrOwner = myRole === 'owner' || myRole === 'admin';
 
   const handleCopyLink = () => {
-    const fullUrl = `${window.location.origin}${window.location.pathname}#room=${roomId}`;
-    navigator.clipboard.writeText(fullUrl).then(() => {
-      setCopied(true);
-      onShowToast('คัดลอกลิงก์ห้องแล้ว! ส่งให้เพื่อนเข้ามาร่วมดูได้เลย 🎉', 'success');
-      setTimeout(() => setCopied(false), 2000);
-    });
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    onShowToast('คัดลอกลิงก์ห้องแล้ว ส่งให้เพื่อนได้เลย! 📋', 'success');
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -70,15 +68,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Brand (Acts as Home button) */}
         <button
           onClick={onNavigateHome}
-          className="flex items-center gap-2 cursor-pointer group shrink-0 focus:outline-none"
-          title="Vibe - กลับหน้าหลัก"
+          className="cursor-pointer group shrink-0 focus:outline-none flex items-center"
+          title="pleng.online - กลับหน้าหลัก"
         >
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-md shadow-violet-500/20 group-hover:scale-105 transition-transform border border-white/10">
-            <Tv className="w-4 h-4 text-white" />
-          </div>
-          <span className="text-base sm:text-lg font-black text-white tracking-tight flex items-center">
-            Vibe<span className="text-pink-400">.</span>
-          </span>
+          <PlengLogo size="sm" animated={true} />
         </button>
 
         {/* If inside a Room: Room Badge & 1-Click Invite */}

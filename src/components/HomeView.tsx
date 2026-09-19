@@ -10,7 +10,9 @@ import {
   Sparkles,
   ArrowRight,
   Radio,
+  Music,
 } from 'lucide-react';
+import { PlengLogo } from './PlengLogo.js';
 import { RoomSummary, UserProfile } from '../types/index.js';
 
 interface HomeViewProps {
@@ -55,61 +57,59 @@ export const HomeView: React.FC<HomeViewProps> = ({
   return (
     <div id="home-view-scroll" className="flex-1 min-h-0 flex flex-col bg-[#0f0f13] text-gray-100 overflow-y-auto">
       {/* Hero Section */}
-      <section className="relative px-4 py-8 md:py-12 max-w-6xl mx-auto w-full text-center">
-        {/* Decorative Glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+      <section className="relative px-4 py-8 md:py-14 max-w-6xl mx-auto w-full text-center">
+        {/* Decorative Ambient Audio Glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] bg-gradient-to-tr from-violet-600/20 via-fuchsia-600/15 to-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col items-center gap-3">
-          {/* Sleek Vibe Brand Icon */}
-          <div className="inline-flex items-center justify-center">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-violet-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-xl shadow-violet-500/25 border border-white/20">
-              <Sparkles className="w-7 h-7 text-white animate-pulse" />
+        <div className="relative z-10 flex flex-col items-center gap-4">
+          {/* pleng.online Big Logo Display */}
+          <div className="hover:scale-105 transition-transform duration-300">
+            <PlengLogo size="hero" animated={true} />
+          </div>
+
+          {/* Feature Badges Pills */}
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-950/40 border border-violet-500/30 text-violet-300 text-xs font-medium backdrop-blur-sm shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>ซิงค์เพลงตรงเป๊ะ</span>
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-950/40 border border-pink-500/30 text-pink-300 text-xs font-medium backdrop-blur-sm shadow-sm">
+              <span>🎙️ คุยไมค์สดอิสระ</span>
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 text-xs font-medium backdrop-blur-sm shadow-sm">
+              <span>⚡ เข้าได้ทันที ไม่ต้องลงแอป</span>
             </div>
           </div>
 
-          <div className="pt-1">
-            <h1 className="text-4xl sm:text-6xl md:text-7xl font-black text-white tracking-tight flex items-center justify-center gap-1">
-              <span>Vibe</span>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-400 to-amber-300">
-                .
-              </span>
-            </h1>
-          </div>
-
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300 text-xs font-medium backdrop-blur-sm">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            Watch Together • Open Voice • Real-time Sync
-          </div>
-
-          <p className="text-xs sm:text-sm text-gray-400 max-w-xl mx-auto leading-relaxed">
-            ดู YouTube ซิงค์ตรงกันทุกคน พร้อมห้องคุยไมค์อิสระและแชทสด สร้างห้องแล้วส่งลิงก์ชวนเพื่อนได้ทันที
+          <p className="text-xs sm:text-sm text-gray-300 max-w-xl mx-auto leading-relaxed">
+            สเปซฟังเพลงและเปิดคลิป YouTube กับเพื่อนแบบเรียลไทม์ พร้อมห้องคุยไมค์สดและแชท สร้างห้องแล้วส่งลิงก์ชวนเพื่อนเข้ามาร่วมแจมได้ทันที
           </p>
 
           {/* Action buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
             <button
               onClick={onOpenCreateRoom}
-              className="px-5 py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg shadow-purple-600/30 transition-all flex items-center gap-2 cursor-pointer"
+              className="px-6 py-3 rounded-2xl font-semibold text-xs sm:text-sm bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 hover:from-violet-500 hover:to-pink-500 text-white shadow-xl shadow-purple-600/30 hover:shadow-purple-600/50 hover:scale-[1.02] transition-all flex items-center gap-2 cursor-pointer border border-white/10"
             >
-              <Plus className="w-4 h-4" />
-              สร้างห้องปาร์ตี้ใหม่
+              <Music className="w-4 h-4" />
+              <span>สร้างห้องฟังเพลงใหม่</span>
             </button>
           </div>
 
           {/* Quick Join via Room Code */}
-          <form onSubmit={handleQuickJoin} className="pt-3 max-w-md mx-auto w-full">
-            <div className="relative flex items-center">
+          <form onSubmit={handleQuickJoin} className="pt-2 max-w-md mx-auto w-full">
+            <div className="relative flex items-center shadow-lg shadow-black/40">
               <input
                 type="text"
                 value={quickRoomCode}
                 onChange={(e) => setQuickRoomCode(e.target.value)}
                 placeholder="มีรหัสห้อง? วางรหัสหรือลิงก์เพื่อเข้าทันที..."
-                className="w-full pl-3.5 pr-24 py-2.5 bg-[#151722] border border-gray-800 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                className="w-full pl-4 pr-24 py-2.5 bg-[#141622]/90 border border-gray-800/80 focus:border-violet-500 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none transition-colors backdrop-blur-md"
               />
               <button
                 type="submit"
                 disabled={!quickRoomCode.trim()}
-                className="absolute right-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-30 text-white text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer"
+                className="absolute right-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 disabled:opacity-30 text-white text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer"
               >
                 <span>เข้าห้อง</span>
                 <ArrowRight className="w-3 h-3" />
@@ -128,28 +128,36 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <Radio className="w-6 h-6 animate-pulse" />
             </div>
             <p className="text-sm font-semibold text-gray-200">
-              ยังไม่มีห้องปาร์ตี้ที่เปิดอยู่ในขณะนี้
+              ยังไม่มีห้องฟังเพลงที่เปิดอยู่ในขณะนี้
             </p>
             <p className="text-xs text-gray-500 leading-relaxed">
-              กดปุ่มสร้างห้องด้านล่างเพื่อเริ่มเปิดปาร์ตี้ แล้วส่งลิงก์ชวนเพื่อนมาร่วมดูและคุยกันได้เลย
+              กดปุ่มสร้างห้องด้านล่างเพื่อเริ่มเปิดเพลง แล้วส่งลิงก์ชวนเพื่อนมาร่วมฟังและคุยกันได้เลย
             </p>
             <button
               onClick={onOpenCreateRoom}
-              className="mt-2 px-4 py-2 rounded-xl text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white transition-colors cursor-pointer inline-flex items-center gap-1.5"
+              className="mt-2 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-violet-600 to-pink-600 hover:from-violet-500 hover:to-pink-500 text-white transition-colors cursor-pointer inline-flex items-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" />
-              สร้างห้องปาร์ตี้ตอนนี้
+              สร้างห้องแรกเลย
             </button>
           </div>
         ) : (
           <div>
             {/* Header with Search */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-6 border-b border-gray-800 pb-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-6 border-b border-gray-800/80 pb-3">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                <h2 className="text-sm font-semibold text-white tracking-wide">
-                  ห้องที่กำลังออนไลน์ ({filteredRooms.length})
-                </h2>
+                <div className="w-7 h-7 rounded-lg bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400">
+                  <Radio className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                    <span>ห้องฟังเพลงที่กำลังออนไลน์</span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  </h2>
+                </div>
+                <span className="text-xs text-gray-400 font-mono ml-1">
+                  ({filteredRooms.length})
+                </span>
               </div>
 
               {/* Search box */}
@@ -159,8 +167,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="ค้นหาห้อง..."
-                  className="w-full pl-9 pr-3 py-1.5 bg-[#151722] border border-gray-800 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                  placeholder="ค้นหาชื่อห้อง, ผู้สร้าง..."
+                  className="w-full pl-9 pr-3 py-1.5 bg-[#151722] border border-gray-800 focus:border-violet-500 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none transition-colors"
                 />
               </div>
             </div>
