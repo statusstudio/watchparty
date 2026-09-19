@@ -46,22 +46,7 @@ export class RoomManager {
   public pendingUsers: Map<WebSocket, UserProfile> = new Map();
 
   constructor() {
-    // Initialize default chill room
-    this.createRoom('squad-chill', {
-      name: 'Squad Chill & Lofi Beats 🎵',
-      description: 'ห้องปาร์ตี้หลัก ฟังเพลงชิลล์ๆ คุยงานและเล่นเกม',
-      isPrivate: false,
-      category: 'music',
-      coverImage: 'https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=800&auto=format&fit=crop&q=80',
-      onlyAdminManagePlaylist: false,
-      initialVideoId: 'jfKfPfyJRdk',
-    }, {
-      id: 'usr-admin-system',
-      name: 'System Admin',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
-      color: '#8b5cf6',
-      provider: 'google',
-    });
+    // Rooms are created dynamically on demand when users create them
   }
 
   private createDefaultSeats(): StageSeat[] {

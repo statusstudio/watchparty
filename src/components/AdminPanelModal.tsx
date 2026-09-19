@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Shield,
@@ -67,15 +67,30 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   const [activeTab, setActiveTab] = useState<'members' | 'settings' | 'banned'>('members');
 
   // Room Settings State
-  const [roomName, setRoomName] = useState(metadata.name);
+  const [roomName, setRoomName] = useState(metadata.name || '');
   const [roomDesc, setRoomDesc] = useState(metadata.description || '');
   const [category, setCategory] = useState<RoomCategory>(metadata.category || 'general');
   const [coverImage, setCoverImage] = useState(metadata.coverImage || '');
-  const [isPrivate, setIsPrivate] = useState(metadata.isPrivate);
+  const [isPrivate, setIsPrivate] = useState(metadata.isPrivate || false);
   const [password, setPassword] = useState(metadata.password || '');
-  const [onlyAdminPlaylist, setOnlyAdminPlaylist] = useState(metadata.onlyAdminManagePlaylist);
+  const [onlyAdminPlaylist, setOnlyAdminPlaylist] = useState(metadata.onlyAdminManagePlaylist || false);
   const [stageAccessMode, setStageAccessMode] = useState<StageAccessMode>(metadata.stageAccessMode || 'everyone');
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Sync current room data whenever modal opens or metadata updates from server
+  useEffect(() => {
+    if (isOpen) {
+      setRoomName(metadata.name || '');
+      setRoomDesc(metadata.description || '');
+      setCategory(metadata.category || 'general');
+      setCoverImage(metadata.coverImage || '');
+      setIsPrivate(metadata.isPrivate || false);
+      setPassword(metadata.password || '');
+      setOnlyAdminPlaylist(metadata.onlyAdminManagePlaylist || false);
+      setStageAccessMode(metadata.stageAccessMode || 'everyone');
+      setSavedSuccess(false);
+    }
+  }, [isOpen, metadata]);
 
   if (!isOpen) return null;
 

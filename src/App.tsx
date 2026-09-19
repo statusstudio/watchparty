@@ -36,7 +36,6 @@ import { SuperAdminUnlockModal } from './components/SuperAdminUnlockModal.js';
 import { SuperAdminDashboardModal } from './components/SuperAdminDashboardModal.js';
 import { SupportModal } from './components/SupportModal.js';
 import { FloatingItem } from './components/FloatingReactions.js';
-import { soundSynthesizer } from './services/soundEffects.js';
 import { ToastContainer, ToastItem } from './components/Toast.js';
 
 function getHashRoomId(): string | null {
@@ -377,11 +376,6 @@ export function App() {
           break;
         }
 
-        case 'PLAY_SOUND':
-          soundSynthesizer.play(msg.soundId);
-          showToast(`${msg.playedBy.name} เล่นเสียง "${msg.soundName}" 📢`, 'info');
-          break;
-
         case 'SIGNAL_DATA':
           webrtcRef.current?.handleSignal(msg.senderId, msg.data);
           break;
@@ -703,14 +697,6 @@ export function App() {
     socketService.send({
       type: 'EMOJI_REACTION',
       emoji,
-    });
-  };
-
-  const handleTriggerSound = (soundId: string, soundName: string) => {
-    socketService.send({
-      type: 'PLAY_SOUND',
-      soundId,
-      soundName,
     });
   };
 
