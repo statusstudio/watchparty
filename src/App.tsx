@@ -29,8 +29,6 @@ import { SidebarQueue } from './components/SidebarQueue.js';
 import { HomeView } from './components/HomeView.js';
 import { ProfileModal } from './components/ProfileModal.js';
 import { PlaylistModal } from './components/PlaylistModal.js';
-import { SoundboardModal } from './components/SoundboardModal.js';
-import { AuthModal } from './components/AuthModal.js';
 import { CreateRoomModal, CreateRoomForm } from './components/CreateRoomModal.js';
 import { PasswordGateModal } from './components/PasswordGateModal.js';
 import { AdminPanelModal } from './components/AdminPanelModal.js';
@@ -110,8 +108,6 @@ export function App() {
   // Modals State
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
-  const [isSoundboardOpen, setIsSoundboardOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isCreateRoomModalOpen, setIsCreateRoomModalOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [isAudioDuckingEnabled, setIsAudioDuckingEnabled] = useState(true);
@@ -739,7 +735,6 @@ export function App() {
         isSuperAdmin={isSuperAdmin}
         onNavigateHome={handleNavigateHome}
         onOpenProfile={() => setIsProfileModalOpen(true)}
-        onOpenSoundboard={() => setIsSoundboardOpen(true)}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         onOpenSuperAdminDashboard={() => {
           if (isSuperAdmin) {
@@ -1167,12 +1162,6 @@ export function App() {
         onNextTrack={handleNextTrack}
         onPrevTrack={handlePrevTrack}
         onShowToast={showToast}
-      />
-
-      <SoundboardModal
-        isOpen={isSoundboardOpen}
-        onClose={() => setIsSoundboardOpen(false)}
-        onTriggerSound={handleTriggerSound}
       />
 
       <CreateRoomModal

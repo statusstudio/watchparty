@@ -5,7 +5,6 @@ import {
   Copy,
   Check,
   Tv,
-  Volume2,
   Crown,
   Shield,
   Lock,
@@ -24,7 +23,6 @@ interface NavbarProps {
   onNavigateHome: () => void;
   onOpenProfile: () => void;
   onOpenPlaylist?: () => void;
-  onOpenSoundboard: () => void;
   onOpenAdminPanel?: () => void;
   onOpenSuperAdminDashboard?: () => void;
   onShowToast: (msg: string, type?: 'info' | 'success' | 'warning') => void;
@@ -41,7 +39,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   isSuperAdmin = false,
   onNavigateHome,
   onOpenProfile,
-  onOpenSoundboard,
   onOpenAdminPanel,
   onOpenSuperAdminDashboard,
   onShowToast,
@@ -142,15 +139,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="hidden md:inline">จัดการห้อง</span>
               </button>
             )}
-
-            {/* Soundboard (Clean subtle icon button) */}
-            <button
-              onClick={onOpenSoundboard}
-              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-amber-300 border border-gray-800 transition-colors cursor-pointer"
-              title="เปิด Soundboard ซาวด์เอฟเฟกต์"
-            >
-              <Volume2 className="w-4 h-4" />
-            </button>
           </>
         )}
 
