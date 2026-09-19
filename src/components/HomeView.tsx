@@ -20,7 +20,6 @@ interface HomeViewProps {
   currentUser: UserProfile;
   onSelectRoom: (roomId: string) => void;
   onOpenCreateRoom: () => void;
-  onOpenAuth: () => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -28,14 +27,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
   currentUser,
   onSelectRoom,
   onOpenCreateRoom,
-  onOpenAuth,
 }) => {
   const [filterTab, setFilterTab] = useState<'all' | 'my'>('all');
   const [selectedCategory, setSelectedCategory] = useState<'all' | RoomCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [quickRoomCode, setQuickRoomCode] = useState('');
-
-  const isGoogleLoggedIn = currentUser.provider === 'google';
 
   const filteredRooms = rooms.filter((r) => {
     if (filterTab === 'my') {
@@ -108,15 +104,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <Plus className="w-4 h-4" />
               สร้างห้องปาร์ตี้ใหม่
             </button>
-
-            {!isGoogleLoggedIn && (
-              <button
-                onClick={onOpenAuth}
-                className="px-4 py-2.5 rounded-xl font-medium text-xs sm:text-sm bg-gray-800/80 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors flex items-center gap-2 cursor-pointer"
-              >
-                <span>เข้าสู่ระบบด้วย Gmail</span>
-              </button>
-            )}
           </div>
 
           {/* Quick Join via Room Code */}

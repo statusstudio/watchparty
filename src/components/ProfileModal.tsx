@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Upload, Check, Palette, User, Sparkles } from 'lucide-react';
+import { X, Upload, Check, Palette, User, Sparkles, LifeBuoy, Crown } from 'lucide-react';
 import { UserProfile } from '../types/index.js';
 import { PRESET_AVATARS, COLOR_PALETTE } from '../data/presets.js';
 import { compressProfileImage } from '../services/imageCompressor.js';
@@ -9,9 +9,18 @@ interface ProfileModalProps {
   onClose: () => void;
   currentUser: UserProfile;
   onSave: (updated: UserProfile) => void;
+  onOpenSupport?: () => void;
+  onOpenSuperAdmin?: () => void;
 }
 
-export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, currentUser, onSave }) => {
+export const ProfileModal: React.FC<ProfileModalProps> = ({
+  isOpen,
+  onClose,
+  currentUser,
+  onSave,
+  onOpenSupport,
+  onOpenSuperAdmin,
+}) => {
   const [name, setName] = useState(currentUser.name);
   const [color, setColor] = useState(currentUser.color);
   const [avatar, setAvatar] = useState(currentUser.avatar);
@@ -211,6 +220,37 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, cur
             >
               บันทึกโปรไฟล์
             </button>
+          </div>
+
+          {/* Discreet Help & Admin Access */}
+          <div className="pt-3 border-t border-gray-800/80 flex items-center justify-between text-xs text-gray-500">
+            {onOpenSupport && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenSupport();
+                }}
+                className="hover:text-blue-400 transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <LifeBuoy className="w-3.5 h-3.5 text-blue-400" />
+                <span>แจ้งปัญหา / แนะนำ</span>
+              </button>
+            )}
+
+            {onOpenSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenSuperAdmin();
+                }}
+                className="hover:text-amber-400 transition-colors flex items-center gap-1.5 cursor-pointer ml-auto"
+              >
+                <Crown className="w-3.5 h-3.5 text-amber-500/80" />
+                <span>แอดมินเจ้าของเว็บ</span>
+              </button>
+            )}
           </div>
         </form>
       </div>

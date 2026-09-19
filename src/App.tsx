@@ -739,11 +739,8 @@ export function App() {
         isSuperAdmin={isSuperAdmin}
         onNavigateHome={handleNavigateHome}
         onOpenProfile={() => setIsProfileModalOpen(true)}
-        onOpenPlaylist={() => setIsPlaylistModalOpen(true)}
         onOpenSoundboard={() => setIsSoundboardOpen(true)}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
-        onOpenSupport={() => setIsSupportModalOpen(true)}
         onOpenSuperAdminDashboard={() => {
           if (isSuperAdmin) {
             setIsSuperAdminModalOpen(true);
@@ -761,7 +758,6 @@ export function App() {
           currentUser={currentUser}
           onSelectRoom={handleSelectRoom}
           onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
-          onOpenAuth={() => setIsAuthModalOpen(true)}
         />
       ) : (
         <main className="flex-1 min-h-0 max-w-[1920px] w-full mx-auto p-2 sm:p-3 lg:p-3.5 flex flex-col lg:grid lg:grid-cols-12 gap-2 sm:gap-3 lg:gap-3.5 overflow-y-auto lg:overflow-hidden">
@@ -1161,6 +1157,8 @@ export function App() {
         onClose={() => setIsProfileModalOpen(false)}
         currentUser={currentUser}
         onSave={handleSaveProfile}
+        onOpenSupport={() => setIsSupportModalOpen(true)}
+        onOpenSuperAdmin={() => setIsSuperAdminUnlockModalOpen(true)}
       />
 
       <PlaylistModal
@@ -1185,14 +1183,6 @@ export function App() {
         isOpen={isSoundboardOpen}
         onClose={() => setIsSoundboardOpen(false)}
         onTriggerSound={handleTriggerSound}
-      />
-
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        currentUser={currentUser}
-        onLoginSuccess={handleLoginSuccess}
-        onLogout={handleLogout}
       />
 
       <CreateRoomModal
