@@ -28,6 +28,9 @@ import { LiveChat } from './components/LiveChat.js';
 import { SidebarQueue } from './components/SidebarQueue.js';
 import { HomeView } from './components/HomeView.js';
 import { ProfileModal } from './components/ProfileModal.js';
+import { AuthModal } from './components/AuthModal.js';
+import { UserProfileModal } from './components/UserProfileModal.js';
+import { UserCardModal } from './components/UserCardModal.js';
 import { PlaylistModal } from './components/PlaylistModal.js';
 import { CreateRoomModal, CreateRoomForm } from './components/CreateRoomModal.js';
 import { PasswordGateModal } from './components/PasswordGateModal.js';
@@ -37,6 +40,14 @@ import { SuperAdminDashboardModal } from './components/SuperAdminDashboardModal.
 import { SupportModal } from './components/SupportModal.js';
 import { FloatingItem } from './components/FloatingReactions.js';
 import { ToastContainer, ToastItem } from './components/Toast.js';
+import {
+  isSupabaseConfigured,
+  supabase,
+  fetchProfile,
+  addFavorite,
+  removeFavorite,
+  checkIsFavorite,
+} from './services/supabase.js';
 
 function getHashRoomId(): string | null {
   const hash = window.location.hash;
@@ -163,6 +174,12 @@ export function App() {
 
   // Modals State
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isUserProfileModalOpen, setIsUserProfileModalOpen] = useState(false);
+  const [selectedUserForProfile, setSelectedUserForProfile] = useState<UserProfile | null>(null);
+  const [isUserCardModalOpen, setIsUserCardModalOpen] = useState(false);
+  const [selectedUserForCard, setSelectedUserForCard] = useState<UserProfile | null>(null);
+  const [isVideoFavorite, setIsVideoFavorite] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isCreateRoomModalOpen, setIsCreateRoomModalOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
@@ -209,6 +226,97 @@ export function App() {
   useEffect(() => {
     fetchPublicRooms();
   }, [fetchPublicRooms]);
+
+  // Sync Supabase OAuth session (Google / Facebook)
+  useEffect(() => {
+    if (isSupabaseConfigured() && supabase) {
+      const handleSupabaseSession = async (sbUser: any) => {
+        const provider = (sbUser.app_metadata?.provider as any) || 'google';
+        const meta = sbUser.user_metadata || {};
+        const email = sbUser.email || '';
+        const name = meta.full_name || meta.name || email.split('@')[0] || 'Music Lover';
+        const avatar =
+          meta.avatar_url || meta.picture || `https://api.dicebear.com/7.x/bottts/svg?seed=${sbUser.id}`;
+
+        const existing = await fetchProfile(sbUser.id, sbUser.id);
+        if (existing) {
+          setCurrentUser(existing);
+          saveUser(existing);
+        } else {
+          const newUser: UserProfile = {
+            id: sbUser.id,
+            name,
+            username: email
+              ? email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '')
+              : `user_${sbUser.id.slice(0, 5)}`,
+            email,
+            avatar,
+            color: '#ec4899',
+            bannerUrl:
+              'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
+            provider,
+            bio: 'เพลิดเพลินกับเสียงดนตรีบน pleng.online 🎧',
+            favoriteGenres: ['Lofi', 'Pop', 'Acoustic'],
+            followersCount: 0,
+            followingCount: 0,
+          };
+          setCurrentUser(newUser);
+          saveUser(newUser);
+        }
+      };
+
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          handleSupabaseSession(session.user);
+        }
+      });
+
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session?.user) {
+          await handleSupabaseSession(session.user);
+          if (event === 'SIGNED_IN') {
+            showToast('เข้าสู่ระบบสำเร็จ ยินดีต้อนรับสู่ pleng.online 🎵', 'success');
+          }
+        }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [showToast]);
+
+  // Check if current video is in favorites
+  useEffect(() => {
+    if (!video.videoId) {
+      setIsVideoFavorite(false);
+      return;
+    }
+    checkIsFavorite(currentUser.id, video.videoId).then((fav) => {
+      setIsVideoFavorite(fav);
+    });
+  }, [video.videoId, currentUser.id]);
+
+  // Toggle Favorite handler
+  const handleToggleFavoriteCurrentSong = useCallback(async () => {
+    if (!video.videoId) return;
+
+    if (isVideoFavorite) {
+      await removeFavorite(currentUser.id, video.videoId);
+      setIsVideoFavorite(false);
+      showToast('ลบเพลงนี้ออกจากคลังเพลงโปรดแล้ว', 'info');
+    } else {
+      await addFavorite(currentUser.id, {
+        videoId: video.videoId,
+        title: video.title,
+        channel: video.channel,
+      });
+      setIsVideoFavorite(true);
+      showToast('บันทึกเพลงนี้ลงในคลังเพลงโปรดของคุณแล้ว ❤️', 'success');
+    }
+  }, [video.videoId, video.title, video.channel, currentUser.id, isVideoFavorite, showToast]);
 
   // Refresh Room & Pull-to-Refresh
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -646,6 +754,9 @@ export function App() {
 
   const handleLogout = () => {
     clearUser();
+    if (isSupabaseConfigured() && supabase) {
+      supabase.auth.signOut();
+    }
     const guestUser = getStoredUser();
     setCurrentUser(guestUser);
     socketService.send({
@@ -750,6 +861,17 @@ export function App() {
     });
     showToast('อัพเดทโปรไฟล์สำเร็จ!', 'success');
   };
+
+  // Full Member & Profile System Handlers
+  const handleOpenUserCard = useCallback((user: UserProfile) => {
+    setSelectedUserForCard(user);
+    setIsUserCardModalOpen(true);
+  }, []);
+
+  const handleViewFullProfile = useCallback((user: UserProfile) => {
+    setSelectedUserForProfile(user);
+    setIsUserProfileModalOpen(true);
+  }, []);
 
   // Stage speak request interactions
   const handleRequestToSpeak = (seatNumber?: number) => {
@@ -945,6 +1067,11 @@ export function App() {
         onToggleOledSleep={() => setIsOledSleepMode(true)}
         onNavigateHome={handleNavigateHome}
         onOpenProfile={() => setIsProfileModalOpen(true)}
+        onOpenFullProfile={() => {
+          setSelectedUserForProfile(currentUser);
+          setIsUserProfileModalOpen(true);
+        }}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         onOpenSuperAdminDashboard={() => {
           if (isSuperAdmin) {
@@ -1051,6 +1178,8 @@ export function App() {
                 onRemoveReaction={handleRemoveReaction}
                 isSomeoneSpeaking={isSomeoneSpeaking}
                 isAudioDuckingEnabled={isAudioDuckingEnabled}
+                isFavorite={isVideoFavorite}
+                onToggleFavorite={handleToggleFavoriteCurrentSong}
                 onToggleAudioDucking={() => {
                   setIsAudioDuckingEnabled((prev) => {
                     const next = !prev;
@@ -1255,6 +1384,7 @@ export function App() {
                 onSpeakingState={handleSpeakingState}
                 onLocalStreamReady={handleLocalStreamReady}
                 onOpenProfile={() => setIsProfileModalOpen(true)}
+                onSelectUser={handleOpenUserCard}
                 onShowToast={showToast}
                 onRequestToSpeak={handleRequestToSpeak}
                 onApproveSpeakRequest={handleApproveSpeakRequest}
@@ -1365,6 +1495,7 @@ export function App() {
                 onSendReaction={handleSendReaction}
                 onSeekTo={handleVideoSeek}
                 onOpenProfile={() => setIsProfileModalOpen(true)}
+                onSelectUser={handleOpenUserCard}
                 onShowToast={showToast}
               />
             </div>
@@ -1391,7 +1522,15 @@ export function App() {
                 return (
                   <div
                     key={m.user.id}
-                    className="flex items-center justify-between p-2 rounded-xl bg-[#171824]/60 hover:bg-[#1a1c2b] border border-gray-800/60 transition-colors"
+                    onClick={() => {
+                      if (m.user.id === currentUser.id) {
+                        setIsProfileModalOpen(true);
+                      } else {
+                        handleOpenUserCard(m.user);
+                      }
+                    }}
+                    className="flex items-center justify-between p-2 rounded-xl bg-[#171824]/60 hover:bg-[#1a1c2b] border border-gray-800/60 transition-colors cursor-pointer group"
+                    title={`ดูโปรไฟล์ของ ${m.user.name}`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div
@@ -1459,6 +1598,50 @@ export function App() {
       )}
 
       {/* Modals */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentUser={currentUser}
+        onLoginSuccess={handleLoginSuccess}
+        onLogout={handleLogout}
+      />
+
+      <UserProfileModal
+        isOpen={isUserProfileModalOpen}
+        onClose={() => setIsUserProfileModalOpen(false)}
+        targetUser={selectedUserForProfile}
+        currentUser={currentUser}
+        onUpdateCurrentUser={(updated) => {
+          setCurrentUser(updated);
+          saveUser(updated);
+          handleSaveProfile(updated);
+        }}
+        onPlaySong={(videoId, title, channel) => {
+          handleVideoChange(videoId, title, channel);
+          setIsUserProfileModalOpen(false);
+          showToast(`เปิดเพลง: ${title} 🎵`, 'success');
+        }}
+        onOpenAuth={() => {
+          setIsUserProfileModalOpen(false);
+          setIsAuthModalOpen(true);
+        }}
+      />
+
+      <UserCardModal
+        isOpen={isUserCardModalOpen}
+        onClose={() => setIsUserCardModalOpen(false)}
+        targetUser={selectedUserForCard}
+        currentUser={currentUser}
+        onViewFullProfile={(user) => {
+          setIsUserCardModalOpen(false);
+          handleViewFullProfile(user);
+        }}
+        onOpenAuth={() => {
+          setIsUserCardModalOpen(false);
+          setIsAuthModalOpen(true);
+        }}
+      />
+
       <ProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}

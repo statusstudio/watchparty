@@ -28,6 +28,8 @@ interface NavbarProps {
   onToggleOledSleep: () => void;
   onNavigateHome: () => void;
   onOpenProfile: () => void;
+  onOpenFullProfile?: () => void;
+  onOpenAuth?: () => void;
   onOpenAdminPanel: () => void;
   onOpenSuperAdminDashboard: () => void;
   onShowToast: (msg: string, type?: 'info' | 'success' | 'warning') => void;
@@ -47,6 +49,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleOledSleep,
   onNavigateHome,
   onOpenProfile,
+  onOpenFullProfile,
+  onOpenAuth,
   onOpenAdminPanel,
   onOpenSuperAdminDashboard,
   onShowToast,
@@ -180,14 +184,28 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         )}
 
-        {/* User Profile Pill (Click to edit avatar, name, and access settings/support) */}
+        {/* User Profile / Login Pill */}
+        {(!currentUser.provider || currentUser.provider === 'guest') && onOpenAuth && (
+          <button
+            onClick={onOpenAuth}
+            className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 hover:from-rose-600 hover:to-purple-700 text-white font-medium text-xs shadow-md shadow-rose-500/20 flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+            title="เข้าสู่ระบบด้วย Google หรือ Facebook"
+          >
+            <span>เข้าสู่ระบบ</span>
+          </button>
+        )}
+
         <button
-          onClick={onOpenProfile}
-          title="แก้ไขโปรไฟล์ / บัญชีของคุณ"
-          className="flex items-center gap-2 p-1 pr-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-gray-800 hover:border-gray-700 transition-colors group cursor-pointer"
+          onClick={onOpenFullProfile || onOpenProfile}
+          title={
+            currentUser.provider === 'google' || currentUser.provider === 'facebook'
+              ? 'เปิดหน้าโปรไฟล์ส่วนตัวของคุณ'
+              : 'แก้ไขโปรไฟล์ / บัญชีของคุณ'
+          }
+          className="flex items-center gap-2 p-1 pr-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-gray-800 hover:border-gray-700 transition-colors group cursor-pointer shrink-0"
         >
           <div
-            className="w-6 h-6 sm:w-7 sm:h-7 rounded-full overflow-hidden border-2 shrink-0"
+            className="w-6 h-6 sm:w-7 sm:h-7 rounded-full overflow-hidden border-2 shrink-0 relative"
             style={{ borderColor: currentUser.color }}
           >
             <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
@@ -195,6 +213,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span className="text-xs font-medium text-gray-200 group-hover:text-white max-w-[80px] sm:max-w-[120px] truncate">
             {currentUser.name}
           </span>
+          {currentUser.provider === 'google' && (
+            <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" title="Google Account" />
+          )}
+          {currentUser.provider === 'facebook' && (
+            <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" title="Facebook Account" />
+          )}
         </button>
       </div>
     </header>

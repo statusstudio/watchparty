@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, Radio, VolumeOff, Headphones, Music } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize, Radio, VolumeOff, Headphones, Music, Heart } from 'lucide-react';
 import { VideoState } from '../types/index.js';
 import { FloatingReactions, FloatingItem } from './FloatingReactions.js';
 
@@ -9,6 +9,8 @@ interface VideoPlayerProps {
   onRemoveReaction: (id: string) => void;
   isSomeoneSpeaking: boolean;
   isAudioDuckingEnabled: boolean;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
   onToggleAudioDucking: () => void;
   onPlay: (currentTime: number, duration?: number) => void;
   onPause: (currentTime: number, duration?: number) => void;
@@ -32,6 +34,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onRemoveReaction,
   isSomeoneSpeaking,
   isAudioDuckingEnabled,
+  isFavorite,
+  onToggleFavorite,
   onToggleAudioDucking,
   onPlay,
   onPause,
@@ -536,6 +540,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {/* Quick Player Control Overlay (Top right) */}
       <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 backdrop-blur-md p-1.5 rounded-xl border border-white/10">
+        {video.videoId && onToggleFavorite && (
+          <button
+            onClick={onToggleFavorite}
+            title={isFavorite ? 'ลบออกจากเพลงโปรด' : 'บันทึกเพลงนี้เป็นเพลงโปรด ❤️'}
+            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              isFavorite
+                ? 'text-rose-500 bg-rose-500/20'
+                : 'text-gray-400 hover:text-rose-400 hover:bg-white/10'
+            }`}
+          >
+            <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+          </button>
+        )}
         <button
           onClick={onToggleAudioDucking}
           title={isAudioDuckingEnabled ? 'เปิดระบบลดเสียงคลิปเวลาคนพูดอยู่ (คลิกเพื่อปิด)' : 'ปิดระบบลดเสียงคลิปเวลาคนพูดอยู่ (คลิกเพื่อเปิด)'}

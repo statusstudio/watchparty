@@ -30,6 +30,7 @@ interface VoiceStageProps {
   onSpeakingState: (isSpeaking: boolean) => void;
   onLocalStreamReady: (stream: MediaStream | null) => void;
   onOpenProfile: () => void;
+  onSelectUser?: (user: UserProfile) => void;
   onShowToast: (msg: string, type?: 'info' | 'success' | 'warning') => void;
   onRequestToSpeak?: (seatNumber?: number) => void;
   onApproveSpeakRequest?: (targetUserId: string, approved: boolean, seatNumber?: number) => void;
@@ -49,6 +50,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
   onSpeakingState,
   onLocalStreamReady,
   onOpenProfile,
+  onSelectUser,
   onShowToast,
   onRequestToSpeak,
   onApproveSpeakRequest,
@@ -334,14 +336,18 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
               <div
                 key={seat.user.id}
                 onClick={() => {
-                  if (isMe) onOpenProfile();
+                  if (isMe) {
+                    onOpenProfile();
+                  } else if (onSelectUser && seat.user) {
+                    onSelectUser(seat.user);
+                  }
                 }}
-                className={`relative flex items-center gap-2.5 p-1.5 pr-3 rounded-xl bg-[#171824]/80 border transition-all ${
+                className={`relative flex items-center gap-2.5 p-1.5 pr-3 rounded-xl bg-[#171824]/80 border transition-all cursor-pointer ${
                   isSpeakingNow
                     ? 'border-emerald-500/60 shadow-[0_0_12px_rgba(52,211,153,0.3)] bg-emerald-950/20'
                     : 'border-gray-800 hover:border-gray-700'
-                } ${isMe ? 'cursor-pointer' : ''}`}
-                title={isMe ? 'คลิกเพื่อแก้ไขโปรไฟล์ของคุณ' : seat.user.name}
+                }`}
+                title={isMe ? 'คลิกเพื่อแก้ไขโปรไฟล์ของคุณ' : `ดูโปรไฟล์ของ ${seat.user.name}`}
               >
                 {/* Avatar with Live Pulse Ring */}
                 <div className="relative shrink-0 flex items-center justify-center">

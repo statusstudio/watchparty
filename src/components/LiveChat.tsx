@@ -9,6 +9,7 @@ interface LiveChatProps {
   onSendReaction?: (emoji: string) => void;
   onSeekTo: (seconds: number) => void;
   onOpenProfile: () => void;
+  onSelectUser?: (user: UserProfile) => void;
   onShowToast: (msg: string, type?: 'info' | 'success' | 'warning') => void;
 }
 
@@ -19,6 +20,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
   onSendReaction,
   onSeekTo,
   onOpenProfile,
+  onSelectUser,
   onShowToast,
 }) => {
   const [inputText, setInputText] = useState('');
@@ -113,27 +115,45 @@ export const LiveChat: React.FC<LiveChatProps> = ({
           return (
             <div key={msg.id} className="flex items-start gap-2.5 group">
               {/* Sender Profile Avatar */}
-              <div
-                className="w-8 h-8 rounded-full overflow-hidden shrink-0 border-2 mt-0.5"
+              <button
+                type="button"
+                onClick={() => {
+                  if (isMe) {
+                    onOpenProfile();
+                  } else if (onSelectUser) {
+                    onSelectUser(msg.sender);
+                  }
+                }}
+                className="w-8 h-8 rounded-full overflow-hidden shrink-0 border-2 mt-0.5 hover:opacity-80 transition-opacity cursor-pointer"
                 style={{ borderColor: msg.sender.color }}
+                title={`ดูโปรไฟล์ของ ${msg.sender.name}`}
               >
                 <img
                   src={msg.sender.avatar}
                   alt={msg.sender.name}
                   className="w-full h-full object-cover bg-gray-900"
                 />
-              </div>
+              </button>
 
               {/* Message Bubble */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2 mb-0.5">
-                  <span
-                    className="text-xs font-semibold truncate max-w-[130px]"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isMe) {
+                        onOpenProfile();
+                      } else if (onSelectUser) {
+                        onSelectUser(msg.sender);
+                      }
+                    }}
+                    className="text-xs font-semibold truncate max-w-[130px] hover:underline cursor-pointer text-left"
                     style={{ color: msg.sender.color }}
+                    title={`ดูโปรไฟล์ของ ${msg.sender.name}`}
                   >
                     {msg.sender.name}
                     {isMe && <span className="text-[10px] text-gray-500 ml-1">(คุณ)</span>}
-                  </span>
+                  </button>
                   <span className="text-[10px] text-gray-400">
                     {formatMessageTime(msg.timestamp)}
                   </span>

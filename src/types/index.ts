@@ -1,13 +1,41 @@
-export type AuthProvider = 'google' | 'guest';
+export type AuthProvider = 'google' | 'facebook' | 'guest';
+
+export interface UserSocialLinks {
+  instagram?: string;
+  facebook?: string;
+  tiktok?: string;
+  spotify?: string;
+  youtube?: string;
+}
 
 export interface UserProfile {
   id: string;
   name: string;
+  username?: string;
   avatar: string;
+  bannerUrl?: string;
   color: string;
   email?: string;
   provider?: AuthProvider;
+  bio?: string;
+  favoriteGenres?: string[];
+  socialLinks?: UserSocialLinks;
+  followersCount?: number;
+  followingCount?: number;
+  isFollowing?: boolean;
   isSuperAdmin?: boolean;
+  createdAt?: number;
+}
+
+export interface FavoriteSong {
+  id: string;
+  userId: string;
+  videoId: string;
+  title: string;
+  channel: string;
+  thumbnail: string;
+  duration: string;
+  createdAt: number;
 }
 
 export type UserRole = 'owner' | 'admin' | 'member';
