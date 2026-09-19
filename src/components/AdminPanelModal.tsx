@@ -44,6 +44,7 @@ interface AdminPanelModalProps {
     onlyAdminManagePlaylist: boolean;
     stageAccessMode?: StageAccessMode;
   }) => void;
+  onShowToast?: (msg: string, type?: 'info' | 'success' | 'warning') => void;
 }
 
 export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
@@ -63,6 +64,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   onForceLeaveStage,
   onRevokeSpeakerPermission,
   onUpdateSettings,
+  onShowToast,
 }) => {
   const [activeTab, setActiveTab] = useState<'members' | 'settings' | 'banned'>('members');
 
@@ -112,8 +114,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       stageAccessMode,
     });
 
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
+    onShowToast?.('บันทึกการตั้งค่าห้องเรียบร้อยแล้ว 🎉', 'success');
+    onClose();
   };
 
   return (

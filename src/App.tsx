@@ -518,6 +518,7 @@ export function App() {
       type: 'UPDATE_ROOM_SETTINGS',
       settings,
     });
+    showToast('บันทึกการตั้งค่าห้องเรียบร้อยแล้ว 🎉', 'success');
   };
 
   // Profile Save
@@ -1181,6 +1182,7 @@ export function App() {
         onForceLeaveStage={handleForceLeaveStage}
         onRevokeSpeakerPermission={handleRevokeSpeakPermission}
         onUpdateSettings={handleUpdateRoomSettings}
+        onShowToast={showToast}
       />
 
       <SupportModal

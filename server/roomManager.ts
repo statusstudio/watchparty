@@ -508,11 +508,11 @@ export class RoomManager {
     const room = this.rooms.get(client.roomId);
     if (!room) return;
 
-    // Only room owner can update settings
-    if (client.user.id !== room.metadata.ownerId) {
+    // Only room owner or admin can update settings
+    if (client.user.id !== room.metadata.ownerId && !room.adminIds.has(client.user.id)) {
       this.sendToClient(ws, {
         type: 'SYNC_TOAST',
-        message: 'เฉพาะเจ้าของห้อง (Owner) เท่านั้นที่สามารถเปลี่ยนการตั้งค่าห้องได้',
+        message: 'เฉพาะเจ้าของห้องหรือผู้ดูแลห้องเท่านั้นที่สามารถเปลี่ยนการตั้งค่าห้องได้',
         toastType: 'warning',
       });
       return;
