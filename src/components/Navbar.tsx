@@ -10,9 +10,8 @@ import {
   RefreshCw,
   Moon,
   LogOut,
-  MoreVertical,
+  MoreHorizontal,
   User,
-  Sparkles,
   LogIn,
   X,
 } from 'lucide-react';
@@ -91,9 +90,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, [isMobileMenuOpen]);
 
   return (
-    <header className="relative h-14 shrink-0 bg-[#12131c]/95 backdrop-blur-md border-b border-gray-800/80 px-2.5 sm:px-5 flex items-center justify-between z-40">
+    <header className="relative h-14 shrink-0 bg-[#12131c]/95 backdrop-blur-md border-b border-gray-800/80 px-2.5 sm:px-4 flex items-center justify-between z-40">
       {/* Left: Brand Logo & Room Info */}
-      <div className="flex items-center gap-1.5 xs:gap-2.5 sm:gap-3.5 min-w-0">
+      <div className="flex items-center gap-1.5 xs:gap-2.5 sm:gap-3 min-w-0">
         {/* Brand (Acts as Home button) */}
         <button
           onClick={onNavigateHome}
@@ -114,16 +113,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               ) : (
                 <Radio className="w-3 h-3 text-emerald-400 animate-pulse shrink-0" />
               )}
-              <span className="font-medium text-[11px] sm:text-xs text-gray-200 truncate max-w-[70px] xs:max-w-[110px] sm:max-w-[180px]">
+              <span className="font-medium text-[11px] sm:text-xs text-gray-200 truncate max-w-[75px] xs:max-w-[110px] sm:max-w-[160px]">
                 {roomName || roomId}
               </span>
             </div>
 
-            {/* Desktop 1-Click Invite Button (hidden on mobile, inside mobile menu) */}
+            {/* Desktop Invite Button (hidden on mobile < md:, inside mobile 3-dots menu) */}
             <button
               onClick={handleCopyLink}
               title="คัดลอกลิงก์ชวนเพื่อน"
-              className={`hidden sm:flex px-2.5 py-1 rounded-lg border text-xs font-medium transition-all items-center gap-1.5 cursor-pointer shrink-0 ${
+              className={`hidden md:flex px-2.5 py-1 rounded-lg border text-xs font-medium transition-all items-center gap-1.5 cursor-pointer shrink-0 ${
                 copied
                   ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                   : 'bg-white/5 hover:bg-white/10 text-gray-300 border-gray-700/60 hover:text-white'
@@ -141,14 +140,14 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Right Controls: Responsive Layout */}
-      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-        {/* --- DESKTOP ONLY CONTROLS (hidden sm:flex) --- */}
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        {/* --- DESKTOP ONLY CONTROLS (hidden md:flex) --- */}
         {/* Refresh Button */}
         {onRefreshRoom && (
           <button
             onClick={onRefreshRoom}
             disabled={isRefreshing}
-            className="hidden sm:flex px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 border border-gray-700/60 hover:text-white text-xs font-medium transition-all cursor-pointer items-center gap-1.5 disabled:opacity-50 shrink-0"
+            className="hidden md:flex px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 border border-gray-700/60 hover:text-white text-xs font-medium transition-all cursor-pointer items-center gap-1.5 disabled:opacity-50 shrink-0"
             title={currentView === 'home' ? 'รีเฟรชรายการห้อง' : 'รีเฟรชข้อมูลห้อง (Sync ใหม่)'}
           >
             <RefreshCw className={`w-3.5 h-3.5 text-pink-400 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -161,7 +160,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <>
             {/* Online Count Badge */}
             <div
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-white/5 border border-gray-800 rounded-lg text-xs text-gray-300"
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-white/5 border border-gray-800 rounded-lg text-xs text-gray-300"
               title={`มีคนอยู่ในห้อง ${onlineCount} คน`}
             >
               <Users className="w-3.5 h-3.5 text-cyan-400" />
@@ -172,7 +171,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {onToggleOledSleep && (
               <button
                 onClick={onToggleOledSleep}
-                className="hidden sm:flex px-2.5 py-1 rounded-lg bg-zinc-800/70 hover:bg-zinc-700 text-purple-300 border border-purple-500/30 text-xs font-medium transition-all cursor-pointer items-center gap-1.5 shrink-0"
+                className="hidden md:flex px-2.5 py-1 rounded-lg bg-zinc-800/70 hover:bg-zinc-700 text-purple-300 border border-purple-500/30 text-xs font-medium transition-all cursor-pointer items-center gap-1.5 shrink-0"
                 title="โหมดพักหน้าจอประหยัดแบตเตอรี่ (หน้าจอดำสนิท ฟังเพลงไม่ตัด)"
               >
                 <Moon className="w-3.5 h-3.5 text-purple-400" />
@@ -184,7 +183,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {isAdminOrOwner && onOpenAdminPanel && (
               <button
                 onClick={onOpenAdminPanel}
-                className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-medium transition-colors cursor-pointer"
+                className="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-medium transition-colors cursor-pointer"
                 title="จัดการห้อง"
               >
                 {myRole === 'owner' ? (
@@ -202,7 +201,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {isSuperAdmin && onOpenSuperAdminDashboard && (
           <button
             onClick={onOpenSuperAdminDashboard}
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-medium hover:bg-amber-500/30 transition-colors cursor-pointer"
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-medium hover:bg-amber-500/30 transition-colors cursor-pointer"
             title="แดชบอร์ดเจ้าของเว็บ"
           >
             <Crown className="w-3.5 h-3.5 text-amber-400" />
@@ -214,7 +213,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {!isMember && onOpenAuth && (
           <button
             onClick={onOpenAuth}
-            className="hidden sm:flex px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 hover:from-rose-600 hover:to-purple-700 text-white font-medium text-xs shadow-md shadow-rose-500/20 items-center gap-1.5 transition-all cursor-pointer shrink-0"
+            className="hidden md:flex px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 hover:from-rose-600 hover:to-purple-700 text-white font-medium text-xs shadow-md shadow-rose-500/20 items-center gap-1.5 transition-all cursor-pointer shrink-0"
             title="เข้าสู่ระบบด้วย Google หรือ Facebook"
           >
             <LogIn className="w-3.5 h-3.5" />
@@ -238,7 +237,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
           </div>
-          <span className="text-[11px] sm:text-xs font-medium text-gray-200 group-hover:text-white max-w-[65px] xs:max-w-[90px] sm:max-w-[120px] truncate">
+          <span className="text-[11px] sm:text-xs font-medium text-gray-200 group-hover:text-white max-w-[60px] xs:max-w-[85px] sm:max-w-[120px] truncate">
             {currentUser.name}
           </span>
           {currentUser.provider === 'google' && (
@@ -254,25 +253,29 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={onLogout}
             title="ออกจากระบบ (Sign Out)"
-            className="hidden sm:flex p-1.5 sm:p-2 rounded-xl text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 border border-gray-800 hover:border-rose-500/30 transition-colors cursor-pointer shrink-0"
+            className="hidden md:flex p-1.5 sm:p-2 rounded-xl text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 border border-gray-800 hover:border-rose-500/30 transition-colors cursor-pointer shrink-0"
           >
             <LogOut className="w-4 h-4" />
           </button>
         )}
 
-        {/* --- MOBILE ONLY MENU BUTTON (sm:hidden) --- */}
-        <div className="relative sm:hidden" ref={menuRef}>
+        {/* --- MOBILE ONLY 3-DOTS MENU BUTTON (md:hidden) --- */}
+        <div className="relative md:hidden" ref={menuRef}>
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className={`p-1.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
+            className={`px-2 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1 ${
               isMobileMenuOpen
-                ? 'bg-purple-600/30 text-purple-300 border-purple-500/50 shadow-lg shadow-purple-500/20'
-                : 'bg-white/5 hover:bg-white/10 text-gray-300 border-gray-800 hover:border-gray-700'
+                ? 'bg-purple-600/40 text-purple-200 border-purple-500/60 shadow-lg shadow-purple-500/25 ring-2 ring-purple-500/30'
+                : 'bg-zinc-800/90 hover:bg-zinc-700 text-purple-300 border border-purple-500/40 hover:border-purple-400'
             }`}
-            aria-label="เมนูเพิ่มเติม"
+            aria-label="เมนูเพิ่มเติม (3 จุด)"
             title="เมนูเพิ่มเติม"
           >
-            {isMobileMenuOpen ? <X className="w-4 h-4" /> : <MoreVertical className="w-4 h-4" />}
+            {isMobileMenuOpen ? (
+              <X className="w-4 h-4 text-purple-300" />
+            ) : (
+              <MoreHorizontal className="w-4 h-4 text-purple-300" />
+            )}
           </button>
 
           {/* Mobile Dropdown Popover */}
