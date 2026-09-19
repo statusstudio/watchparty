@@ -102,7 +102,64 @@ export function App() {
   const [approvedSpeakerIds, setApprovedSpeakerIds] = useState<string[]>([]);
   const [activeSidebarTab, setActiveSidebarTab] = useState<'queue' | 'chat' | 'members'>('queue');
   const [activeMobileTab, setActiveMobileTab] = useState<'voice' | 'queue' | 'chat' | 'members'>('voice');
+  const [unreadChatCount, setUnreadChatCount] = useState<number>(0);
   const [quickUrlText, setQuickUrlText] = useState('');
+
+  // Tab and View refs to avoid stale closures in socket listener
+  const activeSidebarTabRef = useRef(activeSidebarTab);
+  const activeMobileTabRef = useRef(activeMobileTab);
+  const currentViewRef = useRef(currentView);
+
+  useEffect(() => {
+    activeSidebarTabRef.current = activeSidebarTab;
+    if (activeSidebarTab === 'chat') {
+      setUnreadChatCount(0);
+    }
+  }, [activeSidebarTab]);
+
+  useEffect(() => {
+    activeMobileTabRef.current = activeMobileTab;
+    if (activeMobileTab === 'chat') {
+      setUnreadChatCount(0);
+    }
+  }, [activeMobileTab]);
+
+  useEffect(() => {
+    currentViewRef.current = currentView;
+    if (currentView !== 'room') {
+      setUnreadChatCount(0);
+    }
+  }, [currentView]);
+
+  // Sync unread chat count to page title
+  useEffect(() => {
+    if (unreadChatCount > 0) {
+      document.title = `(${unreadChatCount}) Vibe – แชทใหม่`;
+    } else {
+      document.title = 'Vibe – Meet, Watch & Listen Together';
+    }
+  }, [unreadChatCount]);
+
+  // Clear unread count when user focuses back to the window if chat is visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        const isDesktop = window.innerWidth >= 1024;
+        const isViewingChat = isDesktop
+          ? activeSidebarTabRef.current === 'chat'
+          : activeMobileTabRef.current === 'chat';
+        if (isViewingChat) {
+          setUnreadChatCount(0);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
+  }, []);
 
   // Modals State
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -298,6 +355,7 @@ export function App() {
           setBannedUsers(msg.state.bannedUsers);
           setOnlineCount(msg.state.onlineCount);
           setMyRole(msg.state.myRole);
+          setUnreadChatCount(0);
           if (msg.state.approvedSpeakerIds) {
             setApprovedSpeakerIds(msg.state.approvedSpeakerIds);
           }
@@ -365,6 +423,16 @@ export function App() {
 
         case 'NEW_CHAT':
           setChat((prev) => [...prev, msg.message]);
+          // Increment unread counter if message is from someone else and user is not currently in chat
+          if (msg.message.sender.id !== currentUser.id) {
+            const isDesktop = window.innerWidth >= 1024;
+            const isViewingChat = isDesktop
+              ? activeSidebarTabRef.current === 'chat'
+              : activeMobileTabRef.current === 'chat';
+            if (!isViewingChat || document.hidden) {
+              setUnreadChatCount((prev) => prev + 1);
+            }
+          }
           break;
 
         case 'EMOJI_REACTION': {
@@ -896,15 +964,25 @@ export function App() {
 
               <button
                 type="button"
-                onClick={() => setActiveMobileTab('chat')}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                onClick={() => {
+                  setActiveMobileTab('chat');
+                  setUnreadChatCount(0);
+                }}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap relative ${
                   activeMobileTab === 'chat'
                     ? 'bg-violet-600 text-white shadow-md'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                <MessageSquare className="w-3.5 h-3.5" />
+                <div className="relative flex items-center">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                </div>
                 <span>แชทสด</span>
+                {unreadChatCount > 0 && activeMobileTab !== 'chat' && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-bold font-mono shadow-sm shadow-rose-500/50 animate-pulse">
+                    {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                  </span>
+                )}
               </button>
 
               <button
@@ -968,15 +1046,25 @@ export function App() {
 
               <button
                 type="button"
-                onClick={() => setActiveSidebarTab('chat')}
-                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                onClick={() => {
+                  setActiveSidebarTab('chat');
+                  setUnreadChatCount(0);
+                }}
+                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer relative ${
                   activeSidebarTab === 'chat'
                     ? 'bg-violet-600 text-white shadow-sm'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <MessageSquare className="w-3.5 h-3.5" />
+                <div className="relative flex items-center">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                </div>
                 <span>แชทสด</span>
+                {unreadChatCount > 0 && activeSidebarTab !== 'chat' && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-bold font-mono shadow-sm shadow-rose-500/50 animate-pulse">
+                    {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                  </span>
+                )}
               </button>
 
               <button

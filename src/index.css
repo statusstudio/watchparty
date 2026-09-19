@@ -11,6 +11,16 @@
     margin: 0;
     padding: 0;
     background-color: #0f0f13;
+    touch-action: pan-x pan-y;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* Prevent auto-zoom on iOS Safari when focusing form inputs */
+  @media screen and (max-width: 768px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
   }
 }
 
