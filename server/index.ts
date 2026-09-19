@@ -3,7 +3,6 @@ import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
-import { createServer as createViteServer } from 'vite';
 import { RoomManager } from './roomManager.js';
 import { platformManager } from './platformManager.js';
 import { searchYouTube } from './youtubeSearch.js';
@@ -353,6 +352,7 @@ async function startServer() {
 
   // Vite integration
   if (!isProduction) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
