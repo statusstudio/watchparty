@@ -428,6 +428,23 @@ export class RoomManager {
       myUserId: user.id,
     });
 
+    // Instant sync verification for video and playlist
+    if (roomState.video && roomState.video.videoId) {
+      this.sendToClient(ws, {
+        type: 'VIDEO_SYNC',
+        video: roomState.video,
+        actionType: 'sync',
+      });
+    }
+    if (roomState.playlist && roomState.playlist.length > 0) {
+      this.sendToClient(ws, {
+        type: 'PLAYLIST_UPDATED',
+        playlist: roomState.playlist,
+        loopMode: roomState.loopMode,
+        isShuffle: roomState.isShuffle,
+      });
+    }
+
     // Notify other peers in room
     this.broadcastToRoom(roomId, {
       type: 'USER_JOINED',

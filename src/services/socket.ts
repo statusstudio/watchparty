@@ -20,11 +20,15 @@ export class SocketService {
   public registerOnConnect(cb: () => void): () => void {
     this.onConnectCallbacks.add(cb);
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      try {
-        cb();
-      } catch (err) {
-        console.error('Error in onConnect callback:', err);
-      }
+      setTimeout(() => {
+        try {
+          if (this.onConnectCallbacks.has(cb)) {
+            cb();
+          }
+        } catch (err) {
+          console.error('Error in onConnect callback:', err);
+        }
+      }, 0);
     }
     return () => {
       this.onConnectCallbacks.delete(cb);

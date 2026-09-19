@@ -212,8 +212,29 @@ async function startServer() {
     }
   });
 
-  // WebSocket connection handling
+  // WebSocket connection handling & Keepalive Heartbeat
+  const pingInterval = setInterval(() => {
+    wss.clients.forEach((ws: any) => {
+      if (ws.isAlive === false) {
+        return ws.terminate();
+      }
+      ws.isAlive = false;
+      try {
+        ws.ping();
+      } catch (e) {}
+    });
+  }, 25000);
+
+  wss.on('close', () => {
+    clearInterval(pingInterval);
+  });
+
   wss.on('connection', (ws: WebSocket) => {
+    (ws as any).isAlive = true;
+    ws.on('pong', () => {
+      (ws as any).isAlive = true;
+    });
+
     ws.on('message', (rawData: string) => {
       try {
         const msg = JSON.parse(rawData.toString()) as WSClientMessage;

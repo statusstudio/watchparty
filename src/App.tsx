@@ -494,6 +494,44 @@ export function App() {
     webrtcRef.current?.cleanupPeersExcept(seatedSpeakerIds);
   }, [seats, currentUser.id]);
 
+  // Keep latest state in refs for persistent WebSocket listener
+  const roomIdRef = useRef(roomId);
+  roomIdRef.current = roomId;
+  currentViewRef.current = currentView;
+  const currentUserRef = useRef(currentUser);
+  currentUserRef.current = currentUser;
+
+  // Instant Room State Sync via REST API (Dual-Channel with WebSocket)
+  const syncRoomState = useCallback((targetRoomId: string) => {
+    fetch(`/api/room/${targetRoomId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        return res.json();
+      })
+      .then((state: RoomState) => {
+        if (state && (state.roomId === targetRoomId || !state.roomId)) {
+          setIsPasswordGateOpen(false);
+          setPasswordGateError(null);
+          if (state.metadata) setRoomMetadata(state.metadata);
+          if (state.seats) setSeats(state.seats);
+          if (state.video) setVideo(state.video);
+          if (state.playlist) setPlaylist(state.playlist);
+          if (state.loopMode) setLoopMode(state.loopMode);
+          if (state.isShuffle !== undefined) setIsShuffle(state.isShuffle);
+          if (state.chat) setChat(state.chat);
+          if (state.members) setMembers(state.members);
+          if (state.bannedUsers) setBannedUsers(state.bannedUsers);
+          if (state.onlineCount) setOnlineCount(state.onlineCount);
+          if (state.myRole) setMyRole(state.myRole);
+          if (state.approvedSpeakerIds) setApprovedSpeakerIds(state.approvedSpeakerIds);
+          if (state.pendingStageRequests) setPendingStageRequests(state.pendingStageRequests);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch room state via REST:', err);
+      });
+  }, []);
+
   // Handle URL Hash change (Room vs Home)
   useEffect(() => {
     const handleHashChange = () => {
@@ -501,10 +539,11 @@ export function App() {
       if (targetRoom) {
         setRoomId(targetRoom);
         setCurrentView('room');
+        syncRoomState(targetRoom);
         socketService.send({
           type: 'JOIN_ROOM',
           roomId: targetRoom,
-          user: currentUser,
+          user: currentUserRef.current,
         });
       } else {
         setCurrentView('home');
@@ -514,24 +553,31 @@ export function App() {
 
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [currentUser, fetchPublicRooms]);
+  }, [fetchPublicRooms, syncRoomState]);
 
-  // Setup WebSocket connection and event handlers
+  // Setup WebSocket connection and event handlers (Mounted persistently with NO drops)
   useEffect(() => {
     const unregisterOnConnect = socketService.registerOnConnect(() => {
-      const activeRoom = getHashRoomId() || (currentView === 'room' ? roomId : null);
+      const activeRoom = getHashRoomId() || (currentViewRef.current === 'room' ? roomIdRef.current : null);
       if (activeRoom) {
         socketService.send({
           type: 'JOIN_ROOM',
           roomId: activeRoom,
-          user: currentUser,
+          user: currentUserRef.current,
         });
+        syncRoomState(activeRoom);
       } else {
         socketService.send({ type: 'GET_ROOMS' });
       }
     });
 
     socketService.connect();
+
+    // Immediate initial sync if starting directly inside a room
+    const initialHashRoom = getHashRoomId();
+    if (initialHashRoom) {
+      syncRoomState(initialHashRoom);
+    }
 
     const unsubscribe = socketService.subscribe((msg: WSServerMessage) => {
       switch (msg.type) {
@@ -709,7 +755,7 @@ export function App() {
       unregisterOnConnect();
       unsubscribe();
     };
-  }, [roomId, currentUser, currentView, showToast, fetchPublicRooms]);
+  }, [syncRoomState, showToast]);
 
   // Navigate actions
   const handleNavigateHome = () => {
@@ -723,21 +769,12 @@ export function App() {
   const handleSelectRoom = (targetRoomId: string) => {
     window.location.hash = `#room=${targetRoomId}`;
     setRoomId(targetRoomId);
-    setVideo({
-      videoId: '',
-      title: '',
-      channel: '',
-      duration: 0,
-      currentTime: 0,
-      isPlaying: false,
-      lastUpdated: Date.now(),
-    });
-    setPlaylist([]);
     setCurrentView('room');
+    syncRoomState(targetRoomId);
     socketService.send({
       type: 'JOIN_ROOM',
       roomId: targetRoomId,
-      user: currentUser,
+      user: currentUserRef.current,
     });
   };
 
