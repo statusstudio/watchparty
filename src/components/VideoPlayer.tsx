@@ -313,6 +313,40 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   }, [isSomeoneSpeaking, isAudioDuckingEnabled, isMuted]);
 
+  // MediaSession API integration (Lock screen / Control Center player on mobile)
+  useEffect(() => {
+    if ('mediaSession' in navigator && video.videoId) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: video.title || 'Vibe Video',
+          artist: video.channel || 'WatchParty',
+          album: 'Vibe Party',
+          artwork: [
+            {
+              src: `https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`,
+              sizes: '480x360',
+              type: 'image/jpeg',
+            },
+          ],
+        });
+
+        navigator.mediaSession.setActionHandler('play', () => {
+          if (playerRef.current?.playVideo) {
+            playerRef.current.playVideo();
+          }
+        });
+
+        navigator.mediaSession.setActionHandler('pause', () => {
+          if (playerRef.current?.pauseVideo) {
+            playerRef.current.pauseVideo();
+          }
+        });
+      } catch (err) {
+        console.warn('MediaSession error:', err);
+      }
+    }
+  }, [video.videoId, video.title, video.channel]);
+
   // Unmute handler
   const handleUnmute = () => {
     if (playerRef.current) {

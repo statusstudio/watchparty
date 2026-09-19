@@ -20,7 +20,7 @@ import {
 import { getStoredUser, saveUser, clearUser } from './services/auth.js';
 import { socketService } from './services/socket.js';
 import { WebRTCVoiceEngine } from './services/webrtc.js';
-import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Plus, Radio, RefreshCw } from 'lucide-react';
+import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Plus, Radio, RefreshCw, Moon } from 'lucide-react';
 import { Navbar } from './components/Navbar.js';
 import { VideoPlayer } from './components/VideoPlayer.js';
 import { VoiceStage } from './components/VoiceStage.js';
@@ -290,6 +290,35 @@ export function App() {
       window.removeEventListener('touchcancel', handleTouchEnd);
     };
   }, [currentView, isRefreshing, pullDistance, handleRefreshRoom]);
+
+  // OLED Sleep Mode state (โหมดพักหน้าจอประหยัดแบตเตอรี่)
+  const [isOledSleepMode, setIsOledSleepMode] = useState(false);
+  const [oledTimeStr, setOledTimeStr] = useState('');
+
+  useEffect(() => {
+    if (!isOledSleepMode) return;
+    const updateTime = () => {
+      const now = new Date();
+      setOledTimeStr(
+        now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      );
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+
+    // Keep screen from turning off while in OLED mode
+    let wakeLock: any = null;
+    if ('wakeLock' in navigator) {
+      (navigator as any).wakeLock?.request('screen').then((lock: any) => {
+        wakeLock = lock;
+      }).catch(() => {});
+    }
+
+    return () => {
+      clearInterval(interval);
+      wakeLock?.release().catch(() => {});
+    };
+  }, [isOledSleepMode]);
 
   // WebRTC Signal Sender
   const sendWebRTCSignal = useCallback((targetId: string, data: any) => {
@@ -876,6 +905,7 @@ export function App() {
         isSuperAdmin={isSuperAdmin}
         isRefreshing={isRefreshing}
         onRefreshRoom={handleRefreshRoom}
+        onToggleOledSleep={() => setIsOledSleepMode(true)}
         onNavigateHome={handleNavigateHome}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
@@ -913,6 +943,51 @@ export function App() {
                 ? 'ปล่อยนิ้วเพื่อรีเฟรช 🚀'
                 : 'แตะแล้วปัดลงเพื่อรีเฟรช ⬇️'}
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* OLED Black Screen Mode (โหมดพักหน้าจอประหยัดแบตเตอรี่ - ดำสนิท 100% ฟังเพลงต่อเนื่องไม่ตัด) */}
+      {isOledSleepMode && (
+        <div
+          onClick={() => {
+            setIsOledSleepMode(false);
+            showToast('กลับสู่โหมดปกติ ☀️', 'info');
+          }}
+          className="fixed inset-0 z-[99999] bg-black text-gray-400 flex flex-col items-center justify-between p-6 sm:p-10 cursor-pointer select-none animate-fade-in"
+          style={{ backgroundColor: '#000000' }}
+        >
+          {/* Top Info */}
+          <div className="flex items-center gap-2 text-xs text-zinc-500 bg-zinc-950/80 px-3.5 py-1.5 rounded-full border border-zinc-900">
+            <Moon className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+            <span>โหมดพักหน้าจอประหยัดพลังงาน (OLED Screen Saver)</span>
+          </div>
+
+          {/* Center Info */}
+          <div className="text-center space-y-4 max-w-sm sm:max-w-md mx-auto">
+            <div className="text-5xl sm:text-6xl font-mono font-extralight text-zinc-400 tracking-widest">
+              {oledTimeStr}
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-center gap-2 text-emerald-400 text-xs font-medium">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                <span>กำลังเล่นเสียงในห้องอย่างต่อเนื่อง 🎵</span>
+              </div>
+              <h3 className="text-sm sm:text-base font-semibold text-zinc-300 truncate">
+                {video.title}
+              </h3>
+              <p className="text-xs text-zinc-600 truncate">{video.channel}</p>
+            </div>
+          </div>
+
+          {/* Bottom Hint */}
+          <div className="text-center space-y-1">
+            <p className="text-xs text-zinc-400 font-medium">
+              แตะที่ใดก็ได้บนหน้าจอเพื่อเปิดหน้าจอ 👆
+            </p>
+            <p className="text-[11px] text-zinc-700">
+              จอดำสนิท 100% พิกเซล OLED ดับประหยัดแบตเตอรี่และเปิดเพลงต่อเนื่อง
+            </p>
           </div>
         </div>
       )}
@@ -1041,6 +1116,20 @@ export function App() {
                   className="p-1.5 rounded-lg bg-gray-800/70 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-700/60 disabled:opacity-30 transition-all cursor-pointer"
                 >
                   <SkipForward className="w-3.5 h-3.5" />
+                </button>
+
+                {/* OLED Screen Off / Sleep Mode Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOledSleepMode(true);
+                    showToast('เข้าสู่โหมดพักหน้าจอ (OLED Black) แตะหน้าจอเพื่อปลดล็อค 🌙', 'info');
+                  }}
+                  title="โหมดพักหน้าจอประหยัดแบตเตอรี่ (หน้าจอดำสนิท ฟังเพลงไม่ตัด)"
+                  className="px-2 py-1 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-purple-300 border border-purple-500/30 text-xs font-medium transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                >
+                  <Moon className="w-3.5 h-3.5 text-purple-400" />
+                  <span className="text-[10px] hidden sm:inline">พักจอ</span>
                 </button>
               </div>
             </div>

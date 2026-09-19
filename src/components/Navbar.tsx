@@ -9,6 +9,7 @@ import {
   Shield,
   Lock,
   RefreshCw,
+  Moon,
 } from 'lucide-react';
 import { UserProfile, UserRole } from '../types/index.js';
 
@@ -23,6 +24,7 @@ interface NavbarProps {
   isSuperAdmin?: boolean;
   isRefreshing?: boolean;
   onRefreshRoom?: () => void;
+  onToggleOledSleep?: () => void;
   onNavigateHome: () => void;
   onOpenProfile: () => void;
   onOpenPlaylist?: () => void;
@@ -42,6 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   isSuperAdmin = false,
   isRefreshing = false,
   onRefreshRoom,
+  onToggleOledSleep,
   onNavigateHome,
   onOpenProfile,
   onOpenAdminPanel,
@@ -139,6 +142,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <RefreshCw className={`w-3.5 h-3.5 text-pink-400 ${isRefreshing ? 'animate-spin' : ''}`} />
                 <span className="hidden sm:inline">{isRefreshing ? 'รีเฟรช...' : 'รีเฟรช'}</span>
+              </button>
+            )}
+
+            {/* OLED Sleep Mode Button */}
+            {onToggleOledSleep && (
+              <button
+                onClick={onToggleOledSleep}
+                className="px-2 sm:px-2.5 py-1 rounded-lg bg-zinc-800/70 hover:bg-zinc-700 text-purple-300 border border-purple-500/30 text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+                title="โหมดพักหน้าจอประหยัดแบตเตอรี่ (หน้าจอดำสนิท ฟังเพลงไม่ตัด)"
+              >
+                <Moon className="w-3.5 h-3.5 text-purple-400" />
+                <span className="hidden sm:inline">พักจอ</span>
               </button>
             )}
 
