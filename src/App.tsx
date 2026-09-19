@@ -102,6 +102,7 @@ export function App() {
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [pendingStageRequests, setPendingStageRequests] = useState<StageRequest[]>([]);
   const [approvedSpeakerIds, setApprovedSpeakerIds] = useState<string[]>([]);
+  const [activeMobileTab, setActiveMobileTab] = useState<'stage' | 'chat'>('stage');
 
   // Modals State
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -172,14 +173,18 @@ export function App() {
     };
   }, [currentUser.id, sendWebRTCSignal]);
 
-  // Connect to other seated members when seats update
+  // Connect to all seated stage speakers so both seated members and audience can hear them
   useEffect(() => {
-    const mySeat = seats.find((s) => s.user?.id === currentUser.id);
-    if (!mySeat || !webrtcRef.current) return;
+    if (!webrtcRef.current) return;
 
-    seats.forEach((seat) => {
-      if (seat.user && seat.user.id !== currentUser.id) {
-        const isInitiator = currentUser.id < seat.user.id;
+    const mySeat = seats.find((s) => s.user?.id === currentUser.id);
+    const seatedSpeakers = seats.filter((s) => s.user && s.user.id !== currentUser.id);
+
+    seatedSpeakers.forEach((seat) => {
+      if (seat.user) {
+        // If both are seated: user with smaller ID initiates
+        // If local user is audience listener: listener initiates to request audio from speaker
+        const isInitiator = mySeat ? currentUser.id < seat.user.id : true;
         webrtcRef.current?.connectToPeer(seat.user.id, isInitiator);
       }
     });
@@ -752,11 +757,11 @@ export function App() {
           onOpenAuth={() => setIsAuthModalOpen(true)}
         />
       ) : (
-        <main className="flex-1 min-h-0 max-w-[1920px] w-full mx-auto p-2 sm:p-3 lg:p-3.5 grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-3.5 overflow-hidden">
+        <main className="flex-1 min-h-0 max-w-[1920px] w-full mx-auto p-2 sm:p-3 lg:p-3.5 flex flex-col lg:grid lg:grid-cols-12 gap-2 sm:gap-3 lg:gap-3.5 overflow-y-auto lg:overflow-hidden">
           {/* Left Column: Synchronized Video Player & 9-Seat Voice Stage */}
-          <div className="lg:col-span-8 flex flex-col h-full min-h-0 gap-2 sm:gap-2.5 overflow-hidden">
+          <div className="w-full lg:col-span-8 flex flex-col shrink-0 lg:shrink lg:h-full min-h-0 gap-2 sm:gap-2.5">
             {/* Synchronized YouTube Video Player */}
-            <div className="flex-1 min-h-0 flex items-center justify-center bg-black/50 rounded-2xl overflow-hidden border border-gray-800/80 shadow-2xl relative">
+            <div className="w-full aspect-video max-h-[36vh] sm:max-h-[46vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black/50 rounded-2xl overflow-hidden border border-gray-800/80 shadow-2xl relative shrink-0">
               <VideoPlayer
                 video={video}
                 reactions={reactions}
@@ -889,29 +894,62 @@ export function App() {
               </div>
             </div>
 
+            {/* Mobile / Tablet Tab Switcher (Visible on < lg screens only) */}
+            <div className="flex lg:hidden items-center bg-[#151722] border border-gray-800 rounded-xl p-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveMobileTab('stage')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeMobileTab === 'stage'
+                    ? 'bg-purple-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <span>🎙️ เวทีไมค์ 9 ที่นั่ง</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveMobileTab('chat')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeMobileTab === 'chat'
+                    ? 'bg-purple-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <span>💬 แชทสด</span>
+                {chat.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-white/20 text-[10px]">
+                    {chat.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
             {/* 9-Seat Voice Stage */}
-            <VoiceStage
-              seats={seats}
-              currentUser={currentUser}
-              myRole={myRole}
-              stageAccessMode={roomMetadata.stageAccessMode || 'everyone'}
-              pendingStageRequests={pendingStageRequests}
-              approvedSpeakerIds={approvedSpeakerIds}
-              onTakeSeat={handleTakeSeat}
-              onLeaveSeat={handleLeaveSeat}
-              onToggleMute={handleToggleMute}
-              onSpeakingState={handleSpeakingState}
-              onLocalStreamReady={handleLocalStreamReady}
-              onOpenProfile={() => setIsProfileModalOpen(true)}
-              onShowToast={showToast}
-              onRequestToSpeak={handleRequestToSpeak}
-              onApproveSpeakRequest={handleApproveSpeakRequest}
-              onRevokeSpeakPermission={handleRevokeSpeakPermission}
-            />
+            <div className={`${activeMobileTab === 'stage' ? 'block' : 'hidden'} lg:block shrink-0`}>
+              <VoiceStage
+                seats={seats}
+                currentUser={currentUser}
+                myRole={myRole}
+                stageAccessMode={roomMetadata.stageAccessMode || 'everyone'}
+                pendingStageRequests={pendingStageRequests}
+                approvedSpeakerIds={approvedSpeakerIds}
+                onTakeSeat={handleTakeSeat}
+                onLeaveSeat={handleLeaveSeat}
+                onToggleMute={handleToggleMute}
+                onSpeakingState={handleSpeakingState}
+                onLocalStreamReady={handleLocalStreamReady}
+                onOpenProfile={() => setIsProfileModalOpen(true)}
+                onShowToast={showToast}
+                onRequestToSpeak={handleRequestToSpeak}
+                onApproveSpeakRequest={handleApproveSpeakRequest}
+                onRevokeSpeakPermission={handleRevokeSpeakPermission}
+              />
+            </div>
           </div>
 
-          {/* Right Column: Live Chat Panel with User Profile in front & Timestamp Jump */}
-          <div className="lg:col-span-4 h-full min-h-0 flex flex-col overflow-hidden">
+          {/* Right Column: Live Chat Panel */}
+          <div className={`${activeMobileTab === 'chat' ? 'flex' : 'hidden'} lg:flex w-full lg:col-span-4 h-[440px] sm:h-[500px] lg:h-full min-h-0 flex-col overflow-hidden`}>
             <LiveChat
               messages={chat}
               currentUser={currentUser}

@@ -98,7 +98,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const initPlayer = () => {
     if (playerRef.current) return;
 
+    if (!window.YT || !window.YT.Player) {
+      setTimeout(initPlayer, 200);
+      return;
+    }
+
     const currentVid = videoRef.current;
+    if (!currentVid.videoId) {
+      return;
+    }
+
     const startSec = Math.floor(calculateTargetTime(currentVid));
 
     playerRef.current = new window.YT.Player('youtube-iframe', {
@@ -112,7 +121,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         modestbranding: 1,
         playsinline: 1,
         enablejsapi: 1,
-        origin: window.location.origin,
       },
       events: {
         onReady: (event: any) => {
@@ -196,11 +204,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             player.seekTo(targetTime, true);
           }
 
-          const currentState = player.getPlayerState();
+          const currentState = player.getPlayerState ? player.getPlayerState() : -1;
           if (targetVideo.isPlaying && currentState !== 1) {
-            player.playVideo();
+            try {
+              if (isMuted && player.mute) {
+                player.mute();
+              }
+              player.playVideo();
+            } catch (e) {}
           } else if (!targetVideo.isPlaying && currentState !== 2) {
-            player.pauseVideo();
+            try {
+              player.pauseVideo();
+            } catch (e) {}
           }
         }
       } catch (err) {
@@ -211,12 +226,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }, 600);
       }
     },
-    []
+    [isMuted]
   );
 
   // When room video updates from WebSocket
   useEffect(() => {
-    if (!isPlayerReady) return;
+    if (!isPlayerReady) {
+      if (video.videoId && !playerRef.current) {
+        initPlayer();
+      }
+      return;
+    }
     applyRoomVideoState(video);
   }, [video, isPlayerReady, applyRoomVideoState]);
 
@@ -331,10 +351,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full max-h-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-800/80 group flex items-center justify-center mx-auto"
+      className="relative w-full h-full bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-800/80 group flex items-center justify-center mx-auto"
     >
-      {/* YouTube IFrame container */}
-      <div id="youtube-iframe" className="w-full h-full pointer-events-auto" />
+      {/* YouTube IFrame container or Standby UI */}
+      {video.videoId ? (
+        <div id="youtube-iframe" className="w-full h-full pointer-events-auto" />
+      ) : (
+        <div className="flex flex-col items-center justify-center text-gray-500 gap-2 p-4 text-center">
+          <Radio className="w-10 h-10 text-purple-400/60 animate-pulse" />
+          <p className="text-sm font-semibold text-gray-300">ห้องอยู่ในโหมด Standby</p>
+          <p className="text-xs text-gray-500">แตะที่ "จัดการคิว" เพื่อเลือกเพลงแรกเปิดพร้อมกันทั้งห้อง 🎵</p>
+        </div>
+      )}
 
       {/* Floating Live Reactions Layer */}
       <FloatingReactions reactions={reactions} onRemove={onRemoveReaction} />

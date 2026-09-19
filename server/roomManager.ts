@@ -298,6 +298,7 @@ export class RoomManager {
       video: {
         ...room.video,
         currentTime: currentExtrapolatedTime,
+        lastUpdated: now,
       },
       playlist: room.playlist,
       loopMode: room.loopMode,
