@@ -86,12 +86,12 @@ export function App() {
     }))
   );
   const [video, setVideo] = useState<VideoState>({
-    videoId: 'jfKfPfyJRdk',
-    title: 'lofi hip hop radio - beats to relax/study to',
-    channel: 'Lofi Girl',
+    videoId: '',
+    title: '',
+    channel: '',
     duration: 0,
     currentTime: 0,
-    isPlaying: true,
+    isPlaying: false,
     lastUpdated: Date.now(),
   });
   const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
@@ -615,6 +615,16 @@ export function App() {
   const handleSelectRoom = (targetRoomId: string) => {
     window.location.hash = `#room=${targetRoomId}`;
     setRoomId(targetRoomId);
+    setVideo({
+      videoId: '',
+      title: '',
+      channel: '',
+      duration: 0,
+      currentTime: 0,
+      isPlaying: false,
+      lastUpdated: Date.now(),
+    });
+    setPlaylist([]);
     setCurrentView('room');
     socketService.send({
       type: 'JOIN_ROOM',
@@ -1062,11 +1072,11 @@ export function App() {
             <div className="bg-[#13141c]/90 border border-gray-800/80 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center justify-between shrink-0 gap-1.5 sm:gap-2">
               {/* Video Title & Channel */}
               <div className="min-w-0 flex-1 pr-2">
-                <h2 className="text-xs sm:text-sm font-semibold text-white truncate" title={video.title}>
-                  {video.title}
+                <h2 className="text-xs sm:text-sm font-semibold text-white truncate" title={video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}>
+                  {video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}
                 </h2>
                 <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-0.5">
-                  <span className="truncate max-w-[140px] sm:max-w-[200px]">{video.channel}</span>
+                  <span className="truncate max-w-[140px] sm:max-w-[200px]">{video.channel || 'pleng.online'}</span>
                   {playlist.length > 0 && (
                     <span className="text-[10px] text-violet-300 font-mono bg-violet-950/50 px-1.5 py-0.5 rounded border border-violet-500/30 shrink-0">
                       คิว: {playlist.findIndex((p) => p.videoId === video.videoId) >= 0 ? playlist.findIndex((p) => p.videoId === video.videoId) + 1 : 1}/{playlist.length}

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, Radio, VolumeOff, Headphones } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize, Radio, VolumeOff, Headphones, Music } from 'lucide-react';
 import { VideoState } from '../types/index.js';
 import { FloatingReactions, FloatingItem } from './FloatingReactions.js';
 
@@ -112,6 +112,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       return;
     }
 
+    const iframeElem = document.getElementById('youtube-iframe');
+    if (!iframeElem) {
+      setTimeout(initPlayer, 100);
+      return;
+    }
+
     const startSec = Math.floor(calculateTargetTime(currentVid));
 
     playerRef.current = new window.YT.Player('youtube-iframe', {
@@ -184,6 +190,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       try {
         const targetTime = calculateTargetTime(targetVideo);
 
+        // If target video ID is empty (Standby mode)
+        if (!targetVideo.videoId) {
+          currentVideoIdRef.current = '';
+          if (playerRef.current?.destroy) {
+            try {
+              playerRef.current.destroy();
+            } catch (e) {}
+            playerRef.current = null;
+          }
+          setIsPlayerReady(false);
+          return;
+        }
+
         // If video ID changed
         if (currentVideoIdRef.current !== targetVideo.videoId) {
           currentVideoIdRef.current = targetVideo.videoId;
@@ -235,10 +254,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // When room video updates from WebSocket
   useEffect(() => {
-    if (!isPlayerReady) {
-      if (video.videoId && !playerRef.current) {
-        initPlayer();
+    if (!video.videoId) {
+      currentVideoIdRef.current = '';
+      if (playerRef.current?.destroy) {
+        try {
+          playerRef.current.destroy();
+        } catch (e) {}
+        playerRef.current = null;
       }
+      setIsPlayerReady(false);
+      return;
+    }
+
+    if (!isPlayerReady || !playerRef.current) {
+      initPlayer();
       return;
     }
     applyRoomVideoState(video);
@@ -468,10 +497,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       {video.videoId ? (
         <div id="youtube-iframe" className="w-full h-full pointer-events-auto" />
       ) : (
-        <div className="flex flex-col items-center justify-center text-gray-500 gap-2 p-4 text-center">
-          <Radio className="w-10 h-10 text-purple-400/60 animate-pulse" />
-          <p className="text-sm font-semibold text-gray-300">ห้องอยู่ในโหมด Standby</p>
-          <p className="text-xs text-gray-500">แตะที่ "จัดการคิว" เพื่อเลือกเพลงแรกเปิดพร้อมกันทั้งห้อง 🎵</p>
+        <div className="flex flex-col items-center justify-center text-gray-400 gap-3 p-6 text-center select-none animate-fade-in max-w-md">
+          <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-violet-600/20 via-purple-600/15 to-pink-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 shadow-xl shadow-violet-950/40">
+            <Music className="w-8 h-8 text-purple-300 animate-pulse" />
+          </div>
+          <div className="space-y-1.5">
+            <h3 className="text-sm sm:text-base font-bold text-white">ห้องอยู่ในโหมด Standby 🎵</h3>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              ยังไม่มีเพลงกำลังเล่นในห้องนี้ — ค้นหาเพลงหรือวางลิงก์ YouTube ที่แถบคิวเพลงเพื่อเริ่มฟังพร้อมกันได้เลย!
+            </p>
+          </div>
         </div>
       )}
 
