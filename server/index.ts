@@ -297,7 +297,7 @@ async function startServer() {
             roomManager.handleVideoChange(ws, msg.videoId, msg.title, msg.channel, msg.duration);
             break;
           case 'PLAYLIST_ADD':
-            roomManager.handlePlaylistAdd(ws, msg.item);
+            roomManager.handlePlaylistAdd(ws, msg.item, msg.roomId);
             break;
           case 'PLAYLIST_REMOVE':
             roomManager.handlePlaylistRemove(ws, msg.id);

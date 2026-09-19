@@ -15,7 +15,7 @@ import {
   Clock,
   Check,
 } from 'lucide-react';
-import { PlaylistItem, VideoState, LoopMode, UserRole } from '../types/index.js';
+import { PlaylistItem, VideoState, LoopMode, UserRole, UserProfile } from '../types/index.js';
 
 interface SidebarQueueProps {
   playlist: PlaylistItem[];
@@ -23,6 +23,7 @@ interface SidebarQueueProps {
   loopMode: LoopMode;
   isShuffle: boolean;
   myRole: UserRole;
+  currentUser?: UserProfile;
   onlyAdminManagePlaylist: boolean;
   onPlayNow: (videoId: string, title?: string, channel?: string) => void;
   onAddToPlaylist: (item: Omit<PlaylistItem, 'id'>) => void;
@@ -40,6 +41,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
   loopMode,
   isShuffle,
   myRole,
+  currentUser,
   onlyAdminManagePlaylist,
   onPlayNow,
   onAddToPlaylist,
@@ -67,6 +69,10 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
     // Check if input is a direct YouTube link
     const ytMatch = q.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
     if (ytMatch) {
+      if (!canManagePlaylist) {
+        onShowToast('เฉพาะเจ้าของห้องหรือแอดมินเท่านั้นที่สามารถเพิ่มเพลงได้ ⚠️', 'warning');
+        return;
+      }
       const videoId = ytMatch[1];
       onAddToPlaylist({
         videoId,
@@ -74,7 +80,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
         channel: 'YouTube',
         thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
         duration: 'YouTube',
-        addedBy: 'คุณ',
+        addedBy: currentUser?.name || 'คุณ',
       });
       onShowToast('เพิ่มคลิปเข้าคิวเพลงแล้ว 🎵', 'success');
       setSearchQuery('');
@@ -96,27 +102,36 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
   };
 
   const handleAddTrack = (res: any) => {
+    if (!canManagePlaylist) {
+      onShowToast('เฉพาะเจ้าของห้องหรือแอดมินเท่านั้นที่สามารถเพิ่มเพลงได้ ⚠️', 'warning');
+      return;
+    }
+
     onAddToPlaylist({
       videoId: res.videoId,
       title: res.title,
       channel: res.channel,
       thumbnail: res.thumbnail,
       duration: res.duration || '0:00',
-      addedBy: 'คุณ',
+      addedBy: currentUser?.name || 'คุณ',
     });
     setAddedVideoIds((prev) => new Set([...prev, res.videoId]));
-    onShowToast(`เพิ่ม "${res.title.substring(0, 30)}..." เข้าคิวแล้ว`, 'success');
+    onShowToast(`เพิ่ม "${res.title.substring(0, 30)}..." เข้าคิวแล้ว 🎵`, 'success');
     setTimeout(() => {
       setAddedVideoIds((prev) => {
         const next = new Set(prev);
         next.delete(res.videoId);
         return next;
       });
-    }, 2500);
+    }, 2000);
   };
 
   const handleDirectUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canManagePlaylist) {
+      onShowToast('เฉพาะเจ้าของห้องหรือแอดมินเท่านั้นที่สามารถเพิ่มเพลงได้ ⚠️', 'warning');
+      return;
+    }
     const match = directUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
     if (match) {
       const videoId = match[1];
@@ -126,7 +141,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
         channel: 'YouTube',
         thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
         duration: 'YouTube',
-        addedBy: 'คุณ',
+        addedBy: currentUser?.name || 'คุณ',
       });
       onShowToast('เพิ่มคลิปเข้าคิวเรียบร้อย 🎵', 'success');
       setDirectUrl('');
@@ -456,7 +471,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                           type="button"
                           onClick={() => handleAddTrack(item)}
                           disabled={isAdded}
-                          title="เพิ่มลงคิวเพลง"
+                          title={!canManagePlaylist ? 'เฉพาะเจ้าของห้องหรือแอดมินเท่านั้นที่สามารถเพิ่มเพลงได้' : 'เพิ่มลงคิวเพลง'}
                           className={`p-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer flex items-center gap-1 ${
                             isAdded
                               ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'

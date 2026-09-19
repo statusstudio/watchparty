@@ -156,7 +156,7 @@ export type WSClientMessage =
   | { type: 'VIDEO_SEEK'; currentTime: number; duration?: number }
   | { type: 'VIDEO_CHANGE'; videoId: string; title?: string; channel?: string; duration?: number }
   | { type: 'VIDEO_ENDED' }
-  | { type: 'PLAYLIST_ADD'; item: Omit<PlaylistItem, 'id'> }
+  | { type: 'PLAYLIST_ADD'; item: Omit<PlaylistItem, 'id'>; roomId?: string }
   | { type: 'PLAYLIST_REMOVE'; id: string }
   | { type: 'PLAYLIST_CLEAR' }
   | { type: 'PLAYLIST_NEXT' }

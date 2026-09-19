@@ -216,17 +216,20 @@ export function App() {
 
   // Setup WebSocket connection and event handlers
   useEffect(() => {
-    socketService.connect(() => {
-      if (currentView === 'room') {
+    const unregisterOnConnect = socketService.registerOnConnect(() => {
+      const activeRoom = getHashRoomId() || (currentView === 'room' ? roomId : null);
+      if (activeRoom) {
         socketService.send({
           type: 'JOIN_ROOM',
-          roomId,
+          roomId: activeRoom,
           user: currentUser,
         });
       } else {
         socketService.send({ type: 'GET_ROOMS' });
       }
     });
+
+    socketService.connect();
 
     const unsubscribe = socketService.subscribe((msg: WSServerMessage) => {
       switch (msg.type) {
@@ -390,6 +393,7 @@ export function App() {
     });
 
     return () => {
+      unregisterOnConnect();
       unsubscribe();
     };
   }, [roomId, currentUser, currentView, showToast, fetchPublicRooms]);
@@ -654,6 +658,7 @@ export function App() {
     socketService.send({
       type: 'PLAYLIST_ADD',
       item,
+      roomId,
     });
   };
 
@@ -1004,6 +1009,7 @@ export function App() {
                 loopMode={loopMode}
                 isShuffle={isShuffle}
                 myRole={myRole}
+                currentUser={currentUser}
                 onlyAdminManagePlaylist={roomMetadata.onlyAdminManagePlaylist}
                 onPlayNow={handleVideoChange}
                 onAddToPlaylist={handleAddToPlaylist}

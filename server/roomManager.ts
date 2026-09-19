@@ -1150,19 +1150,35 @@ export class RoomManager {
     });
   }
 
-  public handlePlaylistAdd(ws: WebSocket, item: Omit<PlaylistItem, 'id'>) {
-    const client = this.clients.get(ws);
-    if (!client) return;
+  public handlePlaylistAdd(ws: WebSocket, item: Omit<PlaylistItem, 'id'>, roomIdParam?: string) {
+    let client = this.clients.get(ws);
+    const targetRoomId = client?.roomId || roomIdParam;
+    if (!targetRoomId) {
+      console.warn('[PLAYLIST_ADD] No roomId found for websocket request');
+      return;
+    }
 
-    const room = this.getOrCreateRoom(client.roomId);
+    const room = this.getOrCreateRoom(targetRoomId);
 
-    if (room.metadata.onlyAdminManagePlaylist) {
+    // If client was not yet registered in this.clients on this ws, register fallback
+    if (!client) {
+      const fallbackUser: UserProfile = {
+        id: 'usr-' + Math.random().toString(36).substr(2, 6),
+        name: item.addedBy || 'Guest',
+        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${item.addedBy || 'guest'}`,
+        color: '#8b5cf6',
+      };
+      this.clients.set(ws, { ws, user: fallbackUser, roomId: targetRoomId });
+      client = this.clients.get(ws);
+    }
+
+    if (room.metadata.onlyAdminManagePlaylist && client) {
       const isOwner = client.user.id === room.metadata.ownerId;
       const isAdmin = room.adminIds.has(client.user.id);
       if (!isOwner && !isAdmin) {
         this.sendToClient(ws, {
           type: 'SYNC_TOAST',
-          message: 'ห้องนี้จำกัดสิทธิ์เฉพาะ Owner & Admin เท่านั้นในการเพิ่มเพลง',
+          message: 'ห้องนี้จำกัดสิทธิ์เฉพาะ Owner & Admin เท่านั้นในการเพิ่มเพลง ⚠️',
           toastType: 'warning',
         });
         return;
@@ -1175,16 +1191,33 @@ export class RoomManager {
     };
     room.playlist.push(newItem);
 
-    this.broadcastToRoom(client.roomId, {
+    // If the room video player is currently blank / idle, immediately start playing the new song
+    if (!room.video.videoId) {
+      room.video.videoId = newItem.videoId;
+      room.video.title = newItem.title;
+      room.video.channel = newItem.channel;
+      room.video.isPlaying = true;
+      room.video.currentTime = 0;
+      room.video.lastUpdated = Date.now();
+
+      this.broadcastToRoom(targetRoomId, {
+        type: 'VIDEO_SYNC',
+        video: room.video,
+        triggeredByName: client?.user.name || 'System',
+        actionType: 'change',
+      });
+    }
+
+    this.broadcastToRoom(targetRoomId, {
       type: 'PLAYLIST_UPDATED',
       playlist: room.playlist,
       loopMode: room.loopMode,
       isShuffle: room.isShuffle,
     });
 
-    this.broadcastToRoom(client.roomId, {
+    this.broadcastToRoom(targetRoomId, {
       type: 'SYNC_TOAST',
-      message: `เพิ่ม "${item.title}" เข้า Playlist แล้ว`,
+      message: `เพิ่ม "${item.title}" เข้า Playlist แล้ว 🎵`,
       toastType: 'success',
     });
   }

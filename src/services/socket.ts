@@ -5,6 +5,8 @@ export type SocketListener = (msg: WSServerMessage) => void;
 export class SocketService {
   private ws: WebSocket | null = null;
   private listeners: Set<SocketListener> = new Set();
+  private onConnectCallbacks: Set<() => void> = new Set();
+  private messageQueue: WSClientMessage[] = [];
   private reconnectTimer: any = null;
   private url: string;
   private isExplicitlyClosed = false;
@@ -15,7 +17,25 @@ export class SocketService {
     this.url = `${protocol}//${host}/ws`;
   }
 
+  public registerOnConnect(cb: () => void): () => void {
+    this.onConnectCallbacks.add(cb);
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      try {
+        cb();
+      } catch (err) {
+        console.error('Error in onConnect callback:', err);
+      }
+    }
+    return () => {
+      this.onConnectCallbacks.delete(cb);
+    };
+  }
+
   public connect(onOpen?: () => void) {
+    if (onOpen) {
+      this.registerOnConnect(onOpen);
+    }
+
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       return;
     }
@@ -29,7 +49,23 @@ export class SocketService {
         clearTimeout(this.reconnectTimer);
         this.reconnectTimer = null;
       }
-      onOpen?.();
+
+      // 1. Run all registered onConnect handlers (e.g. re-join room)
+      this.onConnectCallbacks.forEach((cb) => {
+        try {
+          cb();
+        } catch (err) {
+          console.error('Error in onConnect handler:', err);
+        }
+      });
+
+      // 2. Flush queued messages
+      while (this.messageQueue.length > 0) {
+        const msg = this.messageQueue.shift();
+        if (msg && this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify(msg));
+        }
+      }
     };
 
     this.ws.onmessage = (event) => {
@@ -43,8 +79,13 @@ export class SocketService {
 
     this.ws.onclose = () => {
       if (!this.isExplicitlyClosed) {
-        console.warn('WebSocket connection lost, reconnecting in 2s...');
-        this.reconnectTimer = setTimeout(() => this.connect(onOpen), 2000);
+        console.warn('WebSocket connection lost, reconnecting in 1.5s...');
+        if (!this.reconnectTimer) {
+          this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
+            this.connect();
+          }, 1500);
+        }
       }
     };
 
@@ -53,11 +94,15 @@ export class SocketService {
     };
   }
 
-  public send(msg: WSClientMessage) {
+  public send(msg: WSClientMessage): boolean {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(msg));
+      return true;
     } else {
-      console.warn('Cannot send message, WebSocket is not open', msg);
+      console.warn('WebSocket not open, queuing message for reconnect:', msg);
+      this.messageQueue.push(msg);
+      this.connect();
+      return false;
     }
   }
 
