@@ -65,12 +65,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
   const [volumeRms, setVolumeRms] = useState(0);
   const [isConnectingMic, setIsConnectingMic] = useState(false);
   const [isAudioSettingsOpen, setIsAudioSettingsOpen] = useState(false);
-
-  // User-configurable microphone gain boost (Default 2.0 = 200%)
-  const [micGain, setMicGain] = useState<number>(() => {
-    const saved = localStorage.getItem('watchparty_mic_gain');
-    return saved ? parseFloat(saved) : 2.0;
-  });
+  const [isMonitorEnabled, setIsMonitorEnabled] = useState(false);
 
   // User-configurable incoming voice volume (0.0 to 1.0)
   const [incomingVolume, setIncomingVolume] = useState<number>(() => {
@@ -104,7 +99,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
             setLocalSpeaking(speaking);
             onSpeakingState(speaking);
           },
-        }, micGain);
+        });
 
         analyserRef.current = analyser;
         analyser
@@ -139,10 +134,15 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
     };
   }, [isSitting, onLocalStreamReady, onSpeakingState, onShowToast]);
 
-  const handleMicGainChange = (newGain: number) => {
-    setMicGain(newGain);
-    analyserRef.current?.setGain(newGain);
-    localStorage.setItem('watchparty_mic_gain', newGain.toString());
+  const handleToggleMonitor = () => {
+    const next = !isMonitorEnabled;
+    setIsMonitorEnabled(next);
+    analyserRef.current?.setMonitor(next);
+    if (next) {
+      onShowToast('เปิดฟังเสียงไมค์ตัวเองแล้ว 🎧 (แนะนำใส่หูฟังเพื่อป้องกันเสียงสะท้อนลำโพง)', 'info');
+    } else {
+      onShowToast('ปิดฟังเสียงตัวเองแล้ว (เพื่อนในห้องยังได้ยินเสียงคุณตามปกติ)', 'info');
+    }
   };
 
   const handleIncomingVolumeChange = (newVol: number) => {
@@ -227,7 +227,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
           <button
             type="button"
             onClick={() => setIsAudioSettingsOpen(!isAudioSettingsOpen)}
-            title="ตั้งค่าระดับเสียงไมค์และความดังเพื่อนในห้อง"
+            title="ตั้งค่าระดับเสียงไมค์ ฟังเสียงตัวเอง และความดังเพื่อนในห้อง"
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer shadow-xs ${
               isAudioSettingsOpen
                 ? 'bg-[#0075de] text-white border-[#0075de]'
@@ -235,9 +235,9 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
             }`}
           >
             <Sliders className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">ปรับเสียง</span>
-            {isSitting && (
-              <span className="text-[10px] font-mono opacity-90">{Math.round(micGain * 100)}%</span>
+            <span className="hidden sm:inline">ตั้งค่าเสียงไมค์</span>
+            {isMonitorEnabled && (
+              <span className="w-2 h-2 rounded-full bg-[#1aae39] animate-ping" />
             )}
           </button>
 
@@ -328,42 +328,52 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            {/* 1. Mic Gain Boost */}
-            <div className="p-2.5 rounded-lg bg-white border border-[#e6e6e6] space-y-2">
+            {/* 1. Sidetone / Mic Monitor & Live Signal Meter */}
+            <div className="p-2.5 rounded-lg bg-white border border-[#e6e6e6] space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-[#000000] flex items-center gap-1.5">
-                  <Mic className="w-3.5 h-3.5 text-[#0075de]" />
-                  ความดังไมค์ของคุณ (Mic Boost)
+                  <Headphones className="w-3.5 h-3.5 text-[#0075de]" />
+                  ฟังเสียงไมค์ตัวเอง (Mic Monitor)
                 </span>
-                <span className="font-mono text-[#0075de] font-bold bg-[#0075de]/10 px-1.5 py-0.5 rounded text-[11px]">
-                  {Math.round(micGain * 100)}%
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                  isMonitorEnabled ? 'bg-[#1aae39]/15 text-[#1aae39]' : 'bg-gray-100 text-[#615d59]'
+                }`}>
+                  {isMonitorEnabled ? 'เปิดฟังอยู่ 🎧' : 'ปิดอยู่'}
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-[#a39e98]">50%</span>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="3.0"
-                  step="0.1"
-                  value={micGain}
-                  onChange={(e) => handleMicGainChange(parseFloat(e.target.value))}
-                  className="flex-1 h-1.5 bg-[#e6e6e6] rounded-lg appearance-none cursor-pointer accent-[#0075de]"
-                />
-                <span className="text-[10px] text-[#a39e98]">300%</span>
-              </div>
+              <p className="text-[11px] text-[#615d59] leading-relaxed">
+                โดยปกติระบบจะส่งเสียงไมค์ไปยังเพื่อนในห้องเท่านั้น และจะไม่เปิดออกลำโพงของตัวเองเพื่อป้องกันเสียงสะท้อน (Echo)
+              </p>
+
+              {/* Mic Monitor Button */}
+              <button
+                type="button"
+                onClick={handleToggleMonitor}
+                disabled={!isSitting}
+                className={`w-full py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs flex items-center justify-center gap-2 ${
+                  !isSitting
+                    ? 'opacity-40 cursor-not-allowed bg-gray-100 text-gray-400 border border-gray-200'
+                    : isMonitorEnabled
+                    ? 'bg-[#1aae39] text-white hover:bg-[#158f2e]'
+                    : 'bg-[#0075de] hover:bg-[#005bab] text-white'
+                }`}
+              >
+                <Headphones className="w-3.5 h-3.5" />
+                <span>{isMonitorEnabled ? 'กำลังฟังเสียงตัวเองอยู่ (แตะเพื่อปิด)' : 'แตะที่นี่เพื่อฟังเสียงไมค์ตัวเอง (ทดสอบเสียง)'}</span>
+              </button>
 
               {/* Live RMS Meter for instant testing */}
               {isSitting ? (
-                <div className="space-y-1">
+                <div className="space-y-1 pt-1 border-t border-[#f0f0f0]">
                   <div className="flex items-center justify-between text-[10px] text-[#615d59]">
-                    <span>ทดสอบเสียงพูด (Live Meter):</span>
-                    <span className={localSpeaking ? 'text-[#1aae39] font-bold' : 'text-[#a39e98]'}>
-                      {localSpeaking ? 'กำลังจับเสียง 🎙️' : 'รอเสียง...'}
+                    <span>สัญญาณไมค์เข้าเครื่อง (Live Meter):</span>
+                    <span className={localSpeaking ? 'text-[#1aae39] font-bold flex items-center gap-1' : 'text-[#a39e98]'}>
+                      {localSpeaking && <span className="w-1.5 h-1.5 rounded-full bg-[#1aae39] animate-pulse" />}
+                      {localSpeaking ? 'ตรวจพบเสียงพูด 🎙️' : 'รอเสียงพูด...'}
                     </span>
                   </div>
-                  <div className="w-full h-1.5 bg-[#e6e6e6] rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-[#e6e6e6] rounded-full overflow-hidden">
                     <div
                       className="h-full bg-[#1aae39] transition-all duration-75"
                       style={{ width: `${Math.min(100, Math.round(volumeRms * 400))}%` }}
@@ -371,47 +381,45 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
                   </div>
                 </div>
               ) : (
-                <p className="text-[10px] text-[#a39e98]">
-                  (ขึ้นไมค์เพื่อทดสอบสัญญาณเสียงจริง)
+                <p className="text-[10px] text-[#a39e98] italic pt-1 border-t border-[#f0f0f0]">
+                  (ต้องกด "เข้าร่วมคุยไมค์" ด้านบนก่อน จึงจะสามารถเปิดทดสอบไมค์ได้)
                 </p>
               )}
-
-              <p className="text-[10px] text-[#615d59] leading-tight">
-                💡 <strong>แนะนำ:</strong> ตั้งไว้ที่ 180% - 250% เพื่อให้เสียงพูดดังชัดเจน ชนะเสียงดนตรี
-              </p>
             </div>
 
             {/* 2. Incoming Voice Volume & Audio Ducking */}
-            <div className="p-2.5 rounded-lg bg-white border border-[#e6e6e6] space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-[#000000] flex items-center gap-1.5">
-                  <Volume2 className="w-3.5 h-3.5 text-[#1aae39]" />
-                  ระดับเสียงเพื่อนในห้องไมค์
-                </span>
-                <span className="font-mono text-[#1aae39] font-bold bg-[#1aae39]/10 px-1.5 py-0.5 rounded text-[11px]">
-                  {Math.round(incomingVolume * 100)}%
-                </span>
-              </div>
+            <div className="p-2.5 rounded-lg bg-white border border-[#e6e6e6] space-y-2.5 flex flex-col justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-[#000000] flex items-center gap-1.5">
+                    <Volume2 className="w-3.5 h-3.5 text-[#1aae39]" />
+                    ระดับเสียงเพื่อนในห้องไมค์
+                  </span>
+                  <span className="font-mono text-[#1aae39] font-bold bg-[#1aae39]/10 px-1.5 py-0.5 rounded text-[11px]">
+                    {Math.round(incomingVolume * 100)}%
+                  </span>
+                </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-[#a39e98]">0%</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="1.0"
-                  step="0.05"
-                  value={incomingVolume}
-                  onChange={(e) => handleIncomingVolumeChange(parseFloat(e.target.value))}
-                  className="flex-1 h-1.5 bg-[#e6e6e6] rounded-lg appearance-none cursor-pointer accent-[#1aae39]"
-                />
-                <span className="text-[10px] text-[#a39e98]">100%</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-[#a39e98]">0%</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.05"
+                    value={incomingVolume}
+                    onChange={(e) => handleIncomingVolumeChange(parseFloat(e.target.value))}
+                    className="flex-1 h-1.5 bg-[#e6e6e6] rounded-lg appearance-none cursor-pointer accent-[#1aae39]"
+                  />
+                  <span className="text-[10px] text-[#a39e98]">100%</span>
+                </div>
               </div>
 
               {/* Audio Ducking Explanation Banner */}
-              <div className="p-2 rounded-lg bg-[#f6f5f4] border border-[#e6e6e6] flex items-start gap-2 text-[10px] text-[#615d59] leading-relaxed">
+              <div className="p-2 rounded-lg bg-[#f6f5f4] border border-[#e6e6e6] flex items-start gap-2 text-[11px] text-[#615d59] leading-relaxed">
                 <Headphones className="w-4 h-4 text-[#0075de] shrink-0 mt-0.5" />
                 <span>
-                  <strong className="text-[#000000]">ระบบ Audio Ducking อัตโนมัติ:</strong> เมื่อใครก็ตามเปิดไมค์พูด เสียงเพลงจากคลิป YouTube จะถูกหรี่ลงเหลือ 15% ทันที เพื่อให้เสียงพูดเด่นชัดและฟังง่าย
+                  <strong className="text-[#000000]">ระบบลดเสียงเพลงอัตโนมัติ (Audio Ducking):</strong> เมื่อมีคนพูดไมค์บนเวที ระบบจะหรี่เสียง YouTube ลงเหลือ 15% ทันทีเพื่อให้เสียงพูดฟังง่าย ไม่โดนดนตรีกลบ
                 </span>
               </div>
             </div>

@@ -7,28 +7,26 @@ export class MicrophoneAnalyser {
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private microphone: MediaStreamAudioSourceNode | null = null;
-  private gainNode: GainNode | null = null;
-  private destination: MediaStreamAudioDestinationNode | null = null;
+  private monitorGainNode: GainNode | null = null;
   private rawStream: MediaStream | null = null;
-  private processedStream: MediaStream | null = null;
   private animationFrameId: number | null = null;
   private isSpeaking = false;
   private speakingThreshold = 0.025; // Responsive RMS threshold for voice detection
   private silenceCounter = 0;
   private callbacks: AudioAnalyserCallbacks = {};
-  private micGain = 2.0; // Default: 200% Gain Boost for clear, audible voice
+  private isMonitorEnabled = false;
 
-  constructor(callbacks: AudioAnalyserCallbacks = {}, initialGain = 2.0) {
+  constructor(callbacks: AudioAnalyserCallbacks = {}) {
     this.callbacks = callbacks;
-    this.micGain = initialGain;
   }
 
   public async start(): Promise<MediaStream> {
-    if (this.processedStream) {
-      return this.processedStream;
+    if (this.rawStream) {
+      return this.rawStream;
     }
 
     try {
+      // 1. Capture genuine hardware microphone stream with browser-level auto gain & noise cancellation
       this.rawStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -44,27 +42,23 @@ export class MicrophoneAnalyser {
         await this.audioContext.resume();
       }
 
-      // 1. Create Web Audio GainNode to amplify the microphone
-      this.gainNode = this.audioContext.createGain();
-      this.gainNode.gain.setValueAtTime(this.micGain, this.audioContext.currentTime);
-
-      // 2. Create MediaStream destination for WebRTC output
-      this.destination = this.audioContext.createMediaStreamDestination();
-      this.microphone = this.audioContext.createMediaStreamSource(this.rawStream);
-
-      // 3. Route: mic input -> gain boost -> destination stream
-      this.microphone.connect(this.gainNode);
-      this.gainNode.connect(this.destination);
-
-      // 4. Connect to analyser for RMS visualizer & speaking detection
+      // 2. Connect microphone to Analyser for live volume meter and speaking detection
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 256;
       this.analyser.smoothingTimeConstant = 0.4;
-      this.gainNode.connect(this.analyser);
 
-      this.processedStream = this.destination.stream;
+      this.microphone = this.audioContext.createMediaStreamSource(this.rawStream);
+      this.microphone.connect(this.analyser);
+
+      // 3. If sidetone / mic monitor is enabled, connect to destination
+      if (this.isMonitorEnabled) {
+        this.attachMonitor();
+      }
+
       this.analyze();
-      return this.processedStream;
+
+      // Return the genuine native MediaStream for WebRTC transmission
+      return this.rawStream;
     } catch (err) {
       console.warn('Microphone access denied or error:', err);
       throw err;
@@ -72,21 +66,41 @@ export class MicrophoneAnalyser {
   }
 
   public getStream(): MediaStream | null {
-    return this.processedStream || this.rawStream;
+    return this.rawStream;
   }
 
   /**
-   * Sets microphone gain boost multiplier in real-time (e.g. 0.5 = 50%, 1.0 = 100%, 2.5 = 250%).
+   * Enables or disables local mic monitor (sidetone) so the user can hear their own voice in their headphones.
    */
-  public setGain(multiplier: number) {
-    this.micGain = Math.max(0.1, Math.min(4.0, multiplier));
-    if (this.gainNode && this.audioContext) {
-      this.gainNode.gain.setTargetAtTime(this.micGain, this.audioContext.currentTime, 0.02);
+  public setMonitor(enabled: boolean) {
+    this.isMonitorEnabled = enabled;
+    if (enabled) {
+      this.attachMonitor();
+    } else {
+      this.detachMonitor();
     }
   }
 
-  public getGain(): number {
-    return this.micGain;
+  private attachMonitor() {
+    if (!this.audioContext || !this.microphone) return;
+    if (this.audioContext.state === 'suspended') {
+      this.audioContext.resume().catch(() => {});
+    }
+    if (!this.monitorGainNode) {
+      this.monitorGainNode = this.audioContext.createGain();
+      this.monitorGainNode.gain.value = 1.0;
+      this.microphone.connect(this.monitorGainNode);
+      this.monitorGainNode.connect(this.audioContext.destination);
+    }
+  }
+
+  private detachMonitor() {
+    if (this.monitorGainNode) {
+      try {
+        this.monitorGainNode.disconnect();
+      } catch (e) {}
+      this.monitorGainNode = null;
+    }
   }
 
   public setMute(muted: boolean) {
@@ -95,13 +109,8 @@ export class MicrophoneAnalyser {
         track.enabled = !muted;
       });
     }
-    if (this.processedStream) {
-      this.processedStream.getAudioTracks().forEach((track) => {
-        track.enabled = !muted;
-      });
-    }
-    if (this.gainNode && this.audioContext) {
-      this.gainNode.gain.setTargetAtTime(muted ? 0 : this.micGain, this.audioContext.currentTime, 0.02);
+    if (this.monitorGainNode && this.audioContext) {
+      this.monitorGainNode.gain.setValueAtTime(muted ? 0 : 1.0, this.audioContext.currentTime);
     }
   }
 
@@ -141,6 +150,7 @@ export class MicrophoneAnalyser {
   };
 
   public stop() {
+    this.detachMonitor();
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
@@ -149,16 +159,10 @@ export class MicrophoneAnalyser {
       this.rawStream.getTracks().forEach((track) => track.stop());
       this.rawStream = null;
     }
-    if (this.processedStream) {
-      this.processedStream.getTracks().forEach((track) => track.stop());
-      this.processedStream = null;
-    }
     if (this.audioContext && this.audioContext.state !== 'closed') {
       this.audioContext.close();
       this.audioContext = null;
     }
-    this.gainNode = null;
-    this.destination = null;
     this.analyser = null;
     this.microphone = null;
     this.isSpeaking = false;

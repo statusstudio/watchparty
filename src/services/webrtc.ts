@@ -231,15 +231,19 @@ export class WebRTCVoiceEngine {
         this.remoteAudioElements.set(remoteUserId, audioEl);
       }
 
-      if (event.streams && event.streams[0]) {
-        audioEl.srcObject = event.streams[0];
-      } else {
-        audioEl.srcObject = new MediaStream([event.track]);
-      }
+      const stream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream([event.track]);
+      audioEl.srcObject = stream;
 
-      audioEl.play().catch((err) => {
-        console.warn(`[WebRTC] Audio auto-play blocked for ${remoteUserId}, will play on click:`, err);
-      });
+      const playAudio = () => {
+        audioEl.play().catch((err) => {
+          console.warn(`[WebRTC] Audio auto-play blocked for ${remoteUserId}, will play on interaction:`, err);
+        });
+      };
+
+      playAudio();
+      event.track.onunmute = () => {
+        playAudio();
+      };
     };
 
     pc.onconnectionstatechange = () => {
