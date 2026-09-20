@@ -11,6 +11,13 @@ import {
   ArrowRight,
   Radio,
   Music,
+  Headphones,
+  ListMusic,
+  Mic2,
+  HelpCircle,
+  ChevronDown,
+  CheckCircle2,
+  Volume2,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { RoomSummary, UserProfile } from '../types/index.js';
@@ -30,6 +37,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [quickRoomCode, setQuickRoomCode] = useState('');
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const filteredRooms = rooms.filter((r) => {
     if (searchQuery.trim()) {
@@ -64,6 +72,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <PlengLogo size="hero" animated={true} />
           </div>
 
+          {/* Primary SEO Heading */}
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#000000] tracking-tight max-w-2xl mx-auto leading-snug">
+            ฟังเพลงออนไลน์ไม่มีโฆษณา ดู YouTube กับเพื่อน ซิงค์ตรงเป๊ะ
+          </h1>
+
           {/* Feature Badges Pills - Notion badge-pill specs */}
           <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e6e6e6] text-[#0075de] text-xs font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
@@ -71,15 +84,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <span>ซิงค์เพลงตรงเป๊ะ</span>
             </div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e6e6e6] text-[#391c57] text-xs font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-              <span>🎙️ คุยไมค์สดอิสระ</span>
+              <span>🎙️ คุยไมค์สด 9 ที่นั่ง</span>
             </div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e6e6e6] text-[#1aae39] text-xs font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-              <span>⚡ เข้าได้ทันที ไม่ต้องลงแอป</span>
+              <span>🎧 ไม่มีโฆษณาคั่น</span>
             </div>
           </div>
 
           <p className="text-xs sm:text-sm text-[#615d59] max-w-xl mx-auto leading-relaxed">
-            สเปซฟังเพลงและเปิดคลิป YouTube กับเพื่อนแบบเรียลไทม์ พร้อมห้องคุยไมค์สดและแชท สร้างห้องแล้วส่งลิงก์ชวนเพื่อนเข้ามาร่วมแจมได้ทันที
+            สเปซฟังเพลงออนไลน์ไม่มีโฆษณาคั่น จัดคิว Playlist YouTube และดูคลิปพร้อมเพื่อนแบบเรียลไทม์ พร้อมห้องคุยไมค์สดอิสระ สร้างห้องแล้วส่งลิงก์ชวนเพื่อนเข้ามาร่วมแจมได้ทันที ไม่ต้องลงแอป
           </p>
 
           {/* Action buttons - Notion Primary Blue Pill */}
@@ -263,6 +276,151 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         )}
       </section>
+
+      {/* SEO & Feature Highlights Section - Notion Style */}
+      <article className="border-t border-[#e6e6e6] bg-white mt-8 pt-12 pb-16 px-4">
+        <div className="max-w-5xl mx-auto space-y-12">
+          {/* Section 1: 3 Core Pillars */}
+          <div className="text-center space-y-2">
+            <h2 className="text-lg sm:text-xl font-bold text-[#000000]">
+              ทำไมต้องฟังเพลงและดู YouTube ที่ pleng.online?
+            </h2>
+            <p className="text-xs sm:text-sm text-[#615d59] max-w-xl mx-auto">
+              ประสบการณ์ฟังเพลงออนไลน์ไม่มีโฆษณาคั่น ซิงค์คลิป YouTube และพูดคุยกับเพื่อนแบบเรียลไทม์ที่ดีที่สุด
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Card 1 */}
+            <div className="p-5 rounded-2xl bg-[#f6f5f4] border border-[#e6e6e6] space-y-3 shadow-xs">
+              <div className="w-10 h-10 rounded-xl bg-[#0075de]/10 text-[#0075de] flex items-center justify-center">
+                <Headphones className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-[#000000]">
+                ฟังเพลงออนไลน์ไม่มีโฆษณาคั่น
+              </h3>
+              <p className="text-xs text-[#615d59] leading-relaxed">
+                เปิดเพลงยาวๆ ต่อเนื่องเพื่อทำงาน อ่านหนังสือ หรือปาร์ตี้ ไม่โดนตัดอารมณ์ด้วยโฆษณาคั่น ซิงค์ตรงเป๊ะทุกคนในห้องเหมือนนั่งฟังอยู่ด้วยกัน
+              </p>
+            </div>
+
+            {/* Card 2 */}
+            <div className="p-5 rounded-2xl bg-[#f6f5f4] border border-[#e6e6e6] space-y-3 shadow-xs">
+              <div className="w-10 h-10 rounded-xl bg-[#1aae39]/10 text-[#1aae39] flex items-center justify-center">
+                <ListMusic className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-[#000000]">
+                ฟังเพลง Playlist YouTube กับเพื่อน
+              </h3>
+              <p className="text-xs text-[#615d59] leading-relaxed">
+                สร้างและจัดคิวเพลง Playlist YouTube ได้อิสระ ให้เพื่อนๆ ช่วยกันขอเพลง สลับคิวเพลง โหมดเล่นซ้ำ และโหมดสุ่มเพลง ฟังเพลงเป็นกลุ่มได้ไม่จำกัด
+              </p>
+            </div>
+
+            {/* Card 3 */}
+            <div className="p-5 rounded-2xl bg-[#f6f5f4] border border-[#e6e6e6] space-y-3 shadow-xs">
+              <div className="w-10 h-10 rounded-xl bg-[#391c57]/10 text-[#391c57] flex items-center justify-center">
+                <Mic2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-[#000000]">
+                คุยไมค์สด 9 ที่นั่ง & ลดเสียงเพลงอัตโนมัติ
+              </h3>
+              <p className="text-xs text-[#615d59] leading-relaxed">
+                ขึ้นเวทีคุยไมค์สดได้ 9 คนพร้อมกัน พร้อมระบบ Auto Audio Ducking หรี่เสียงเพลงอัตโนมัติขณะพูด เสียงไมค์ดังชัดเจน ไม่ต้องลง Discord
+              </p>
+            </div>
+          </div>
+
+          {/* Section 2: FAQ Accordion for Google Rich Snippets */}
+          <div className="space-y-4 max-w-3xl mx-auto pt-4">
+            <div className="text-center space-y-1 mb-6">
+              <h2 className="text-base sm:text-lg font-bold text-[#000000] flex items-center justify-center gap-2">
+                <HelpCircle className="w-5 h-5 text-[#0075de]" />
+                <span>คำถามที่พบบ่อย (FAQ)</span>
+              </h2>
+              <p className="text-xs text-[#615d59]">ข้อสงสัยเกี่ยวกับการใช้งาน pleng.online</p>
+            </div>
+
+            <div className="space-y-2.5">
+              {[
+                {
+                  q: 'ฟังเพลงออนไลน์ไม่มีโฆษณาที่ pleng.online มีค่าใช้จ่ายหรือไม่?',
+                  a: 'ฟรี 100% ไม่มีค่าบริการใดๆ สามารถเปิดห้อง ฟังเพลง และคุยไมค์สดกับเพื่อนได้ทันทีโดยไม่ต้องผูกบัตรเครดิต',
+                },
+                {
+                  q: 'วิธีดู YouTube กับเพื่อนพร้อมกันต้องทำอย่างไร?',
+                  a: 'เพียงกดปุ่ม "สร้างห้องฟังเพลงใหม่" จากนั้นคัดลอกลิงก์ห้องส่งให้เพื่อนในแชท เมื่อเพื่อนกดเข้ามา ตัวเล่นคลิป YouTube จะซิงค์ภาพและเสียงให้ตรงกันทุกคนอัตโนมัติ',
+                },
+                {
+                  q: 'จัด Playlist YouTube และฟังเพลงเป็นกลุ่มได้อย่างไร?',
+                  a: 'คุณสามารถค้นหาชื่อเพลงหรือวางลิงก์ YouTube เพื่อเพิ่มเพลงลงในคิวเพลย์ลิสต์ (Queue) และเปิดให้ทุกคนในห้องช่วยกันเพิ่มเพลงที่ชอบได้',
+                },
+                {
+                  q: 'ต้องติดตั้งโปรแกรมหรือดาวน์โหลดแอปหรือไม่?',
+                  a: 'ไม่ต้องติดตั้งแอปพลิเคชันใดๆ สามารถเปิดฟังเพลงผ่านเว็บบราวเซอร์ เช่น Google Chrome หรือ Safari บนคอมพิวเตอร์และมือถือได้ทันที',
+                },
+                {
+                  q: 'มีระบบลดเสียงเพลงอัตโนมัติขณะพูด (Audio Ducking) หรือไม่?',
+                  a: 'มีระบบ Auto Audio Ducking อัจฉริยะ เมื่อมีสมาชิกในห้องเปิดไมค์พูด ระบบจะหรี่เสียง YouTube ลงชั่วคราวอัตโนมัติเพื่อให้ได้ยินเสียงพูดชัดเจน และปรับกลับมาดังเท่าเดิมเมื่อพูดเสร็จ',
+                },
+              ].map((faq, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-xl border border-[#e6e6e6] bg-[#f6f5f4] overflow-hidden transition-colors"
+                >
+                  <button
+                    onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
+                    className="w-full px-4 py-3.5 text-left flex items-center justify-between text-xs sm:text-sm font-semibold text-[#000000] hover:text-[#0075de] transition-colors cursor-pointer"
+                  >
+                    <span>{faq.q}</span>
+                    <ChevronDown
+                      className={`w-4 h-4 text-[#615d59] transition-transform duration-200 shrink-0 ml-2 ${
+                        openFaq === idx ? 'rotate-180 text-[#0075de]' : ''
+                      }`}
+                    />
+                  </button>
+                  {openFaq === idx && (
+                    <div className="px-4 pb-3.5 pt-1 text-xs text-[#615d59] leading-relaxed border-t border-[#e6e6e6]/60 bg-white">
+                      {faq.a}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Section 3: Semantic SEO Keywords Cloud */}
+          <div className="pt-6 border-t border-[#e6e6e6] text-center space-y-3">
+            <p className="text-[11px] font-medium text-[#a39e98] uppercase tracking-wider">
+              คีย์เวิร์ดยอดนิยม
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {[
+                'ฟังเพลงออนไลน์ไม่มีโฆษณา',
+                'ดู youtube ไม่มีโฆษณา',
+                'ฟังเพลงกับเพื่อน',
+                'ดู youtube กับเพื่อน',
+                'ฟังเพลง playlist youtube',
+                'ฟังเพลงเป็นกลุ่ม',
+                'watch party ไทย',
+                'ห้องฟังเพลงออนไลน์',
+                'จัดคิวเพลง youtube',
+                'คุยไมค์ฟังเพลง',
+              ].map((kw, i) => (
+                <span
+                  key={i}
+                  className="px-2.5 py-1 rounded-full bg-[#f6f5f4] border border-[#e6e6e6] text-[11px] text-[#615d59] font-medium"
+                >
+                  #{kw}
+                </span>
+              ))}
+            </div>
+            <p className="text-[11px] text-[#a39e98] pt-2">
+              © {new Date().getFullYear()} pleng.online – สเปซฟังเพลงและดูคลิป YouTube กับเพื่อนแบบเรียลไทม์
+            </p>
+          </div>
+        </div>
+      </article>
     </div>
   );
 };

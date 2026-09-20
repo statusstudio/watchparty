@@ -37,6 +37,25 @@ async function startServer() {
     res.json({ status: 'ok', timestamp: Date.now() });
   });
 
+  // SEO routes
+  app.get('/robots.txt', (req, res) => {
+    res.type('text/plain');
+    res.send("User-agent: *\nAllow: /\n\nSitemap: https://pleng.online/sitemap.xml\n");
+  });
+
+  app.get('/sitemap.xml', (req, res) => {
+    res.type('application/xml');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://pleng.online/</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>`);
+  });
+
   // Get all public rooms for Home directory
   app.get('/api/rooms', (req, res) => {
     res.json(roomManager.getAllRoomSummaries());

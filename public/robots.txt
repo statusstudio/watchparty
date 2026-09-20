@@ -1,0 +1,5 @@
+# robots.txt for pleng.online
+User-agent: *
+Allow: /
+
+Sitemap: https://pleng.online/sitemap.xml
