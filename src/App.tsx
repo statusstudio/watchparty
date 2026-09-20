@@ -23,7 +23,7 @@ import {
 import { getStoredUser, saveUser, clearUser } from './services/auth.js';
 import { socketService } from './services/socket.js';
 import { WebRTCVoiceEngine } from './services/webrtc.js';
-import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Plus, Radio, RefreshCw, Moon } from 'lucide-react';
+import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Plus, Radio, RefreshCw, Moon, X } from 'lucide-react';
 import { Navbar } from './components/Navbar.js';
 import { VideoPlayer } from './components/VideoPlayer.js';
 import { VoiceStage } from './components/VoiceStage.js';
@@ -244,6 +244,7 @@ export function App() {
   const [isSuperAdminModalOpen, setIsSuperAdminModalOpen] = useState(false);
   const [isSuperAdminUnlockModalOpen, setIsSuperAdminUnlockModalOpen] = useState(false);
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
+  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
 
   // Interactive Reactions
   const [reactions, setReactions] = useState<FloatingItem[]>([]);
@@ -1269,6 +1270,7 @@ export function App() {
           setAuthModalInitialTab('admin');
           setIsAuthModalOpen(true);
         }}
+        onOpenSupport={() => setIsSupportModalOpen(true)}
         onShowToast={showToast}
       />
 
@@ -1348,20 +1350,29 @@ export function App() {
       )}
 
       {/* Global System Announcement Banner */}
-      {platformConfig.announcementBanner?.enabled && platformConfig.announcementBanner.text && (
-        <div
-          className={`w-full py-2 px-4 text-xs font-semibold flex items-center justify-center gap-2 border-b shadow-xs transition-all shrink-0 z-40 ${
-            platformConfig.announcementBanner.type === 'alert'
-              ? 'bg-rose-500 text-white border-rose-600'
-              : platformConfig.announcementBanner.type === 'warning'
-              ? 'bg-amber-500 text-white border-amber-600'
-              : 'bg-[#0075de] text-white border-[#005bab]'
-          }`}
-        >
-          <span>📢</span>
-          <span>{platformConfig.announcementBanner.text}</span>
-        </div>
-      )}
+      {platformConfig.announcementBanner?.enabled &&
+        platformConfig.announcementBanner.text &&
+        !isBannerDismissed && (
+          <div
+            className={`relative w-full py-2 px-8 text-xs font-semibold flex items-center justify-center gap-2 border-b shadow-xs transition-all shrink-0 z-40 ${
+              platformConfig.announcementBanner.type === 'alert'
+                ? 'bg-rose-500 text-white border-rose-600'
+                : platformConfig.announcementBanner.type === 'warning'
+                ? 'bg-amber-500 text-white border-amber-600'
+                : 'bg-[#0075de] text-white border-[#005bab]'
+            }`}
+          >
+            <span>📢</span>
+            <span className="truncate">{platformConfig.announcementBanner.text}</span>
+            <button
+              onClick={() => setIsBannerDismissed(true)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-black/15 text-white/90 hover:text-white transition-colors cursor-pointer"
+              title="ปิดแถบประกาศ"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
       {/* Main View Router */}
       {currentView === 'home' ? (

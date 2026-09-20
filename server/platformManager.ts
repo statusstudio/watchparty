@@ -17,7 +17,7 @@ import type { RoomManager } from './roomManager.js';
 
 const DATA_DIR = path.resolve(process.cwd(), 'server', 'data');
 const STORE_FILE = path.join(DATA_DIR, 'platform_store.json');
-export const MASTER_PASSCODE = 'admin888';
+export const MASTER_PASSCODE = process.env.ADMIN_MASTER_KEY || 'admin888';
 
 interface StoreSchema {
   users: PlatformUser[];

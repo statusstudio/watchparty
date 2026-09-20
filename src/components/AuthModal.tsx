@@ -37,6 +37,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onAdminLoginSuccess,
 }) => {
   const [authTab, setAuthTab] = useState<'member' | 'admin'>(initialTab);
+  const [showAdminTab, setShowAdminTab] = useState(initialTab === 'admin');
   const [loadingProvider, setLoadingProvider] = useState<'google' | 'facebook' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -48,6 +49,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setAuthTab(initialTab);
+      setShowAdminTab(initialTab === 'admin');
       setErrorMessage(null);
       setAdminPasscode('');
     }
@@ -181,40 +183,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </button>
           </div>
 
-          {/* Mode Switcher Tabs */}
-          <div className="flex items-center bg-[#f6f5f4] p-1 rounded-xl border border-[#e6e6e6] mt-4 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => {
-                setAuthTab('member');
-                setErrorMessage(null);
-              }}
-              className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                authTab === 'member'
-                  ? 'bg-white text-[#0075de] shadow-xs'
-                  : 'text-[#615d59] hover:text-[#000000]'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>สมาชิกทั่วไป</span>
-            </button>
+          {/* Mode Switcher Tabs (Visible when Stealth Admin mode is unlocked) */}
+          {(showAdminTab || authTab === 'admin') && (
+            <div className="flex items-center bg-[#f6f5f4] p-1 rounded-xl border border-[#e6e6e6] mt-4 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthTab('member');
+                  setErrorMessage(null);
+                }}
+                className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  authTab === 'member'
+                    ? 'bg-white text-[#0075de] shadow-xs'
+                    : 'text-[#615d59] hover:text-[#000000]'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>สมาชิกทั่วไป</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setAuthTab('admin');
-                setErrorMessage(null);
-              }}
-              className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                authTab === 'admin'
-                  ? 'bg-white text-amber-600 shadow-xs'
-                  : 'text-[#615d59] hover:text-[#000000]'
-              }`}
-            >
-              <Crown className="w-3.5 h-3.5 text-amber-500" />
-              <span>เจ้าของเว็บ (Owner)</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthTab('admin');
+                  setErrorMessage(null);
+                }}
+                className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  authTab === 'admin'
+                    ? 'bg-white text-amber-600 shadow-xs'
+                    : 'text-[#615d59] hover:text-[#000000]'
+                }`}
+              >
+                <Crown className="w-3.5 h-3.5 text-amber-500" />
+                <span>เจ้าของเว็บ (Owner)</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Content Body */}
@@ -372,7 +376,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="space-y-1">
                 <label className="block text-xs font-semibold text-[#000000] flex items-center justify-between">
                   <span>รหัสผ่านเจ้าของระบบ (Master Passcode)</span>
-                  <span className="text-[10px] text-amber-600 font-normal">* ค่าเริ่มต้น: admin888</span>
+                  <span className="text-[10px] text-amber-600 font-normal">* ปลอดภัยผ่าน .env (ADMIN_MASTER_KEY)</span>
                 </label>
                 <div className="relative">
                   <KeyRound className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
@@ -408,7 +412,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           )}
 
           {/* Guest continue link */}
-          <div className="text-center pt-1">
+          <div className="text-center pt-1 space-y-2">
             <button
               type="button"
               onClick={onClose}
@@ -416,6 +420,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             >
               ดำเนินการต่อในฐานะ Guest (ฟังเพลงและแชทได้ทันทีโดยไม่ต้องเข้าสู่ระบบ)
             </button>
+
+            {/* Discreet Admin Portal Link */}
+            {!showAdminTab && authTab === 'member' && (
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAdminTab(true);
+                    setAuthTab('admin');
+                  }}
+                  className="text-[10px] text-[#c5c2bc] hover:text-[#615d59] inline-flex items-center gap-1 transition-colors cursor-pointer"
+                  title="สำหรับผู้ดูแลระบบ (Admin Portal)"
+                >
+                  <Lock className="w-2.5 h-2.5" />
+                  <span>ผู้ดูแลระบบ</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

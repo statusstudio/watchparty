@@ -69,7 +69,7 @@ export const SuperAdminUnlockModal: React.FC<SuperAdminUnlockModalProps> = ({
             กรุณากรอกรหัสผ่าน Master Passcode เพื่อยืนยันสิทธิ์ในการเข้าถึงแดชบอร์ดจัดการระบบ
           </p>
           <div className="mt-2 inline-block px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[11px] text-amber-300 font-mono">
-            รหัสผ่านเริ่มต้น: <span className="font-bold underline">admin888</span>
+            รหัสลับ Master Passcode (ตั้งค่าได้ใน .env: ADMIN_MASTER_KEY)
           </div>
         </div>
 

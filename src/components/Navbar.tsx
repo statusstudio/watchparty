@@ -14,6 +14,7 @@ import {
   User,
   LogIn,
   X,
+  HelpCircle,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { UserProfile, UserRole } from '../types/index.js';
@@ -38,6 +39,7 @@ interface NavbarProps {
   onOpenAdminPanel: () => void;
   onOpenSuperAdminDashboard: () => void;
   onOpenAdminLogin?: () => void;
+  onOpenSupport?: () => void;
   onShowToast: (msg: string, type?: 'info' | 'success' | 'warning') => void;
 }
 
@@ -61,6 +63,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAdminPanel,
   onOpenSuperAdminDashboard,
   onOpenAdminLogin,
+  onOpenSupport,
   onShowToast,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -68,6 +71,48 @@ export const Navbar: React.FC<NavbarProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const isAdminOrOwner = myRole === 'owner' || myRole === 'admin';
   const isMember = currentUser.provider === 'google' || currentUser.provider === 'facebook';
+
+  // Stealth Admin Triggers: 5 rapid clicks on logo
+  const logoClickCountRef = useRef<number>(0);
+  const logoClickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleLogoClick = () => {
+    logoClickCountRef.current += 1;
+    if (logoClickTimeoutRef.current) {
+      clearTimeout(logoClickTimeoutRef.current);
+    }
+
+    if (logoClickCountRef.current >= 5) {
+      logoClickCountRef.current = 0;
+      if (onOpenAdminLogin) {
+        onShowToast('🔑 กำลังเปิดหน้าต่างสำหรับเจ้าของระบบ...', 'info');
+        onOpenAdminLogin();
+      }
+      return;
+    }
+
+    logoClickTimeoutRef.current = setTimeout(() => {
+      if (logoClickCountRef.current === 1) {
+        onNavigateHome();
+      }
+      logoClickCountRef.current = 0;
+    }, 350);
+  };
+
+  // Stealth Keyboard Shortcut: Ctrl + Shift + A
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        e.preventDefault();
+        if (onOpenAdminLogin) {
+          onShowToast('🔑 คีย์ลัดเจ้าของระบบ (Admin Portal)', 'info');
+          onOpenAdminLogin();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onOpenAdminLogin, onShowToast]);
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -95,11 +140,11 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="relative h-14 shrink-0 bg-white/95 backdrop-blur-md border-b border-[#e6e6e6] px-2.5 sm:px-4 flex items-center justify-between z-40 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
       {/* Left: Brand Logo & Room Info */}
       <div className="flex items-center gap-1.5 xs:gap-2.5 sm:gap-3 min-w-0">
-        {/* Brand (Acts as Home button) */}
+        {/* Brand (Acts as Home button & Stealth Admin Easter Egg on 5 clicks) */}
         <button
-          onClick={onNavigateHome}
-          className="cursor-pointer group shrink-0 focus:outline-none flex items-center"
-          title="pleng.online - กลับหน้าหลัก"
+          onClick={handleLogoClick}
+          className="cursor-pointer group shrink-0 focus:outline-none flex items-center select-none"
+          title="pleng.online - หน้าหลัก"
         >
           <PlengLogo size="sm" animated={true} />
         </button>
@@ -199,8 +244,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           </>
         )}
 
-        {/* Super Admin Dashboard Trigger */}
-        {isSuperAdmin && onOpenSuperAdminDashboard ? (
+        {/* Support / Feedback Button (Desktop) */}
+        {onOpenSupport && (
+          <button
+            onClick={onOpenSupport}
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white hover:bg-[#f6f5f4] text-[#615d59] hover:text-[#000000] border border-[#e6e6e6] text-xs font-medium transition-colors cursor-pointer shadow-xs"
+            title="แจ้งปัญหา / ส่งข้อเสนอแนะ"
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-[#0075de]" />
+            <span>แจ้งปัญหา</span>
+          </button>
+        )}
+
+        {/* Super Admin Dashboard Trigger (Visible ONLY when logged in as Super Admin) */}
+        {isSuperAdmin && onOpenSuperAdminDashboard && (
           <button
             onClick={onOpenSuperAdminDashboard}
             className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#dd5b00]/10 text-[#dd5b00] border border-[#dd5b00]/30 text-xs font-semibold hover:bg-[#dd5b00]/20 transition-colors cursor-pointer shadow-xs"
@@ -209,16 +266,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Crown className="w-3.5 h-3.5 text-[#dd5b00]" />
             <span>ระบบหลังบ้าน</span>
           </button>
-        ) : onOpenAdminLogin ? (
-          <button
-            onClick={onOpenAdminLogin}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-700 border border-amber-500/20 text-xs font-semibold hover:bg-amber-500/20 transition-colors cursor-pointer shadow-xs"
-            title="เข้าสู่ระบบสำหรับเจ้าของเว็บและแอดมิน"
-          >
-            <Crown className="w-3.5 h-3.5 text-amber-600" />
-            <span>เจ้าของเว็บ 👑</span>
-          </button>
-        ) : null}
+        )}
 
         {/* Desktop Guest Sign In Button - Notion Blue Pill */}
         {!isMember && onOpenAuth && (
@@ -389,8 +437,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </>
                 )}
 
-                {/* Super Admin Dashboard or Owner Login in Mobile */}
-                {isSuperAdmin && onOpenSuperAdminDashboard ? (
+                {/* Support / Feedback in Mobile Menu */}
+                {onOpenSupport && (
+                  <button
+                    onClick={() => {
+                      onOpenSupport();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full px-3 py-2 rounded-lg hover:bg-[#f6f5f4] text-left text-xs text-[#31302e] flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <HelpCircle className="w-4 h-4 text-[#0075de]" />
+                    <span>แจ้งปัญหา / ข้อเสนอแนะ</span>
+                  </button>
+                )}
+
+                {/* Super Admin Dashboard in Mobile (Visible ONLY to Super Admin) */}
+                {isSuperAdmin && onOpenSuperAdminDashboard && (
                   <button
                     onClick={() => {
                       onOpenSuperAdminDashboard();
@@ -401,18 +463,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <Crown className="w-4 h-4 text-[#dd5b00]" />
                     <span>ระบบหลังบ้าน (Backoffice)</span>
                   </button>
-                ) : onOpenAdminLogin ? (
-                  <button
-                    onClick={() => {
-                      onOpenAdminLogin();
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="w-full px-3 py-2 rounded-lg hover:bg-amber-500/10 text-left text-xs text-amber-700 font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <Crown className="w-4 h-4 text-amber-600" />
-                    <span>เข้าสู่ระบบเจ้าของเว็บ 👑</span>
-                  </button>
-                ) : null}
+                )}
 
                 <div className="h-[1px] bg-[#e6e6e6] my-1" />
 

@@ -12,6 +12,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
+// Load .env configuration
+if (typeof (process as any).loadEnvFile === 'function') {
+  try {
+    (process as any).loadEnvFile();
+  } catch (e) {
+    // .env not present or failed to load, proceed with defaults
+  }
+}
+
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
