@@ -989,10 +989,18 @@ export function App() {
   };
 
   const handleSpeakingState = (isSpeaking: boolean) => {
+    // Optimistic local update so audio ducking triggers instantly without waiting for server roundtrip
+    setSeats((prev) =>
+      prev.map((s) => (s.user?.id === currentUser.id ? { ...s, isSpeaking } : s))
+    );
     socketService.send({
       type: 'SPEAKING_STATE',
       isSpeaking,
     });
+  };
+
+  const handleVoiceVolumeChange = (vol: number) => {
+    webrtcRef.current?.setIncomingVolume(vol);
   };
 
   const handleLocalStreamReady = (stream: MediaStream | null) => {
@@ -1486,6 +1494,7 @@ export function App() {
                 onRequestToSpeak={handleRequestToSpeak}
                 onApproveSpeakRequest={handleApproveSpeakRequest}
                 onRevokeSpeakPermission={handleRevokeSpeakPermission}
+                onVoiceVolumeChange={handleVoiceVolumeChange}
               />
             </div>
           </div>

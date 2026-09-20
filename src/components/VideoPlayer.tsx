@@ -50,6 +50,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isMuted, setIsMuted] = useState(true); // Start muted to guarantee browser autoplay
   const [showUnmutePrompt, setShowUnmutePrompt] = useState(true);
+  const [musicVolume, setMusicVolume] = useState<number>(() => {
+    const saved = localStorage.getItem('watchparty_music_volume');
+    return saved ? parseInt(saved, 10) : 70; // Default 70% for balanced listening
+  });
 
   // Keep latest props in refs to avoid stale closures
   const videoRef = useRef<VideoState>(video);
@@ -336,19 +340,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return () => clearInterval(interval);
   }, [isPlayerReady, video, onShowToast]);
 
-  // Audio Ducking: Smoothly lower YouTube volume to 25% when someone on stage is speaking
+  // Audio Ducking: Smoothly lower YouTube volume to 15% when someone on stage is speaking so their voice is loud and clear
   useEffect(() => {
     if (!playerRef.current || !playerRef.current.setVolume) return;
     try {
       if (isAudioDuckingEnabled && isSomeoneSpeaking) {
-        playerRef.current.setVolume(25);
+        // Lower to 15% (or 20% of musicVolume, min 10 max 20)
+        const duckedVol = Math.max(10, Math.min(20, Math.round(musicVolume * 0.2)));
+        playerRef.current.setVolume(duckedVol);
       } else if (!isMuted) {
-        playerRef.current.setVolume(100);
+        playerRef.current.setVolume(musicVolume);
       }
     } catch (e) {
       // ignore
     }
-  }, [isSomeoneSpeaking, isAudioDuckingEnabled, isMuted]);
+  }, [isSomeoneSpeaking, isAudioDuckingEnabled, isMuted, musicVolume]);
 
   // Top-level HTML5 Audio Keep-Alive for background playback & lock screen control on mobile
   const silentAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -462,13 +468,26 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (playerRef.current) {
       try {
         playerRef.current.unMute();
-        playerRef.current.setVolume(100);
+        playerRef.current.setVolume(musicVolume);
         setIsMuted(false);
         setShowUnmutePrompt(false);
-        onShowToast('เปิดเสียงวิดีโอแล้ว 🔊', 'success');
+        onShowToast(`เปิดเสียงวิดีโอแล้ว (${musicVolume}%) 🔊`, 'success');
       } catch (err) {
         console.warn('Unmute error:', err);
       }
+    }
+  };
+
+  const handleMusicVolumeChange = (newVol: number) => {
+    setMusicVolume(newVol);
+    localStorage.setItem('watchparty_music_volume', newVol.toString());
+    if (playerRef.current?.setVolume && !isMuted) {
+      if (!isAudioDuckingEnabled || !isSomeoneSpeaking) {
+        playerRef.current.setVolume(newVol);
+      }
+    }
+    if (newVol > 0 && isMuted) {
+      handleUnmute();
     }
   };
 
@@ -539,7 +558,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       )}
 
       {/* Quick Player Control Overlay (Top right) */}
-      <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-md p-1 rounded-full border border-[#e6e6e6] shadow-xs">
+      <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-md p-1 rounded-full border border-[#e6e6e6] shadow-xs">
         {video.videoId && onToggleFavorite && (
           <button
             onClick={onToggleFavorite}
@@ -562,13 +581,41 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         >
           <Headphones className="w-3.5 h-3.5" />
         </button>
-        <button
-          onClick={toggleMute}
-          title={isMuted ? 'เปิดเสียง' : 'ปิดเสียง'}
-          className="p-1.5 rounded-full text-[#615d59] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer"
-        >
-          {isMuted ? <VolumeX className="w-3.5 h-3.5 text-rose-600" /> : <Volume2 className="w-3.5 h-3.5" />}
-        </button>
+
+        {/* Music Volume Control Slider */}
+        <div className="relative flex items-center group/vol">
+          <button
+            onClick={toggleMute}
+            title={isMuted ? 'เปิดเสียง' : `ระดับเสียงเพลง: ${musicVolume}% (เลื่อนเพื่อปรับ)`}
+            className="p-1.5 rounded-full text-[#615d59] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer flex items-center gap-1"
+          >
+            {isMuted || musicVolume === 0 ? (
+              <VolumeX className="w-3.5 h-3.5 text-rose-600" />
+            ) : (
+              <Volume2 className="w-3.5 h-3.5" />
+            )}
+            <span className="text-[10px] font-mono text-[#615d59] hidden sm:inline">
+              {isMuted ? '0%' : `${musicVolume}%`}
+            </span>
+          </button>
+
+          {/* Slider reveals on hover or touch */}
+          <div className="hidden group-hover/vol:flex items-center gap-1.5 px-2.5 py-1 bg-white/95 backdrop-blur-md rounded-full border border-[#e6e6e6] shadow-md absolute right-full mr-1.5 z-30">
+            <span className="text-[10px] text-[#615d59] whitespace-nowrap font-medium">เสียงเพลง:</span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={isMuted ? 0 : musicVolume}
+              onChange={(e) => handleMusicVolumeChange(parseInt(e.target.value, 10))}
+              className="w-20 sm:w-24 h-1.5 bg-[#e6e6e6] rounded-lg appearance-none cursor-pointer accent-[#0075de]"
+            />
+            <span className="text-[10px] font-mono text-[#0075de] font-bold w-7 text-right">
+              {isMuted ? '0%' : `${musicVolume}%`}
+            </span>
+          </div>
+        </div>
+
         <button
           onClick={handleFullscreen}
           title="เต็มจอ (Fullscreen)"

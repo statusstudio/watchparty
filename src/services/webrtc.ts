@@ -27,11 +27,24 @@ export class WebRTCVoiceEngine {
     iceCandidatePoolSize: 10,
   };
 
+  private incomingVolume: number = 1.0;
+
   constructor(myUserId: string, sendSignal: SendSignalFn) {
     this.myUserId = myUserId;
     this.sendSignal = sendSignal;
     this.ensureAudioContainer();
     this.setupGlobalAudioUnlock();
+  }
+
+  public setIncomingVolume(vol: number) {
+    this.incomingVolume = Math.max(0, Math.min(1.0, vol));
+    this.remoteAudioElements.forEach((audioEl) => {
+      audioEl.volume = this.incomingVolume;
+    });
+  }
+
+  public getIncomingVolume(): number {
+    return this.incomingVolume;
   }
 
   private ensureAudioContainer(): HTMLElement {
@@ -210,7 +223,7 @@ export class WebRTCVoiceEngine {
         audioEl = document.createElement('audio');
         audioEl.autoplay = true;
         (audioEl as any).playsInline = true;
-        audioEl.volume = 1.0;
+        audioEl.volume = this.incomingVolume;
         audioEl.muted = false;
 
         const container = this.ensureAudioContainer();
