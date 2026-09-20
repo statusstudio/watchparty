@@ -226,6 +226,7 @@ export function App() {
   // Modals State
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalInitialTab, setAuthModalInitialTab] = useState<'member' | 'admin'>('member');
   const [isUserProfileModalOpen, setIsUserProfileModalOpen] = useState(false);
   const [selectedUserForProfile, setSelectedUserForProfile] = useState<UserProfile | null>(null);
   const [isUserCardModalOpen, setIsUserCardModalOpen] = useState(false);
@@ -850,6 +851,10 @@ export function App() {
   const handleLoginSuccess = (user: UserProfile) => {
     setCurrentUser(user);
     saveUser(user);
+    if (user.isSuperAdmin || user.id === 'usr-admin-system') {
+      setIsSuperAdmin(true);
+      localStorage.setItem('watchparty_superadmin', 'true');
+    }
     socketService.send({
       type: 'UPDATE_PROFILE',
       user,
@@ -859,6 +864,8 @@ export function App() {
 
   const handleLogout = () => {
     clearUser();
+    localStorage.removeItem('watchparty_superadmin');
+    setIsSuperAdmin(false);
     if (isSupabaseConfigured() && supabase) {
       supabase.auth.signOut();
     }
@@ -1244,15 +1251,23 @@ export function App() {
           setSelectedUserForProfile(currentUser);
           setIsUserProfileModalOpen(true);
         }}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onOpenAuth={() => {
+          setAuthModalInitialTab('member');
+          setIsAuthModalOpen(true);
+        }}
         onLogout={handleLogout}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         onOpenSuperAdminDashboard={() => {
           if (isSuperAdmin) {
             setIsSuperAdminModalOpen(true);
           } else {
-            setIsSuperAdminUnlockModalOpen(true);
+            setAuthModalInitialTab('admin');
+            setIsAuthModalOpen(true);
           }
+        }}
+        onOpenAdminLogin={() => {
+          setAuthModalInitialTab('admin');
+          setIsAuthModalOpen(true);
         }}
         onShowToast={showToast}
       />
@@ -1805,7 +1820,13 @@ export function App() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         currentUser={currentUser}
+        initialTab={authModalInitialTab}
         onLoginSuccess={handleLoginSuccess}
+        onAdminLoginSuccess={() => {
+          setIsSuperAdmin(true);
+          setIsSuperAdminModalOpen(true);
+          showToast('ยินดีต้อนรับท่านเจ้าของระบบ เข้าสู่ระบบหลังบ้านสำเร็จ 👑', 'success');
+        }}
         onLogout={handleLogout}
       />
 

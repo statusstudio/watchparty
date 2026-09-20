@@ -91,6 +91,35 @@ async function startServer() {
     }
   });
 
+  // Owner / Super Admin Login Endpoint
+  app.post('/api/platform/admin-login', (req, res) => {
+    const { username, passcode } = req.body;
+    if (platformManager.verifyMasterPasscode(passcode)) {
+      const adminName = username?.trim()
+        ? (username.includes('👑') ? username.trim() : `${username.trim()} 👑`)
+        : 'System Admin 👑';
+
+      const adminUser = platformManager.recordUser({
+        id: 'usr-admin-system',
+        name: adminName,
+        email: 'admin@watchparty.live',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
+        color: '#dd5b00',
+        provider: 'google',
+        isSuperAdmin: true,
+      });
+
+      platformManager.setSuperAdmin('usr-admin-system', true);
+      res.json({
+        success: true,
+        user: adminUser,
+        message: 'เข้าสู่ระบบในฐานะเจ้าของระบบสำเร็จ 👑',
+      });
+    } else {
+      res.status(401).json({ success: false, error: 'รหัสผ่านเจ้าของระบบ (Master Passcode) ไม่ถูกต้อง' });
+    }
+  });
+
   // Get Platform Overview Stats
   app.get('/api/platform/stats', (req, res) => {
     res.json(platformManager.getStats(roomManager));

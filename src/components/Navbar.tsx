@@ -37,6 +37,7 @@ interface NavbarProps {
   onLogout?: () => void;
   onOpenAdminPanel: () => void;
   onOpenSuperAdminDashboard: () => void;
+  onOpenAdminLogin?: () => void;
   onShowToast: (msg: string, type?: 'info' | 'success' | 'warning') => void;
 }
 
@@ -59,6 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
   onOpenAdminPanel,
   onOpenSuperAdminDashboard,
+  onOpenAdminLogin,
   onShowToast,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -198,7 +200,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         )}
 
         {/* Super Admin Dashboard Trigger */}
-        {isSuperAdmin && onOpenSuperAdminDashboard && (
+        {isSuperAdmin && onOpenSuperAdminDashboard ? (
           <button
             onClick={onOpenSuperAdminDashboard}
             className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#dd5b00]/10 text-[#dd5b00] border border-[#dd5b00]/30 text-xs font-semibold hover:bg-[#dd5b00]/20 transition-colors cursor-pointer shadow-xs"
@@ -207,7 +209,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Crown className="w-3.5 h-3.5 text-[#dd5b00]" />
             <span>ระบบหลังบ้าน</span>
           </button>
-        )}
+        ) : onOpenAdminLogin ? (
+          <button
+            onClick={onOpenAdminLogin}
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-700 border border-amber-500/20 text-xs font-semibold hover:bg-amber-500/20 transition-colors cursor-pointer shadow-xs"
+            title="เข้าสู่ระบบสำหรับเจ้าของเว็บและแอดมิน"
+          >
+            <Crown className="w-3.5 h-3.5 text-amber-600" />
+            <span>เจ้าของเว็บ 👑</span>
+          </button>
+        ) : null}
 
         {/* Desktop Guest Sign In Button - Notion Blue Pill */}
         {!isMember && onOpenAuth && (
@@ -378,8 +389,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </>
                 )}
 
-                {/* Super Admin Dashboard in Mobile */}
-                {isSuperAdmin && onOpenSuperAdminDashboard && (
+                {/* Super Admin Dashboard or Owner Login in Mobile */}
+                {isSuperAdmin && onOpenSuperAdminDashboard ? (
                   <button
                     onClick={() => {
                       onOpenSuperAdminDashboard();
@@ -390,7 +401,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <Crown className="w-4 h-4 text-[#dd5b00]" />
                     <span>ระบบหลังบ้าน (Backoffice)</span>
                   </button>
-                )}
+                ) : onOpenAdminLogin ? (
+                  <button
+                    onClick={() => {
+                      onOpenAdminLogin();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full px-3 py-2 rounded-lg hover:bg-amber-500/10 text-left text-xs text-amber-700 font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <Crown className="w-4 h-4 text-amber-600" />
+                    <span>เข้าสู่ระบบเจ้าของเว็บ 👑</span>
+                  </button>
+                ) : null}
 
                 <div className="h-[1px] bg-[#e6e6e6] my-1" />
 
