@@ -501,13 +501,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       {video.videoId ? (
         <div id="youtube-iframe" className="w-full h-full pointer-events-auto" />
       ) : (
-        <div className="flex flex-col items-center justify-center text-gray-400 gap-3 p-6 text-center select-none animate-fade-in max-w-md">
-          <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-violet-600/20 via-purple-600/15 to-pink-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 shadow-xl shadow-violet-950/40">
-            <Music className="w-8 h-8 text-purple-300 animate-pulse" />
+        <div className="flex flex-col items-center justify-center text-[#615d59] gap-3 p-6 text-center select-none animate-fade-in max-w-md">
+          <div className="w-16 h-16 rounded-2xl bg-white border border-[#e6e6e6] flex items-center justify-center text-[#0075de] shadow-xs">
+            <Music className="w-8 h-8 text-[#0075de] animate-pulse" />
           </div>
           <div className="space-y-1.5">
             <h3 className="text-sm sm:text-base font-bold text-white">ห้องอยู่ในโหมด Standby 🎵</h3>
-            <p className="text-xs text-gray-400 leading-relaxed">
+            <p className="text-xs text-white/80 leading-relaxed">
               ยังไม่มีเพลงกำลังเล่นในห้องนี้ — ค้นหาเพลงหรือวางลิงก์ YouTube ที่แถบคิวเพลงเพื่อเริ่มฟังพร้อมกันได้เลย!
             </p>
           </div>
@@ -522,9 +522,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         <div className="absolute top-4 left-4 z-30 animate-fade-in">
           <button
             onClick={handleUnmute}
-            className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-purple-600/90 hover:bg-purple-500 text-white font-medium text-xs shadow-xl shadow-purple-900/40 backdrop-blur-md border border-purple-400/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#0075de] hover:bg-[#005bab] text-white font-semibold text-xs shadow-md border border-white/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
           >
-            <VolumeOff className="w-4 h-4 animate-bounce text-yellow-300" />
+            <VolumeOff className="w-4 h-4 animate-bounce text-amber-300" />
             <span>แตะที่นี่เพื่อเปิดเสียง (Unmute)</span>
           </button>
         </div>
@@ -532,49 +532,49 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {/* Audio Ducking Active Badge Indicator */}
       {isAudioDuckingEnabled && isSomeoneSpeaking && (
-        <div className="absolute bottom-4 left-4 z-20 px-3 py-1.5 rounded-full bg-emerald-600/90 text-white text-[11px] font-medium flex items-center gap-1.5 shadow-lg backdrop-blur-md animate-pulse">
-          <Headphones className="w-3.5 h-3.5 text-emerald-200" />
+        <div className="absolute bottom-4 left-4 z-20 px-3 py-1.5 rounded-full bg-[#1aae39] text-white text-[11px] font-semibold flex items-center gap-1.5 shadow-md animate-pulse">
+          <Headphones className="w-3.5 h-3.5 text-white" />
           <span>ลดเสียงคลิปชั่วคราว (เพื่อนกำลังพูด)</span>
         </div>
       )}
 
       {/* Quick Player Control Overlay (Top right) */}
-      <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 backdrop-blur-md p-1.5 rounded-xl border border-white/10">
+      <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-md p-1 rounded-full border border-[#e6e6e6] shadow-xs">
         {video.videoId && onToggleFavorite && (
           <button
             onClick={onToggleFavorite}
             title={isFavorite ? 'ลบออกจากเพลงโปรด' : 'บันทึกเพลงนี้เป็นเพลงโปรด ❤️'}
-            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+            className={`p-1.5 rounded-full transition-colors cursor-pointer ${
               isFavorite
-                ? 'text-rose-500 bg-rose-500/20'
-                : 'text-gray-400 hover:text-rose-400 hover:bg-white/10'
+                ? 'text-rose-600 bg-rose-50'
+                : 'text-[#615d59] hover:text-rose-600 hover:bg-black/5'
             }`}
           >
-            <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+            <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-current' : ''}`} />
           </button>
         )}
         <button
           onClick={onToggleAudioDucking}
           title={isAudioDuckingEnabled ? 'เปิดระบบลดเสียงคลิปเวลาคนพูดอยู่ (คลิกเพื่อปิด)' : 'ปิดระบบลดเสียงคลิปเวลาคนพูดอยู่ (คลิกเพื่อเปิด)'}
-          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-            isAudioDuckingEnabled ? 'text-emerald-400 bg-emerald-500/20' : 'text-gray-400 hover:text-white hover:bg-white/10'
+          className={`p-1.5 rounded-full transition-colors cursor-pointer ${
+            isAudioDuckingEnabled ? 'text-[#1aae39] bg-[#1aae39]/10' : 'text-[#615d59] hover:text-[#000000] hover:bg-black/5'
           }`}
         >
-          <Headphones className="w-4 h-4" />
+          <Headphones className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={toggleMute}
           title={isMuted ? 'เปิดเสียง' : 'ปิดเสียง'}
-          className="p-1.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+          className="p-1.5 rounded-full text-[#615d59] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer"
         >
-          {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
+          {isMuted ? <VolumeX className="w-3.5 h-3.5 text-rose-600" /> : <Volume2 className="w-3.5 h-3.5" />}
         </button>
         <button
           onClick={handleFullscreen}
           title="เต็มจอ (Fullscreen)"
-          className="p-1.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+          className="p-1.5 rounded-full text-[#615d59] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer"
         >
-          <Maximize className="w-4 h-4" />
+          <Maximize className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>

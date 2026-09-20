@@ -65,10 +65,10 @@ export const LiveChat: React.FC<LiveChatProps> = ({
               onSeekTo(totalSeconds);
               onShowToast(`กระโดดข้ามวิดีโอไปที่ ${part} ⏱️`, 'info');
             }}
-            className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 font-mono text-xs border border-purple-500/30 transition-colors align-middle cursor-pointer"
+            className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-[#0075de]/10 hover:bg-[#0075de]/20 text-[#0075de] font-mono text-xs border border-[#0075de]/20 transition-colors align-middle cursor-pointer"
             title={`คลิกเพื่อข้ามวิดีโอไปที่ ${part}`}
           >
-            <Clock className="w-3 h-3 text-purple-400 inline" />
+            <Clock className="w-3 h-3 text-[#0075de] inline" />
             {part}
           </button>
         );
@@ -83,20 +83,20 @@ export const LiveChat: React.FC<LiveChatProps> = ({
   };
 
   return (
-    <div className="bg-[#151722]/80 backdrop-blur-md rounded-2xl border border-gray-800/80 flex flex-col h-full min-h-0 shadow-xl overflow-hidden">
+    <div className="bg-white flex flex-col h-full min-h-0 overflow-hidden">
       {/* Tab Header - visible on desktop, hidden on mobile to maximize chat view */}
-      <div className="hidden lg:flex px-4 py-2.5 sm:py-3 border-b border-gray-800/80 items-center justify-between shrink-0">
+      <div className="hidden lg:flex px-4 py-2.5 sm:py-3 border-b border-[#e6e6e6] bg-[#f6f5f4] items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-pink-400" />
-          <h3 className="text-sm font-semibold text-white tracking-wide">
+          <MessageSquare className="w-4 h-4 text-[#0075de]" />
+          <h3 className="text-xs font-semibold text-[#000000] tracking-wide">
             แชทสด
           </h3>
         </div>
-        <span className="text-[11px] text-gray-500">Live Chat</span>
+        <span className="text-[11px] text-[#615d59]">Live Chat</span>
       </div>
 
       {/* Messages Scroll Area */}
-      <div ref={chatContainerRef} className="flex-1 min-h-0 p-3 sm:p-4 overflow-y-auto space-y-3">
+      <div ref={chatContainerRef} className="flex-1 min-h-0 p-3 sm:p-4 overflow-y-auto space-y-3 bg-[#f6f5f4]/50">
         {messages.map((msg) => {
           const isMe = msg.sender.id === currentUser.id;
           const isSystem = msg.sender.id === 'system';
@@ -105,7 +105,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
             return (
               <div
                 key={msg.id}
-                className="p-2.5 rounded-xl bg-purple-950/20 border border-purple-500/20 text-xs text-purple-200 text-center"
+                className="p-2 rounded-xl bg-white border border-[#e6e6e6] text-xs text-[#615d59] text-center font-medium shadow-xs"
               >
                 {msg.text}
               </div>
@@ -124,14 +124,14 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                     onSelectUser(msg.sender);
                   }
                 }}
-                className="w-8 h-8 rounded-full overflow-hidden shrink-0 border-2 mt-0.5 hover:opacity-80 transition-opacity cursor-pointer"
+                className="w-8 h-8 rounded-full overflow-hidden shrink-0 border-2 mt-0.5 hover:opacity-80 transition-opacity cursor-pointer bg-[#f6f5f4] shadow-xs"
                 style={{ borderColor: msg.sender.color }}
                 title={`ดูโปรไฟล์ของ ${msg.sender.name}`}
               >
                 <img
                   src={msg.sender.avatar}
                   alt={msg.sender.name}
-                  className="w-full h-full object-cover bg-gray-900"
+                  className="w-full h-full object-cover"
                 />
               </button>
 
@@ -152,14 +152,18 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                     title={`ดูโปรไฟล์ของ ${msg.sender.name}`}
                   >
                     {msg.sender.name}
-                    {isMe && <span className="text-[10px] text-gray-500 ml-1">(คุณ)</span>}
+                    {isMe && <span className="text-[10px] text-[#a39e98] ml-1">(คุณ)</span>}
                   </button>
-                  <span className="text-[10px] text-gray-400">
+                  <span className="text-[10px] text-[#a39e98]">
                     {formatMessageTime(msg.timestamp)}
                   </span>
                 </div>
 
-                <div className="text-xs text-gray-200 bg-[#1a1d2d]/80 border border-gray-800/80 rounded-2xl rounded-tl-sm px-3 py-2 inline-block max-w-full break-words leading-relaxed">
+                <div className={`text-xs rounded-2xl rounded-tl-sm px-3 py-2 inline-block max-w-full break-words leading-relaxed border shadow-xs ${
+                  isMe
+                    ? 'bg-[#0075de]/8 text-[#000000] border-[#0075de]/20'
+                    : 'bg-white text-[#31302e] border-[#e6e6e6]'
+                }`}>
                   {renderMessageWithTimestamps(msg.text)}
                 </div>
               </div>
@@ -170,20 +174,20 @@ export const LiveChat: React.FC<LiveChatProps> = ({
       </div>
 
       {/* Input Area with Profile Avatar in front */}
-      <form onSubmit={handleSend} className="p-2 sm:p-3 bg-[#151722] border-t border-gray-800/80 shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <form onSubmit={handleSend} className="p-2 sm:p-3 bg-white border-t border-[#e6e6e6] shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         <div className="flex items-center gap-2">
           {/* User Profile Avatar in front of chat input */}
           <button
             type="button"
             onClick={onOpenProfile}
             title="คลิกเพื่อแก้ไขโปรไฟล์ของคุณ"
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden shrink-0 border-2 hover:opacity-80 transition-opacity cursor-pointer group relative"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden shrink-0 border-2 hover:opacity-80 transition-opacity cursor-pointer group relative shadow-xs"
             style={{ borderColor: currentUser.color }}
           >
             <img
               src={currentUser.avatar}
               alt={currentUser.name}
-              className="w-full h-full object-cover bg-gray-900"
+              className="w-full h-full object-cover"
             />
           </button>
 
@@ -194,12 +198,12 @@ export const LiveChat: React.FC<LiveChatProps> = ({
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder="พิมพ์ข้อความ... หรือใส่เวลา เช่น 01:23"
-              className="w-full pl-3.5 pr-10 py-2 bg-[#0f0f13] border border-gray-800 focus:border-purple-500 rounded-xl text-base sm:text-xs text-white placeholder-gray-500 focus:outline-none transition-colors"
+              className="w-full pl-3.5 pr-10 py-2 bg-white border border-[#e6e6e6] focus:border-[#0075de] rounded-full text-base sm:text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none shadow-xs transition-colors"
             />
             <button
               type="submit"
               disabled={!inputText.trim()}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-purple-400 hover:text-white hover:bg-purple-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-purple-400 transition-colors cursor-pointer"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-[#0075de] text-white hover:bg-[#005bab] disabled:opacity-30 transition-colors cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
             </button>

@@ -10,7 +10,7 @@
     height: 100%;
     margin: 0;
     padding: 0;
-    background-color: #0f0f13;
+    background-color: #f6f5f4;
     touch-action: pan-x pan-y;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
@@ -37,7 +37,7 @@ iframe#youtube-iframe {
   border-radius: 0.75rem;
 }
 
-/* Custom modern scrollbars */
+/* Custom modern scrollbars in Notion style */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -48,12 +48,12 @@ iframe#youtube-iframe {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.15);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.25);
 }
 
 .no-scrollbar::-webkit-scrollbar {

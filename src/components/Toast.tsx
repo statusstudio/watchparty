@@ -35,27 +35,27 @@ const ToastMessage: React.FC<{ toast: ToastItem; onDismiss: (id: string) => void
   }, [toast.id, onDismiss]);
 
   const icons = {
-    info: <Info className="w-4 h-4 text-cyan-400 shrink-0" />,
-    success: <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />,
-    warning: <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />,
+    info: <Info className="w-4 h-4 text-[#0075de] shrink-0" />,
+    success: <CheckCircle2 className="w-4 h-4 text-[#1aae39] shrink-0" />,
+    warning: <AlertCircle className="w-4 h-4 text-[#dd5b00] shrink-0" />,
   };
 
   const bgStyles = {
-    info: 'border-cyan-500/30 bg-[#151722]/95 shadow-cyan-500/10',
-    success: 'border-emerald-500/30 bg-[#151722]/95 shadow-emerald-500/10',
-    warning: 'border-amber-500/30 bg-[#151722]/95 shadow-amber-500/10',
+    info: 'border-[#e6e6e6] bg-white text-[#000000] shadow-notion-modal',
+    success: 'border-[#1aae39]/30 bg-white text-[#000000] shadow-notion-modal',
+    warning: 'border-[#dd5b00]/30 bg-white text-[#000000] shadow-notion-modal',
   };
 
   const type = toast.type || 'info';
 
   return (
     <div
-      className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-md shadow-lg transition-all duration-300 text-sm text-gray-200 ${
+      className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl border shadow-notion-modal transition-all duration-300 text-sm ${
         bgStyles[type]
       } ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-2 scale-95'}`}
     >
       {icons[type]}
-      <span className="font-medium flex-1 text-xs sm:text-sm leading-snug">{toast.message}</span>
+      <span className="font-medium flex-1 text-xs sm:text-sm leading-snug text-[#000000]">{toast.message}</span>
     </div>
   );
 };

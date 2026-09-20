@@ -65,23 +65,23 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[#12141e] border border-gray-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col relative animate-scale-up">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
+      <div className="bg-white border border-[#e6e6e6] rounded-2xl w-full max-w-sm overflow-hidden shadow-notion-modal flex flex-col relative text-[#31302e] animate-scale-up">
         {/* Banner */}
-        <div className="relative h-28 w-full overflow-hidden bg-gradient-to-r from-purple-900/60 to-rose-900/40">
+        <div className="relative h-28 w-full overflow-hidden bg-[#f6f5f4]">
           <img
             src={
               displayUser.bannerUrl ||
               'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80'
             }
             alt="Banner"
-            className="w-full h-full object-cover brightness-75"
+            className="w-full h-full object-cover brightness-95"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#12141e] via-transparent to-black/30" />
+          <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-black/20" />
 
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 p-1.5 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-md transition-colors cursor-pointer"
+            className="absolute top-3 right-3 p-1.5 rounded-full bg-white/80 hover:bg-white text-[#31302e] shadow-xs border border-[#e6e6e6] backdrop-blur-xs transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -92,8 +92,8 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
           {/* Avatar and Action Header */}
           <div className="flex items-end justify-between -mt-10 mb-3">
             <div
-              className="w-18 h-18 rounded-2xl overflow-hidden border-3 shadow-xl bg-[#171924] shrink-0"
-              style={{ borderColor: displayUser.color || '#ec4899' }}
+              className="w-18 h-18 rounded-2xl overflow-hidden border-3 shadow-md bg-white shrink-0"
+              style={{ borderColor: displayUser.color || '#0075de' }}
             >
               <img src={displayUser.avatar} alt={displayUser.name} className="w-full h-full object-cover" />
             </div>
@@ -103,15 +103,15 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
                 type="button"
                 disabled={followLoading}
                 onClick={handleToggleFollow}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-md disabled:opacity-60 ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-60 ${
                   isFollowing
-                    ? 'bg-gray-800 hover:bg-rose-500/20 text-gray-200 hover:text-rose-400 border border-gray-700'
-                    : 'bg-gradient-to-r from-rose-500 to-purple-600 hover:from-rose-600 hover:to-purple-700 text-white shadow-rose-500/20'
+                    ? 'bg-white hover:bg-rose-50 text-[#31302e] hover:text-rose-600 border border-[#e6e6e6]'
+                    : 'bg-[#0075de] hover:bg-[#005bab] text-white'
                 }`}
               >
                 {isFollowing ? (
                   <>
-                    <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <UserCheck className="w-3.5 h-3.5 text-[#1aae39]" />
                     <span>กำลังติดตาม</span>
                   </>
                 ) : (
@@ -127,55 +127,55 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
           {/* Name & Handle */}
           <div>
             <div className="flex items-center gap-1.5">
-              <h3 className="text-base font-bold text-white truncate">{displayUser.name}</h3>
+              <h3 className="text-base font-bold text-[#000000] truncate">{displayUser.name}</h3>
               {displayUser.provider === 'google' && (
-                <span className="px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[9px] font-semibold">
+                <span className="px-1.5 py-0.2 rounded-full bg-rose-50 text-rose-600 border border-rose-200 text-[9px] font-semibold">
                   Google
                 </span>
               )}
               {displayUser.provider === 'facebook' && (
-                <span className="px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[9px] font-semibold">
+                <span className="px-1.5 py-0.2 rounded-full bg-blue-50 text-[#1877F2] border border-blue-200 text-[9px] font-semibold">
                   Facebook
                 </span>
               )}
             </div>
-            <p className="text-xs text-cyan-400 font-mono mt-0.5">
+            <p className="text-xs text-[#0075de] font-mono mt-0.5">
               @{displayUser.username || `user_${displayUser.id.slice(0, 5)}`}
             </p>
           </div>
 
           {/* Stats Bar */}
-          <div className="flex items-center gap-4 py-2.5 my-3 border-y border-gray-800/80 text-xs">
+          <div className="flex items-center gap-4 py-2 my-2.5 border-y border-[#e6e6e6] text-xs">
             <div>
-              <span className="font-bold text-white mr-1">{followersCount}</span>
-              <span className="text-gray-400">ผู้ติดตาม</span>
+              <span className="font-bold text-[#000000] mr-1">{followersCount}</span>
+              <span className="text-[#615d59]">ผู้ติดตาม</span>
             </div>
             <div>
-              <span className="font-bold text-white mr-1">{displayUser.followingCount || 0}</span>
-              <span className="text-gray-400">กำลังติดตาม</span>
+              <span className="font-bold text-[#000000] mr-1">{displayUser.followingCount || 0}</span>
+              <span className="text-[#615d59]">กำลังติดตาม</span>
             </div>
           </div>
 
           {/* Bio snippet */}
           {displayUser.bio && (
-            <p className="text-xs text-gray-300 line-clamp-2 leading-relaxed mb-3">
+            <p className="text-xs text-[#615d59] line-clamp-2 leading-relaxed mb-3">
               {displayUser.bio}
             </p>
           )}
 
           {/* Music Genre Tags */}
           {displayUser.favoriteGenres && displayUser.favoriteGenres.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-4">
+            <div className="flex flex-wrap gap-1.5 mb-3.5">
               {displayUser.favoriteGenres.slice(0, 3).map((genre) => (
                 <span
                   key={genre}
-                  className="px-2 py-0.5 rounded-md bg-[#181a26] border border-gray-800 text-[10px] text-gray-300 font-medium"
+                  className="px-2 py-0.5 rounded-full bg-[#f6f5f4] border border-[#e6e6e6] text-[10px] text-[#31302e] font-medium"
                 >
                   #{genre}
                 </span>
               ))}
               {displayUser.favoriteGenres.length > 3 && (
-                <span className="text-[10px] text-gray-500 self-center">
+                <span className="text-[10px] text-[#a39e98] self-center">
                   +{displayUser.favoriteGenres.length - 3}
                 </span>
               )}
@@ -189,10 +189,10 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
               onClose();
               onViewFullProfile(displayUser);
             }}
-            className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+            className="w-full py-2 rounded-full bg-white hover:bg-[#f6f5f4] border border-[#e6e6e6] text-[#000000] font-medium text-xs flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
           >
             <span>ดูหน้าโปรไฟล์เต็ม</span>
-            <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+            <ExternalLink className="w-3.5 h-3.5 text-[#615d59]" />
           </button>
         </div>
       </div>

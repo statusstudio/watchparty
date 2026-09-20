@@ -152,38 +152,38 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
   };
 
   return (
-    <div className="bg-[#13141c]/90 backdrop-blur-md rounded-2xl border border-gray-800/80 p-3 shadow-xl shrink-0 transition-all">
+    <div className="bg-white rounded-xl border border-[#e6e6e6] p-3 shadow-xs shrink-0 transition-all">
       {/* Header & Status Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-gray-800/70">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-[#e6e6e6]">
         <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-          <h2 className="text-xs sm:text-sm font-bold text-white tracking-wide flex items-center gap-1.5">
+          <div className="w-2 h-2 rounded-full bg-[#1aae39] animate-pulse" />
+          <h2 className="text-xs sm:text-sm font-bold text-[#000000] tracking-tight flex items-center gap-1.5">
             <span>ห้องคุยไมค์สด</span>
-            <span className="text-[11px] font-normal text-gray-400 hidden sm:inline">
+            <span className="text-[11px] font-normal text-[#615d59] hidden sm:inline">
               (Open Voice)
             </span>
           </h2>
 
           {/* Active Voice Count Badge */}
-          <span className="px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-300 text-[10px] font-medium border border-violet-500/20 flex items-center gap-1">
-            <Radio className="w-3 h-3 text-violet-400 animate-pulse" />
+          <span className="px-2 py-0.5 rounded-full bg-[#0075de]/10 text-[#0075de] text-[10px] font-medium border border-[#0075de]/20 flex items-center gap-1">
+            <Radio className="w-3 h-3 text-[#0075de] animate-pulse" />
             <span>{activeSpeakers.length} คนในสาย</span>
           </span>
 
           {/* Mode Pill */}
           {stageAccessMode === 'everyone' && (
-            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-medium border border-emerald-500/20 hidden md:flex items-center gap-1">
-              <Users className="w-3 h-3" /> ทุกคนเปิดไมค์ได้
+            <span className="px-2 py-0.5 rounded-full bg-[#f6f5f4] text-[#31302e] text-[10px] font-medium border border-[#e6e6e6] hidden md:flex items-center gap-1">
+              <Users className="w-3 h-3 text-[#2a9d99]" /> ทุกคนเปิดไมค์ได้
             </span>
           )}
           {stageAccessMode === 'admin_only' && (
-            <span className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 text-[10px] font-medium border border-purple-500/20 hidden md:flex items-center gap-1">
-              <Shield className="w-3 h-3" /> เฉพาะแอดมิน
+            <span className="px-2 py-0.5 rounded-full bg-[#d6b6f6]/20 text-[#391c57] text-[10px] font-medium border border-[#d6b6f6]/40 hidden md:flex items-center gap-1">
+              <Shield className="w-3 h-3 text-[#391c57]" /> เฉพาะแอดมิน
             </span>
           )}
           {stageAccessMode === 'approval' && (
-            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-medium border border-amber-500/20 hidden md:flex items-center gap-1">
-              <Hand className="w-3 h-3" /> ต้องขออนุมัติ
+            <span className="px-2 py-0.5 rounded-full bg-[#dd5b00]/10 text-[#dd5b00] text-[10px] font-medium border border-[#dd5b00]/20 hidden md:flex items-center gap-1">
+              <Hand className="w-3 h-3 text-[#dd5b00]" /> ต้องขออนุมัติ
             </span>
           )}
         </div>
@@ -196,10 +196,10 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
               <button
                 type="button"
                 onClick={handleMuteToggle}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-md ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer shadow-xs ${
                   isLocalMuted
-                    ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40 hover:bg-rose-500/30'
-                    : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 ring-1 ring-emerald-500/30'
+                    ? 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100'
+                    : 'bg-[#1aae39]/10 text-[#1aae39] border border-[#1aae39]/30 hover:bg-[#1aae39]/20'
                 }`}
               >
                 {isLocalMuted ? (
@@ -220,9 +220,9 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
                 type="button"
                 onClick={onLeaveSeat}
                 title="ออกจากสายไมค์"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-800/80 hover:bg-rose-600/20 hover:text-rose-400 text-gray-300 border border-gray-700 hover:border-rose-500/40 transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white hover:bg-rose-50 hover:text-rose-600 text-[#615d59] border border-[#e6e6e6] hover:border-rose-200 transition-colors cursor-pointer shadow-xs"
               >
-                <PhoneOff className="w-3.5 h-3.5 text-rose-400" />
+                <PhoneOff className="w-3.5 h-3.5 text-rose-500" />
                 <span className="hidden sm:inline">ออกจากสาย</span>
               </button>
             </>
@@ -230,7 +230,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
             <>
               {stageAccessMode === 'approval' && !isAdminOrOwner && !isApprovedSpeaker ? (
                 myPendingRequest ? (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs animate-pulse font-medium">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#dd5b00]/10 border border-[#dd5b00]/30 text-[#dd5b00] text-xs font-medium animate-pulse">
                     <Clock className="w-3.5 h-3.5" />
                     <span>ขอยกมือแล้ว (รออนุมัติ...)</span>
                   </div>
@@ -238,7 +238,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
                   <button
                     type="button"
                     onClick={handleJoinVoice}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-semibold shadow-md shadow-amber-600/20 transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#dd5b00] hover:bg-[#c25000] text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
                   >
                     <Hand className="w-3.5 h-3.5" />
                     <span>ขอยกมือเปิดไมค์</span>
@@ -248,9 +248,9 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
                 <button
                   type="button"
                   onClick={handleJoinVoice}
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white text-xs font-bold shadow-lg shadow-violet-600/25 transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#0075de] hover:bg-[#005bab] text-white text-xs font-bold shadow-[0_1px_2px_rgba(0,117,222,0.2)] transition-all cursor-pointer"
                 >
-                  <Mic className="w-3.5 h-3.5 animate-pulse" />
+                  <Mic className="w-3.5 h-3.5" />
                   <span>เข้าร่วมคุยไมค์</span>
                 </button>
               )}
@@ -261,10 +261,10 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
 
       {/* Host / Admin Pending Requests Notice */}
       {isAdminOrOwner && pendingStageRequests.length > 0 && (
-        <div className="mb-3 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-3 p-2.5 rounded-xl bg-[#dd5b00]/10 border border-[#dd5b00]/20 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Hand className="w-4 h-4 text-amber-400" />
-            <span className="text-xs font-semibold text-amber-300">
+            <Hand className="w-4 h-4 text-[#dd5b00]" />
+            <span className="text-xs font-semibold text-[#dd5b00]">
               มีคำขอยกมือเปิดไมค์ ({pendingStageRequests.length} คน)
             </span>
           </div>
@@ -273,14 +273,14 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
             {pendingStageRequests.map((req) => (
               <div
                 key={req.userId}
-                className="flex items-center gap-2 bg-[#0f1118] px-2.5 py-1 rounded-lg border border-amber-500/40 text-xs shadow-sm"
+                className="flex items-center gap-2 bg-white px-2.5 py-1 rounded-lg border border-[#e6e6e6] text-xs shadow-xs"
               >
                 <img
                   src={req.user.avatar}
                   alt={req.user.name}
                   className="w-5 h-5 rounded-full object-cover"
                 />
-                <span className="text-white font-medium text-[11px] truncate max-w-[90px]">
+                <span className="text-[#31302e] font-medium text-[11px] truncate max-w-[90px]">
                   {req.user.name}
                 </span>
                 <div className="flex items-center gap-1 ml-1">
@@ -288,7 +288,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
                     type="button"
                     onClick={() => onApproveSpeakRequest?.(req.userId, true)}
                     title="อนุมัติให้เปิดไมค์"
-                    className="p-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 transition-colors cursor-pointer"
+                    className="p-1 rounded bg-[#1aae39]/15 hover:bg-[#1aae39]/25 text-[#1aae39] transition-colors cursor-pointer"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
                   </button>
@@ -296,7 +296,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
                     type="button"
                     onClick={() => onApproveSpeakRequest?.(req.userId, false)}
                     title="ปฏิเสธคำขอ"
-                    className="p-1 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 transition-colors cursor-pointer"
+                    className="p-1 rounded bg-rose-100 hover:bg-rose-200 text-rose-600 transition-colors cursor-pointer"
                   >
                     <XCircle className="w-3.5 h-3.5" />
                   </button>
@@ -307,19 +307,19 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
         </div>
       )}
 
-      {/* Dynamic Active Speakers Grid (No fixed 9 seats limit!) */}
+      {/* Dynamic Active Speakers Grid */}
       {activeSpeakers.length === 0 ? (
         <div
           onClick={handleJoinVoice}
-          className="py-4 px-4 border border-dashed border-gray-800 hover:border-violet-500/40 hover:bg-violet-500/5 rounded-xl text-center cursor-pointer transition-all group"
+          className="py-4 px-4 border border-dashed border-[#e6e6e6] hover:border-[#0075de]/40 hover:bg-[#f6f5f4] rounded-xl text-center cursor-pointer transition-all group"
         >
-          <div className="w-8 h-8 rounded-full bg-gray-800/80 group-hover:bg-violet-600/20 flex items-center justify-center mx-auto mb-1.5 transition-colors">
-            <Mic className="w-4 h-4 text-gray-500 group-hover:text-violet-400" />
+          <div className="w-8 h-8 rounded-full bg-[#f6f5f4] group-hover:bg-[#0075de]/10 flex items-center justify-center mx-auto mb-1.5 transition-colors">
+            <Mic className="w-4 h-4 text-[#a39e98] group-hover:text-[#0075de]" />
           </div>
-          <p className="text-xs font-semibold text-gray-400 group-hover:text-violet-300 transition-colors">
+          <p className="text-xs font-semibold text-[#615d59] group-hover:text-[#0075de] transition-colors">
             ยังไม่มีใครอยู่ในสายไมค์
           </p>
-          <p className="text-[11px] text-gray-500 mt-0.5">
+          <p className="text-[11px] text-[#a39e98] mt-0.5">
             คลิกที่นี่หรือกดปุ่ม "เข้าร่วมคุยไมค์" ด้านบนเพื่อเริ่มคุยกับเพื่อนได้ทันที
           </p>
         </div>
@@ -342,10 +342,10 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
                     onSelectUser(seat.user);
                   }
                 }}
-                className={`relative flex items-center gap-2.5 p-1.5 pr-3 rounded-xl bg-[#171824]/80 border transition-all cursor-pointer ${
+                className={`relative flex items-center gap-2.5 p-1.5 pr-3 rounded-xl border transition-all cursor-pointer shadow-xs ${
                   isSpeakingNow
-                    ? 'border-emerald-500/60 shadow-[0_0_12px_rgba(52,211,153,0.3)] bg-emerald-950/20'
-                    : 'border-gray-800 hover:border-gray-700'
+                    ? 'border-[#1aae39]/60 shadow-[0_0_10px_rgba(26,174,57,0.25)] bg-[#1aae39]/5'
+                    : 'bg-[#f6f5f4] hover:bg-white border-[#e6e6e6]'
                 }`}
                 title={isMe ? 'คลิกเพื่อแก้ไขโปรไฟล์ของคุณ' : `ดูโปรไฟล์ของ ${seat.user.name}`}
               >
@@ -353,18 +353,15 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
                 <div className="relative shrink-0 flex items-center justify-center">
                   {/* Glowing Green Voice Pulse Ring */}
                   {isSpeakingNow && (
-                    <div className="absolute -inset-1 rounded-full border-2 border-emerald-400 animate-ping pointer-events-none" />
-                  )}
-                  {isSpeakingNow && (
-                    <div className="absolute -inset-0.5 rounded-full bg-emerald-400/30 blur-[2px] pointer-events-none" />
+                    <div className="absolute -inset-1 rounded-full border-2 border-[#1aae39] animate-ping pointer-events-none" />
                   )}
 
                   <div
                     className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 transition-all ${
-                      isSpeakingNow ? 'border-emerald-400 scale-105' : ''
+                      isSpeakingNow ? 'border-[#1aae39] scale-105' : ''
                     }`}
                     style={{
-                      borderColor: isSpeakingNow ? '#34d399' : seat.user.color,
+                      borderColor: isSpeakingNow ? '#1aae39' : seat.user.color || '#e6e6e6',
                     }}
                   >
                     <img
@@ -376,7 +373,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
 
                   {/* Mute badge overlay */}
                   {seat.isMuted && (
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-rose-600 border border-[#13141c] flex items-center justify-center shadow-sm">
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-rose-600 border border-white flex items-center justify-center shadow-xs">
                       <MicOff className="w-2.5 h-2.5 text-white" />
                     </div>
                   )}
@@ -386,27 +383,26 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
                 <div className="flex flex-col min-w-0">
                   <div className="flex items-center gap-1">
                     <span
-                      className="text-xs font-bold truncate max-w-[85px] sm:max-w-[120px]"
-                      style={{ color: seat.user.color }}
+                      className="text-xs font-bold truncate max-w-[85px] sm:max-w-[120px] text-[#000000]"
                     >
                       {seat.user.name}
                     </span>
                     {isMe && (
-                      <span className="text-[10px] text-gray-500 shrink-0">(คุณ)</span>
+                      <span className="text-[10px] text-[#a39e98] shrink-0">(คุณ)</span>
                     )}
                   </div>
 
                   {/* Status subtitle */}
-                  <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                  <span className="text-[10px] text-[#615d59] flex items-center gap-1">
                     {isSpeakingNow ? (
-                      <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[#1aae39] font-semibold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#1aae39] animate-pulse" />
                         กำลังพูด...
                       </span>
                     ) : seat.isMuted ? (
-                      <span className="text-rose-400">ปิดไมค์</span>
+                      <span className="text-rose-500">ปิดไมค์</span>
                     ) : (
-                      <span className="text-gray-500">พร้อมพูด</span>
+                      <span className="text-[#a39e98]">พร้อมพูด</span>
                     )}
                   </span>
                 </div>

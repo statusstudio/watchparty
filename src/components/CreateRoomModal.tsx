@@ -217,22 +217,22 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[#151722] border border-gray-800/80 rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
+      <div className="bg-white border border-[#e6e6e6] rounded-2xl w-full max-w-xl overflow-hidden shadow-notion-modal flex flex-col max-h-[92vh] text-[#31302e]">
         {/* Header */}
-        <div className="px-5 py-3.5 border-b border-gray-800/80 flex items-center justify-between bg-[#12141c] shrink-0">
+        <div className="px-5 py-4 border-b border-[#e6e6e6] flex items-center justify-between bg-white shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-500 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
-              <Plus className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 rounded-lg bg-[#0075de]/10 border border-[#0075de]/20 flex items-center justify-center text-[#0075de]">
+              <Plus className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-semibold text-white">สร้างห้องปาร์ตี้ใหม่</h2>
-              <p className="text-[11px] text-gray-400">กำหนดชื่อ ปกห้อง หมวดหมู่ และการตั้งค่าตามใจชอบ</p>
+              <h2 className="text-sm sm:text-base font-semibold text-[#000000]">สร้างห้องปาร์ตี้ใหม่</h2>
+              <p className="text-[11px] text-[#615d59]">กำหนดชื่อ ปกห้อง หมวดหมู่ และการตั้งค่าตามใจชอบ</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition-colors cursor-pointer"
+            className="p-1.5 rounded-md text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -241,7 +241,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
           {error && (
-            <div className="p-2.5 text-xs bg-rose-500/10 border border-rose-500/30 text-rose-300 rounded-xl">
+            <div className="p-2.5 text-xs bg-rose-50 border border-rose-200 text-rose-700 rounded-xl">
               {error}
             </div>
           )}
@@ -249,7 +249,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
           {/* 1. Room Name & Category */}
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
             <div className="sm:col-span-7">
-              <label className="block text-xs font-semibold text-gray-300 mb-1">
+              <label className="block text-xs font-semibold text-[#31302e] mb-1">
                 ชื่อห้องปาร์ตี้ (Room Name) *
               </label>
               <input
@@ -257,7 +257,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="เช่น Squad Chill & Lofi Beats 🎧"
-                className="w-full px-3.5 py-2 bg-[#0f0f13] border border-gray-700/80 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-purple-500 transition-colors"
+                className="w-full px-3.5 py-2 bg-white border border-[#e6e6e6] rounded-xl text-xs sm:text-sm text-[#000000] placeholder-[#a39e98] focus:outline-none focus:border-[#0075de] shadow-xs transition-colors"
                 required
                 autoFocus
               />
@@ -265,22 +265,22 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
             {/* Category Dropdown (Dropbox) */}
             <div className="sm:col-span-5">
-              <label className="block text-xs font-semibold text-gray-300 mb-1">
+              <label className="block text-xs font-semibold text-[#31302e] mb-1">
                 หมวดหมู่ห้อง (Category) *
               </label>
               <div className="relative">
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as RoomCategory)}
-                  className="w-full px-3 py-2 bg-[#0f0f13] border border-gray-700/80 rounded-xl text-xs sm:text-sm text-purple-300 font-medium focus:outline-none focus:border-purple-500 transition-colors cursor-pointer appearance-none"
+                  className="w-full px-3 py-2 bg-white border border-[#e6e6e6] rounded-xl text-xs sm:text-sm text-[#000000] font-medium focus:outline-none focus:border-[#0075de] shadow-xs transition-colors cursor-pointer appearance-none"
                 >
                   {ROOM_CATEGORIES.map((cat) => (
-                    <option key={cat.id} value={cat.id} className="bg-[#151722] text-white">
+                    <option key={cat.id} value={cat.id} className="bg-white text-[#31302e]">
                       {cat.icon} {cat.label}
                     </option>
                   ))}
                 </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-[#615d59]">
                   <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
                     <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
                   </svg>
@@ -291,7 +291,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
           {/* 2. Room Description */}
           <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">
+            <label className="block text-xs font-semibold text-[#31302e] mb-1">
               คำอธิบายห้อง (Description)
             </label>
             <input
@@ -299,15 +299,15 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="เช่น เปิดเพลงฟังชิลล์ๆ คุยงานและเล่นเกมด้วยกัน"
-              className="w-full px-3.5 py-2 bg-[#0f0f13] border border-gray-700/80 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500 transition-colors"
+              className="w-full px-3.5 py-2 bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none focus:border-[#0075de] shadow-xs transition-colors"
             />
           </div>
 
           {/* 3. Room Cover Image Section */}
-          <div className="space-y-2 p-3 bg-[#0f0f13] border border-gray-800 rounded-xl">
+          <div className="space-y-2 p-3 bg-[#f6f5f4] border border-[#e6e6e6] rounded-xl">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-gray-200 flex items-center gap-1.5">
-                <ImageIcon className="w-3.5 h-3.5 text-purple-400" />
+              <label className="text-xs font-semibold text-[#000000] flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-[#0075de]" />
                 <span>รูปภาพปกห้อง (Room Cover Image)</span>
               </label>
 
@@ -316,8 +316,8 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setCoverType('preset')}
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
-                    coverType === 'preset' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'
+                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${
+                    coverType === 'preset' ? 'bg-[#0075de] text-white shadow-xs' : 'text-[#615d59] hover:text-[#000000]'
                   }`}
                 >
                   เลือกรูปสวยๆ
@@ -328,8 +328,8 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                     setCoverType('upload');
                     fileInputRef.current?.click();
                   }}
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-medium transition-colors cursor-pointer flex items-center gap-1 ${
-                    coverType === 'upload' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'
+                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1 ${
+                    coverType === 'upload' ? 'bg-[#0075de] text-white shadow-xs' : 'text-[#615d59] hover:text-[#000000]'
                   }`}
                 >
                   <Upload className="w-2.5 h-2.5" />
@@ -338,8 +338,8 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setCoverType('url')}
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
-                    coverType === 'url' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'
+                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${
+                    coverType === 'url' ? 'bg-[#0075de] text-white shadow-xs' : 'text-[#615d59] hover:text-[#000000]'
                   }`}
                 >
                   ลิงก์ URL
@@ -365,12 +365,12 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                       key={cov.id}
                       onClick={() => setSelectedCover(cov.url)}
                       className={`relative aspect-video rounded-lg overflow-hidden border cursor-pointer group transition-all ${
-                        isSelected ? 'border-purple-500 ring-2 ring-purple-500 scale-105' : 'border-gray-800 opacity-70 hover:opacity-100'
+                        isSelected ? 'border-[#0075de] ring-2 ring-[#0075de] scale-105 shadow-xs' : 'border-[#e6e6e6] opacity-70 hover:opacity-100'
                       }`}
                     >
                       <img src={cov.url} alt={cov.name} className="w-full h-full object-cover" />
                       {isSelected && (
-                        <div className="absolute inset-0 bg-purple-600/30 flex items-center justify-center">
+                        <div className="absolute inset-0 bg-[#0075de]/30 flex items-center justify-center">
                           <Check className="w-3 h-3 text-white stroke-[3]" />
                         </div>
                       )}
@@ -383,15 +383,15 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
             {/* Upload preview */}
             {coverType === 'upload' && selectedCover && (
               <div className="flex items-center gap-3 pt-1">
-                <div className="w-24 aspect-video rounded-lg overflow-hidden border border-purple-500 relative">
+                <div className="w-24 aspect-video rounded-lg overflow-hidden border border-[#0075de] relative shadow-xs">
                   <img src={selectedCover} alt="Uploaded preview" className="w-full h-full object-cover" />
                 </div>
                 <div className="text-xs">
-                  <p className="text-emerald-400 font-semibold">อัพโหลดรูปสำเร็จแล้ว</p>
+                  <p className="text-[#1aae39] font-semibold">อัพโหลดรูปสำเร็จแล้ว</p>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-[11px] text-purple-400 hover:underline mt-0.5 cursor-pointer"
+                    className="text-[11px] text-[#0075de] hover:underline mt-0.5 cursor-pointer"
                   >
                     เปลี่ยนรูปใหม่
                   </button>
@@ -403,36 +403,36 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
             {coverType === 'url' && (
               <div className="pt-1">
                 <div className="relative flex items-center">
-                  <LinkIcon className="w-3.5 h-3.5 text-gray-500 absolute left-3" />
+                  <LinkIcon className="w-3.5 h-3.5 text-[#a39e98] absolute left-3" />
                   <input
                     type="url"
                     value={customCoverUrl}
                     onChange={(e) => setCustomCoverUrl(e.target.value)}
                     placeholder="วางลิงก์รูปภาพ เช่น https://images.unsplash.com/..."
-                    className="w-full pl-9 pr-3 py-1.5 bg-[#151722] border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-purple-500"
+                    className="w-full pl-9 pr-3 py-1.5 bg-white border border-[#e6e6e6] rounded-lg text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none focus:border-[#0075de] shadow-xs"
                   />
                 </div>
               </div>
             )}
 
             {/* Live Preview Thumbnail Card */}
-            <div className="relative h-20 rounded-xl overflow-hidden border border-gray-800 mt-2">
+            <div className="relative h-20 rounded-xl overflow-hidden border border-[#e6e6e6] mt-2 shadow-xs">
               <img
                 src={getEffectiveCover() || 'https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=800&auto=format&fit=crop&q=80'}
                 alt="Room Cover Preview"
-                className="w-full h-full object-cover opacity-80"
+                className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end p-2.5">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex items-end p-2.5">
                 <div className="flex items-center justify-between w-full">
                   <div>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-500/30 text-purple-300 border border-purple-500/40 mr-1.5">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/90 text-[#31302e] mr-1.5 shadow-xs">
                       {ROOM_CATEGORIES.find((c) => c.id === category)?.icon} {ROOM_CATEGORIES.find((c) => c.id === category)?.label}
                     </span>
                     <span className="text-xs font-bold text-white drop-shadow">
                       {name || 'ชื่อห้องของคุณ'}
                     </span>
                   </div>
-                  <span className="text-[10px] text-gray-300 bg-black/60 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] text-white/90 bg-black/50 px-1.5 py-0.5 rounded">
                     ตัวอย่างรูปปก
                   </span>
                 </div>
@@ -442,39 +442,39 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
           {/* 4. Privacy Type Selector */}
           <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+            <label className="block text-xs font-semibold text-[#31302e] mb-1.5">
               ความปลอดภัยและการเข้าถึง (Privacy Mode)
             </label>
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={() => setIsPrivate(false)}
-                className={`p-2.5 rounded-xl border text-left flex items-start gap-2 transition-all cursor-pointer ${
+                className={`p-2.5 rounded-xl border text-left flex items-start gap-2 transition-all cursor-pointer shadow-xs ${
                   !isPrivate
-                    ? 'border-emerald-500 bg-emerald-500/10 text-white ring-1 ring-emerald-500'
-                    : 'border-gray-800 bg-[#0f0f13] text-gray-400 hover:border-gray-700'
+                    ? 'border-[#0075de] bg-[#0075de]/5 text-[#000000] ring-1 ring-[#0075de]'
+                    : 'border-[#e6e6e6] bg-white text-[#615d59] hover:border-[#0075de]/30'
                 }`}
               >
-                <Globe className={`w-4 h-4 mt-0.5 shrink-0 ${!isPrivate ? 'text-emerald-400' : ''}`} />
+                <Globe className={`w-4 h-4 mt-0.5 shrink-0 ${!isPrivate ? 'text-[#0075de]' : 'text-[#615d59]'}`} />
                 <div>
-                  <p className="text-xs font-semibold text-white">ห้องสาธารณะ (Public)</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">ทุกคนสามารถเข้าร่วมได้ทันที</p>
+                  <p className="text-xs font-semibold text-[#000000]">ห้องสาธารณะ (Public)</p>
+                  <p className="text-[10px] text-[#615d59] mt-0.5">ทุกคนสามารถเข้าร่วมได้ทันที</p>
                 </div>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsPrivate(true)}
-                className={`p-2.5 rounded-xl border text-left flex items-start gap-2 transition-all cursor-pointer ${
+                className={`p-2.5 rounded-xl border text-left flex items-start gap-2 transition-all cursor-pointer shadow-xs ${
                   isPrivate
-                    ? 'border-purple-500 bg-purple-500/10 text-white ring-1 ring-purple-500'
-                    : 'border-gray-800 bg-[#0f0f13] text-gray-400 hover:border-gray-700'
+                    ? 'border-[#0075de] bg-[#0075de]/5 text-[#000000] ring-1 ring-[#0075de]'
+                    : 'border-[#e6e6e6] bg-white text-[#615d59] hover:border-[#0075de]/30'
                 }`}
               >
-                <Lock className={`w-4 h-4 mt-0.5 shrink-0 ${isPrivate ? 'text-purple-400' : ''}`} />
+                <Lock className={`w-4 h-4 mt-0.5 shrink-0 ${isPrivate ? 'text-[#0075de]' : 'text-[#615d59]'}`} />
                 <div>
-                  <p className="text-xs font-semibold text-white">ล็อครหัส (Private)</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">ต้องใส่รหัสผ่านก่อนเข้าห้อง</p>
+                  <p className="text-xs font-semibold text-[#000000]">ล็อครหัส (Private)</p>
+                  <p className="text-[10px] text-[#615d59] mt-0.5">ต้องใส่รหัสผ่านก่อนเข้าห้อง</p>
                 </div>
               </button>
             </div>
@@ -482,8 +482,8 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
           {/* Password Input (If Private) */}
           {isPrivate && (
-            <div className="p-3 bg-purple-950/20 border border-purple-500/30 rounded-xl space-y-1.5 animate-fade-in">
-              <label className="block text-xs font-semibold text-purple-200">
+            <div className="p-3 bg-[#f6f5f4] border border-[#e6e6e6] rounded-xl space-y-1.5 animate-fade-in">
+              <label className="block text-xs font-semibold text-[#000000]">
                 ตั้งรหัสผ่านสำหรับเข้าห้อง (Room Password) *
               </label>
               <input
@@ -491,17 +491,17 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="เช่น 1234 หรือ vip2026"
-                className="w-full px-3 py-1.5 bg-[#0f0f13] border border-purple-500/50 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-purple-400"
+                className="w-full px-3 py-1.5 bg-white border border-[#e6e6e6] rounded-xl text-xs sm:text-sm text-[#000000] focus:outline-none focus:border-[#0075de] shadow-xs"
                 required={isPrivate}
               />
             </div>
           )}
 
           {/* 5. Starting Video (COMPLETELY OPTIONAL) */}
-          <div className="p-3 bg-[#0f0f13] border border-gray-800 rounded-xl space-y-2.5">
+          <div className="p-3 bg-[#f6f5f4] border border-[#e6e6e6] rounded-xl space-y-2.5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-300">
-                <Tv className="w-3.5 h-3.5 text-cyan-400" />
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-[#000000]">
+                <Tv className="w-3.5 h-3.5 text-[#0075de]" />
                 <span>คลิปวิดีโอเริ่มต้น (ไม่บังคับ - Optional)</span>
               </div>
               <label className="flex items-center gap-1.5 cursor-pointer text-xs">
@@ -517,39 +517,39 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                       setYtResults([]);
                     }
                   }}
-                  className="w-3.5 h-3.5 rounded text-purple-600 focus:ring-purple-500 border-gray-700"
+                  className="w-3.5 h-3.5 rounded text-[#0075de] focus:ring-[#0075de] border-[#e6e6e6]"
                 />
-                <span className="text-[11px] text-purple-300">ต้องการระบุเพลงแรก</span>
+                <span className="text-[11px] text-[#0075de] font-medium">ต้องการระบุเพลงแรก</span>
               </label>
             </div>
 
             {!hasInitialVideo ? (
-              <div className="p-2.5 rounded-lg bg-[#151722] border border-gray-800/80 flex items-center gap-2 text-gray-400 text-xs">
-                <VideoOff className="w-4 h-4 text-gray-500 shrink-0" />
+              <div className="p-2.5 rounded-lg bg-white border border-[#e6e6e6] flex items-center gap-2 text-[#615d59] text-xs">
+                <VideoOff className="w-4 h-4 text-[#a39e98] shrink-0" />
                 <span>
                   ห้องจะเปิดแบบไม่มีคิวเพลง (เริ่มด้วยคิวว่างเปล่า) คุณหรือเพื่อนๆ สามารถค้นหาและเปิดเพลงจาก YouTube ได้ตลอดเวลา
                 </span>
               </div>
             ) : selectedVideo ? (
-              <div className="p-2.5 bg-purple-950/20 border border-purple-500/40 rounded-xl flex items-center justify-between gap-3 animate-fade-in">
+              <div className="p-2.5 bg-white border border-[#0075de]/30 rounded-xl flex items-center justify-between gap-3 animate-fade-in shadow-xs">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <img
                     src={selectedVideo.thumbnail}
                     alt={selectedVideo.title}
-                    className="w-14 h-9 rounded-lg object-cover border border-purple-500/30 shrink-0"
+                    className="w-14 h-9 rounded-lg object-cover border border-[#e6e6e6] shrink-0"
                   />
                   <div className="min-w-0">
-                    <span className="inline-block px-1.5 py-0.5 text-[9px] font-semibold bg-purple-500/30 text-purple-200 rounded mb-0.5">
+                    <span className="inline-block px-1.5 py-0.2 text-[9px] font-semibold bg-[#1aae39]/10 text-[#1aae39] rounded mb-0.5">
                       เพลงแรกของห้อง ✅
                     </span>
-                    <h4 className="text-xs font-medium text-white truncate">{selectedVideo.title}</h4>
-                    <p className="text-[10px] text-gray-400 truncate">{selectedVideo.channel}</p>
+                    <h4 className="text-xs font-medium text-[#000000] truncate">{selectedVideo.title}</h4>
+                    <p className="text-[10px] text-[#615d59] truncate">{selectedVideo.channel}</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSelectedVideo(null)}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0 cursor-pointer"
+                  className="p-1.5 rounded-lg text-[#615d59] hover:text-rose-600 hover:bg-rose-50 transition-colors shrink-0 cursor-pointer"
                   title="เปลี่ยน / ลบคลิปนี้"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -560,7 +560,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                 {/* Search / URL input */}
                 <div className="flex gap-1.5">
                   <div className="relative flex-1">
-                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#a39e98]" />
                     <input
                       type="text"
                       value={ytSearchQuery}
@@ -572,14 +572,14 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                         }
                       }}
                       placeholder="ค้นหาชื่อเพลง ศิลปิน หรือวาง YouTube URL..."
-                      className="w-full pl-8 pr-3 py-1.5 bg-[#151722] border border-gray-700 rounded-lg text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                      className="w-full pl-8 pr-3 py-1.5 bg-white border border-[#e6e6e6] rounded-lg text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none focus:border-[#0075de] shadow-xs"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={() => handleYtSearch()}
                     disabled={isSearchingYt || !ytSearchQuery.trim()}
-                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-medium rounded-lg flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                    className="px-3 py-1.5 bg-[#0075de] hover:bg-[#005bab] disabled:opacity-50 text-white text-xs font-medium rounded-lg flex items-center gap-1 transition-colors cursor-pointer shrink-0 shadow-xs"
                   >
                     {isSearchingYt ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
                     <span>ค้นหา</span>
@@ -588,11 +588,11 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
                 {/* Search Results */}
                 {ytResults.length > 0 && (
-                  <div className="max-h-44 overflow-y-auto space-y-1 p-1 bg-[#12141c] border border-gray-800 rounded-lg">
+                  <div className="max-h-44 overflow-y-auto space-y-1 p-1 bg-white border border-[#e6e6e6] rounded-lg">
                     {ytResults.map((item) => (
                       <div
                         key={item.videoId}
-                        className="p-1.5 rounded-md hover:bg-gray-800/60 border border-transparent hover:border-gray-700 flex items-center justify-between gap-2 transition-colors"
+                        className="p-1.5 rounded-md hover:bg-[#f6f5f4] border border-transparent hover:border-[#e6e6e6] flex items-center justify-between gap-2 transition-colors"
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <img
@@ -601,8 +601,8 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                             className="w-12 h-8 rounded object-cover shrink-0"
                           />
                           <div className="min-w-0">
-                            <p className="text-[11px] font-medium text-white truncate">{item.title}</p>
-                            <p className="text-[9px] text-gray-400 truncate">
+                            <p className="text-[11px] font-medium text-[#000000] truncate">{item.title}</p>
+                            <p className="text-[9px] text-[#615d59] truncate">
                               {item.channel} {item.duration ? `• ${item.duration}` : ''}
                             </p>
                           </div>
@@ -619,7 +619,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                             setYtResults([]);
                             setYtSearchQuery('');
                           }}
-                          className="px-2 py-1 bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-medium rounded transition-colors cursor-pointer shrink-0"
+                          className="px-2 py-1 bg-[#0075de] hover:bg-[#005bab] text-white text-[10px] font-medium rounded transition-colors cursor-pointer shrink-0"
                         >
                           เลือกคลิปนี้
                         </button>
@@ -630,7 +630,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
                 {/* Or Quick Presets */}
                 <div className="pt-1">
-                  <span className="text-[10px] text-gray-400 block mb-1">หรือเลือกคลิปตัวอย่างยอดนิยม:</span>
+                  <span className="text-[10px] text-[#615d59] block mb-1">หรือเลือกคลิปตัวอย่างยอดนิยม:</span>
                   <div className="grid grid-cols-2 gap-1.5">
                     {SAMPLE_VIDEOS.slice(0, 4).map((v) => (
                       <button
@@ -644,10 +644,10 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                             thumbnail: v.thumbnail,
                           });
                         }}
-                        className="p-1.5 rounded-lg border border-gray-800 bg-[#151722] hover:border-purple-500/50 flex items-center gap-2 text-left transition-all cursor-pointer"
+                        className="p-1.5 rounded-lg border border-[#e6e6e6] bg-white hover:border-[#0075de]/50 flex items-center gap-2 text-left transition-all cursor-pointer shadow-xs"
                       >
                         <img src={v.thumbnail} alt={v.title} className="w-8 h-6 rounded object-cover shrink-0" />
-                        <span className="text-[10px] font-medium text-gray-200 truncate">{v.title}</span>
+                        <span className="text-[10px] font-medium text-[#31302e] truncate">{v.title}</span>
                       </button>
                     ))}
                   </div>
@@ -658,24 +658,24 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
           {/* 6. Voice Stage Access Mode */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-gray-300 flex items-center justify-between">
+            <label className="block text-xs font-semibold text-[#31302e] flex items-center justify-between">
               <span>การจำกัดการขึ้นไมค์บนเวที (Voice Stage Access)</span>
-              <span className="text-[10px] text-amber-400 font-normal">กำหนดโดยเจ้าของห้อง</span>
+              <span className="text-[10px] text-[#dd5b00] font-normal">กำหนดโดยเจ้าของห้อง</span>
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setStageAccessMode('everyone')}
-                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer shadow-xs ${
                   stageAccessMode === 'everyone'
-                    ? 'border-emerald-500 bg-emerald-500/10 text-white ring-1 ring-emerald-500/50'
-                    : 'border-gray-800 bg-[#0f0f13] text-gray-400 hover:border-gray-700'
+                    ? 'border-[#0075de] bg-[#0075de]/5 text-[#000000] ring-1 ring-[#0075de]'
+                    : 'border-[#e6e6e6] bg-white text-[#615d59] hover:border-[#0075de]/30'
                 }`}
               >
-                <div className="flex items-center gap-1.5 font-semibold text-xs text-white">
+                <div className="flex items-center gap-1.5 font-semibold text-xs text-[#000000]">
                   <span>👥</span> ทุกคนขึ้นได้
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                <p className="text-[10px] text-[#615d59] mt-1 leading-relaxed">
                   ใครก็สามารถกดขึ้นที่นั่งพูดไมค์ได้ทันที
                 </p>
               </button>
@@ -683,16 +683,16 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
               <button
                 type="button"
                 onClick={() => setStageAccessMode('admin_only')}
-                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer shadow-xs ${
                   stageAccessMode === 'admin_only'
-                    ? 'border-purple-500 bg-purple-500/10 text-white ring-1 ring-purple-500/50'
-                    : 'border-gray-800 bg-[#0f0f13] text-gray-400 hover:border-gray-700'
+                    ? 'border-[#0075de] bg-[#0075de]/5 text-[#000000] ring-1 ring-[#0075de]'
+                    : 'border-[#e6e6e6] bg-white text-[#615d59] hover:border-[#0075de]/30'
                 }`}
               >
-                <div className="flex items-center gap-1.5 font-semibold text-xs text-white">
+                <div className="flex items-center gap-1.5 font-semibold text-xs text-[#000000]">
                   <span>🛡️</span> เฉพาะแอดมิน
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                <p className="text-[10px] text-[#615d59] mt-1 leading-relaxed">
                   ขึ้นได้เฉพาะ Owner และ Admin
                 </p>
               </button>
@@ -700,16 +700,16 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
               <button
                 type="button"
                 onClick={() => setStageAccessMode('approval')}
-                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer shadow-xs ${
                   stageAccessMode === 'approval'
-                    ? 'border-amber-500 bg-amber-500/10 text-white ring-1 ring-amber-500/50'
-                    : 'border-gray-800 bg-[#0f0f13] text-gray-400 hover:border-gray-700'
+                    ? 'border-[#0075de] bg-[#0075de]/5 text-[#000000] ring-1 ring-[#0075de]'
+                    : 'border-[#e6e6e6] bg-white text-[#615d59] hover:border-[#0075de]/30'
                 }`}
               >
-                <div className="flex items-center gap-1.5 font-semibold text-xs text-white">
+                <div className="flex items-center gap-1.5 font-semibold text-xs text-[#000000]">
                   <span>✋</span> ต้องขออนุญาต
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                <p className="text-[10px] text-[#615d59] mt-1 leading-relaxed">
                   ต้องขอยกมือก่อน ให้ Owner/Admin อนุญาต
                 </p>
               </button>
@@ -718,16 +718,16 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
           {/* 7. Permission Settings */}
           <div>
-            <label className="flex items-center gap-2 p-2.5 rounded-xl bg-[#0f0f13] border border-gray-800 cursor-pointer">
+            <label className="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-[#e6e6e6] cursor-pointer shadow-xs">
               <input
                 type="checkbox"
                 checked={onlyAdminManagePlaylist}
                 onChange={(e) => setOnlyAdminManagePlaylist(e.target.checked)}
-                className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-gray-700"
+                className="w-4 h-4 rounded text-[#0075de] focus:ring-[#0075de] border-[#e6e6e6]"
               />
               <div className="text-xs">
-                <span className="text-gray-200 font-semibold">จำกัดสิทธิ์จัดการ Playlist</span>
-                <p className="text-[10px] text-gray-400">
+                <span className="text-[#000000] font-semibold">จำกัดสิทธิ์จัดการ Playlist</span>
+                <p className="text-[10px] text-[#615d59]">
                   เฉพาะ Owner & Admin เท่านั้นที่สามารถเพิ่ม ลบ หรือสลับคิวเพลงได้
                 </p>
               </div>
@@ -738,7 +738,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full py-2.5 px-4 rounded-xl font-semibold text-xs sm:text-sm bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg shadow-purple-600/30 transition-all cursor-pointer flex items-center justify-center gap-2"
+              className="w-full py-2.5 px-4 rounded-full font-semibold text-xs sm:text-sm bg-[#0075de] hover:bg-[#005bab] text-white shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
               สร้างห้องปาร์ตี้ทันที

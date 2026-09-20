@@ -119,47 +119,47 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[#151722] border border-gray-800/80 rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
+      <div className="bg-white border border-[#e6e6e6] rounded-2xl w-full max-w-xl overflow-hidden shadow-notion-modal flex flex-col max-h-[85vh] text-[#31302e]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-800/80 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-[#e6e6e6] flex items-center justify-between bg-white">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
+            <div className="p-2 rounded-lg bg-[#0075de]/10 text-[#0075de] border border-[#0075de]/20">
               <Shield className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-white flex items-center gap-2">
+              <h2 className="text-base font-semibold text-[#000000] flex items-center gap-2">
                 แผงควบคุมผู้ดูแล & ตั้งค่าห้อง
                 {isOwner && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold border border-amber-500/30 flex items-center gap-1">
+                  <span className="px-2 py-0.2 rounded-full bg-amber-50 text-amber-600 text-[10px] font-bold border border-amber-200 flex items-center gap-1">
                     <Crown className="w-3 h-3" /> Owner
                   </span>
                 )}
                 {!isOwner && isAdminOrOwner && (
-                  <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 text-[10px] font-bold border border-purple-500/30 flex items-center gap-1">
+                  <span className="px-2 py-0.2 rounded-full bg-[#0075de]/10 text-[#0075de] text-[10px] font-bold border border-[#0075de]/20 flex items-center gap-1">
                     <Shield className="w-3 h-3" /> Admin
                   </span>
                 )}
               </h2>
-              <p className="text-xs text-gray-400">จัดการสมาชิก เตะ แบน และตั้งค่าความปลอดภัยห้อง</p>
+              <p className="text-xs text-[#615d59]">จัดการสมาชิก เตะ แบน และตั้งค่าความปลอดภัยห้อง</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition-colors cursor-pointer"
+            className="p-1.5 rounded-md text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab switcher */}
-        <div className="px-6 py-2 bg-[#10121a] border-b border-gray-800/60 flex items-center gap-2">
+        <div className="px-6 py-2 bg-[#f6f5f4] border-b border-[#e6e6e6] flex items-center gap-2">
           <button
             onClick={() => setActiveTab('members')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
               activeTab === 'members'
-                ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
-                : 'text-gray-400 hover:text-gray-200'
+                ? 'bg-white text-[#0075de] border border-[#e6e6e6] shadow-xs'
+                : 'text-[#615d59] hover:text-[#000000]'
             }`}
           >
             สมาชิกในห้อง ({members.length})
@@ -168,10 +168,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
           {isOwner && (
             <button
               onClick={() => setActiveTab('settings')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                 activeTab === 'settings'
-                  ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
-                  : 'text-gray-400 hover:text-gray-200'
+                  ? 'bg-white text-[#0075de] border border-[#e6e6e6] shadow-xs'
+                  : 'text-[#615d59] hover:text-[#000000]'
               }`}
             >
               <Settings className="w-3.5 h-3.5" />
@@ -181,13 +181,13 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
           <button
             onClick={() => setActiveTab('banned')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+            className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5 ${
               activeTab === 'banned'
-                ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
-                : 'text-gray-400 hover:text-gray-200'
+                ? 'bg-white text-[#0075de] border border-[#e6e6e6] shadow-xs'
+                : 'text-[#615d59] hover:text-[#000000]'
             }`}
           >
-            <Ban className="w-3.5 h-3.5 text-rose-400" />
+            <Ban className="w-3.5 h-3.5 text-rose-500" />
             รายชื่อที่ถูกแบน ({bannedUsers.length})
           </button>
         </div>
@@ -205,11 +205,11 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 return (
                   <div
                     key={member.user.id}
-                    className="p-3 rounded-xl bg-[#1a1d2d]/70 border border-gray-800/80 flex items-center justify-between gap-3"
+                    className="p-3 rounded-xl bg-white hover:bg-[#f6f5f4] border border-[#e6e6e6] flex items-center justify-between gap-3 shadow-xs transition-colors"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div
-                        className="w-10 h-10 rounded-full overflow-hidden border-2 shrink-0"
+                        className="w-10 h-10 rounded-full overflow-hidden border-2 shrink-0 bg-white shadow-xs"
                         style={{ borderColor: member.user.color }}
                       >
                         <img
@@ -220,29 +220,29 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-white truncate">
+                          <span className="text-xs font-semibold text-[#000000] truncate">
                             {member.user.name}
                           </span>
                           {isSelf && (
-                            <span className="text-[10px] text-gray-500">(คุณ)</span>
+                            <span className="text-[10px] text-[#a39e98]">(คุณ)</span>
                           )}
                           {isTargetOwner && (
-                            <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold border border-amber-500/30">
+                            <span className="px-1.5 py-0.2 rounded-full bg-amber-50 text-amber-600 text-[9px] font-bold border border-amber-200">
                               👑 Owner
                             </span>
                           )}
                           {isTargetAdmin && !isTargetOwner && (
-                            <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[9px] font-bold border border-purple-500/30">
+                            <span className="px-1.5 py-0.2 rounded-full bg-[#0075de]/10 text-[#0075de] text-[9px] font-bold border border-[#0075de]/20">
                               🛡️ Admin
                             </span>
                           )}
                           {approvedSpeakerIds.includes(member.user.id) && !isTargetAdmin && !isTargetOwner && (
-                            <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[9px] font-bold border border-emerald-500/30">
+                            <span className="px-1.5 py-0.2 rounded-full bg-[#1aae39]/10 text-[#1aae39] text-[9px] font-bold border border-[#1aae39]/20">
                               🎤 ได้สิทธิ์ขึ้นไมค์
                             </span>
                           )}
                         </div>
-                        <p className="text-[10px] text-gray-400 truncate">
+                        <p className="text-[10px] text-[#615d59] truncate">
                           {member.user.email || 'Guest Member'}
                         </p>
                       </div>
@@ -256,7 +256,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                           <button
                             onClick={() => onRevokeSpeakerPermission(member.user.id)}
                             title="ถอนสิทธิ์การขึ้นไมค์"
-                            className="p-1.5 rounded-lg bg-gray-800 hover:bg-amber-500/20 text-amber-400 border border-gray-700 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-lg bg-white hover:bg-amber-50 text-amber-600 border border-[#e6e6e6] transition-colors cursor-pointer shadow-xs"
                           >
                             <MicOff className="w-3.5 h-3.5" />
                           </button>
@@ -271,10 +271,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                 isTargetAdmin ? 'member' : 'admin'
                               )
                             }
-                            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors cursor-pointer shadow-xs ${
                               isTargetAdmin
-                                ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 hover:bg-purple-500/30'
-                                : 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700'
+                                ? 'bg-white text-rose-600 border-rose-200 hover:bg-rose-50'
+                                : 'bg-white text-[#0075de] border-[#e6e6e6] hover:bg-[#0075de]/5'
                             }`}
                             title={isTargetAdmin ? 'ปลดสิทธิ์ Admin' : 'แต่งตั้งเป็น Admin'}
                           >
@@ -286,7 +286,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                         <button
                           onClick={() => onForceLeaveStage(member.user.id)}
                           title="เตะลงจากเวทีไมค์"
-                          className="p-1.5 rounded-lg bg-gray-800 hover:bg-amber-500/20 text-amber-400 border border-gray-700 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg bg-white hover:bg-amber-50 text-amber-600 border border-[#e6e6e6] transition-colors cursor-pointer shadow-xs"
                         >
                           <LogOut className="w-3.5 h-3.5" />
                         </button>
@@ -295,7 +295,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                         <button
                           onClick={() => onKickUser(member.user.id)}
                           title="เตะออกจากห้อง (Kick)"
-                          className="p-1.5 rounded-lg bg-gray-800 hover:bg-rose-500/20 text-rose-400 border border-gray-700 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg bg-white hover:bg-rose-50 text-rose-600 border border-[#e6e6e6] transition-colors cursor-pointer shadow-xs"
                         >
                           <UserX className="w-3.5 h-3.5" />
                         </button>
@@ -304,7 +304,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                         <button
                           onClick={() => onBanUser(member.user.id)}
                           title="แบนออกจากห้อง (Ban)"
-                          className="p-1.5 rounded-lg bg-gray-800 hover:bg-red-600/30 text-red-400 border border-gray-700 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg bg-white hover:bg-rose-50 text-rose-600 border border-[#e6e6e6] transition-colors cursor-pointer shadow-xs"
                         >
                           <Ban className="w-3.5 h-3.5" />
                         </button>
@@ -320,50 +320,50 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
           {activeTab === 'settings' && isOwner && (
             <form onSubmit={handleSaveSettings} className="space-y-4">
               {savedSuccess && (
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs rounded-xl flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-400" />
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs rounded-xl flex items-center gap-2">
+                  <Check className="w-4 h-4 text-[#1aae39]" />
                   <span>บันทึกการตั้งค่าห้องสำเร็จ!</span>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1.5">
+                <label className="block text-xs font-semibold text-[#31302e] mb-1.5">
                   ชื่อห้องปาร์ตี้
                 </label>
                 <input
                   type="text"
                   value={roomName}
                   onChange={(e) => setRoomName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-[#0f0f13] border border-gray-700 rounded-xl text-sm text-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-3.5 py-2 bg-white border border-[#e6e6e6] rounded-xl text-sm text-[#000000] focus:outline-none focus:border-[#0075de] shadow-xs"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1.5">
+                <label className="block text-xs font-semibold text-[#31302e] mb-1.5">
                   คำอธิบายห้อง
                 </label>
                 <input
                   type="text"
                   value={roomDesc}
                   onChange={(e) => setRoomDesc(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-[#0f0f13] border border-gray-700 rounded-xl text-sm text-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-3.5 py-2 bg-white border border-[#e6e6e6] rounded-xl text-sm text-[#000000] focus:outline-none focus:border-[#0075de] shadow-xs"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Category Dropdown */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-300 mb-1.5">
+                  <label className="block text-xs font-semibold text-[#31302e] mb-1.5">
                     หมวดหมู่ห้อง (Category)
                   </label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value as RoomCategory)}
-                    className="w-full px-3.5 py-2.5 bg-[#0f0f13] border border-gray-700 rounded-xl text-sm text-purple-300 font-medium focus:outline-none focus:border-purple-500"
+                    className="w-full px-3.5 py-2 bg-white border border-[#e6e6e6] rounded-xl text-sm text-[#000000] font-medium focus:outline-none focus:border-[#0075de] shadow-xs cursor-pointer"
                   >
                     {ROOM_CATEGORIES.map((c) => (
-                      <option key={c.id} value={c.id} className="bg-[#151722] text-white">
+                      <option key={c.id} value={c.id} className="bg-white text-[#31302e]">
                         {c.icon} {c.label}
                       </option>
                     ))}
@@ -372,8 +372,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
                 {/* Cover Image URL */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center gap-1">
-                    <ImageIcon className="w-3.5 h-3.5 text-purple-400" />
+                  <label className="block text-xs font-semibold text-[#31302e] mb-1.5 flex items-center gap-1">
+                    <ImageIcon className="w-3.5 h-3.5 text-[#0075de]" />
                     <span>รูปภาพปกห้อง (Image URL)</span>
                   </label>
                   <input
@@ -381,46 +381,46 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     value={coverImage}
                     onChange={(e) => setCoverImage(e.target.value)}
                     placeholder="วางลิงก์รูปภาพ..."
-                    className="w-full px-3.5 py-2.5 bg-[#0f0f13] border border-gray-700 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500"
+                    className="w-full px-3.5 py-2 bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none focus:border-[#0075de] shadow-xs"
                   />
                 </div>
               </div>
 
               {/* Privacy Toggle */}
               <div>
-                <label className="block text-xs font-medium text-gray-300 mb-2">
+                <label className="block text-xs font-semibold text-[#31302e] mb-2">
                   ความปลอดภัยห้อง (Privacy & Password)
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setIsPrivate(false)}
-                    className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
+                    className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer shadow-xs ${
                       !isPrivate
-                        ? 'border-emerald-500 bg-emerald-500/10 text-white'
-                        : 'border-gray-800 bg-[#0f0f13] text-gray-400'
+                        ? 'border-[#0075de] bg-[#0075de]/5 text-[#000000] ring-1 ring-[#0075de]'
+                        : 'border-[#e6e6e6] bg-white text-[#615d59] hover:border-[#0075de]/30'
                     }`}
                   >
-                    <Globe className={`w-4 h-4 mt-0.5 ${!isPrivate ? 'text-emerald-400' : ''}`} />
+                    <Globe className={`w-4 h-4 mt-0.5 ${!isPrivate ? 'text-[#0075de]' : 'text-[#615d59]'}`} />
                     <div>
-                      <p className="text-xs font-semibold text-white">ห้องสาธารณะ</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">เข้าได้ทันทีโดยไม่ต้องใส่รหัส</p>
+                      <p className="text-xs font-semibold text-[#000000]">ห้องสาธารณะ</p>
+                      <p className="text-[10px] text-[#615d59] mt-0.5">เข้าได้ทันทีโดยไม่ต้องใส่รหัส</p>
                     </div>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setIsPrivate(true)}
-                    className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
+                    className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer shadow-xs ${
                       isPrivate
-                        ? 'border-purple-500 bg-purple-500/10 text-white'
-                        : 'border-gray-800 bg-[#0f0f13] text-gray-400'
+                        ? 'border-[#0075de] bg-[#0075de]/5 text-[#000000] ring-1 ring-[#0075de]'
+                        : 'border-[#e6e6e6] bg-white text-[#615d59] hover:border-[#0075de]/30'
                     }`}
                   >
-                    <Lock className={`w-4 h-4 mt-0.5 ${isPrivate ? 'text-purple-400' : ''}`} />
+                    <Lock className={`w-4 h-4 mt-0.5 ${isPrivate ? 'text-[#0075de]' : 'text-[#615d59]'}`} />
                     <div>
-                      <p className="text-xs font-semibold text-white">ล็อครหัส (Private)</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">ต้องกรอกรหัสผ่านก่อนเข้า</p>
+                      <p className="text-xs font-semibold text-[#000000]">ล็อครหัส (Private)</p>
+                      <p className="text-[10px] text-[#615d59] mt-0.5">ต้องกรอกรหัสผ่านก่อนเข้า</p>
                     </div>
                   </button>
                 </div>
@@ -428,8 +428,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
               {/* Password change */}
               {isPrivate && (
-                <div className="p-3.5 bg-purple-950/20 border border-purple-500/30 rounded-xl space-y-1.5 animate-fade-in">
-                  <label className="block text-xs font-medium text-purple-200">
+                <div className="p-3.5 bg-[#f6f5f4] border border-[#e6e6e6] rounded-xl space-y-1.5 animate-fade-in">
+                  <label className="block text-xs font-semibold text-[#000000]">
                     เปลี่ยนรหัสผ่านห้อง (Room Password)
                   </label>
                   <input
@@ -437,10 +437,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="ระบุรหัสผ่านใหม่..."
-                    className="w-full px-3 py-2 bg-[#0f0f13] border border-purple-500/50 rounded-xl text-sm text-white focus:outline-none focus:border-purple-400"
+                    className="w-full px-3 py-1.5 bg-white border border-[#e6e6e6] rounded-xl text-sm text-[#000000] focus:outline-none focus:border-[#0075de] shadow-xs"
                     required={isPrivate}
                   />
-                  <p className="text-[10px] text-gray-400">
+                  <p className="text-[10px] text-[#615d59]">
                     * เมื่อเปลี่ยนรหัสผ่าน คนที่ยังไม่ได้เข้าห้องจะต้องใช้รหัสผ่านใหม่นี้
                   </p>
                 </div>
@@ -448,24 +448,24 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
               {/* Voice Stage Access Mode (Owner controls mic access) */}
               <div className="pt-1 space-y-1.5">
-                <label className="block text-xs font-medium text-gray-300 flex items-center justify-between">
+                <label className="block text-xs font-semibold text-[#31302e] flex items-center justify-between">
                   <span>การจำกัดการขึ้นไมค์บนเวที (Voice Stage Access)</span>
-                  <span className="text-[10px] text-amber-400 font-normal">👑 กำหนดโดยเจ้าของห้อง</span>
+                  <span className="text-[10px] text-[#dd5b00] font-normal">👑 กำหนดโดยเจ้าของห้อง</span>
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setStageAccessMode('everyone')}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer shadow-xs ${
                       stageAccessMode === 'everyone'
-                        ? 'border-emerald-500 bg-emerald-500/10 text-white ring-1 ring-emerald-500/50'
-                        : 'border-gray-800 bg-[#0f0f13] text-gray-400 hover:border-gray-700'
+                        ? 'border-[#0075de] bg-[#0075de]/5 text-[#000000] ring-1 ring-[#0075de]'
+                        : 'border-[#e6e6e6] bg-white text-[#615d59] hover:border-[#0075de]/30'
                     }`}
                   >
-                    <div className="flex items-center gap-1.5 font-semibold text-xs text-white">
+                    <div className="flex items-center gap-1.5 font-semibold text-xs text-[#000000]">
                       <span>👥</span> ทุกคนขึ้นได้
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                    <p className="text-[10px] text-[#615d59] mt-1 leading-relaxed">
                       สมาชิกทุกคนสามารถกดขึ้นที่นั่งพูดไมค์ได้อิสระ
                     </p>
                   </button>
@@ -473,16 +473,16 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setStageAccessMode('admin_only')}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer shadow-xs ${
                       stageAccessMode === 'admin_only'
-                        ? 'border-purple-500 bg-purple-500/10 text-white ring-1 ring-purple-500/50'
-                        : 'border-gray-800 bg-[#0f0f13] text-gray-400 hover:border-gray-700'
+                        ? 'border-[#0075de] bg-[#0075de]/5 text-[#000000] ring-1 ring-[#0075de]'
+                        : 'border-[#e6e6e6] bg-white text-[#615d59] hover:border-[#0075de]/30'
                     }`}
                   >
-                    <div className="flex items-center gap-1.5 font-semibold text-xs text-white">
+                    <div className="flex items-center gap-1.5 font-semibold text-xs text-[#000000]">
                       <span>🛡️</span> เฉพาะแอดมิน
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                    <p className="text-[10px] text-[#615d59] mt-1 leading-relaxed">
                       ขึ้นได้เฉพาะ Owner และ Admin ของห้องเท่านั้น
                     </p>
                   </button>
@@ -490,16 +490,16 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setStageAccessMode('approval')}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer shadow-xs ${
                       stageAccessMode === 'approval'
-                        ? 'border-amber-500 bg-amber-500/10 text-white ring-1 ring-amber-500/50'
-                        : 'border-gray-800 bg-[#0f0f13] text-gray-400 hover:border-gray-700'
+                        ? 'border-[#0075de] bg-[#0075de]/5 text-[#000000] ring-1 ring-[#0075de]'
+                        : 'border-[#e6e6e6] bg-white text-[#615d59] hover:border-[#0075de]/30'
                     }`}
                   >
-                    <div className="flex items-center gap-1.5 font-semibold text-xs text-white">
+                    <div className="flex items-center gap-1.5 font-semibold text-xs text-[#000000]">
                       <span>✋</span> ต้องขออนุญาต
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                    <p className="text-[10px] text-[#615d59] mt-1 leading-relaxed">
                       สมาชิกต้องขอยกมือ ให้ Owner/Admin กดอนุญาต
                     </p>
                   </button>
@@ -508,16 +508,16 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
               {/* Playlist restrictions */}
               <div className="pt-1">
-                <label className="flex items-center gap-2 p-2.5 rounded-xl bg-[#0f0f13] border border-gray-800 cursor-pointer">
+                <label className="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-[#e6e6e6] cursor-pointer shadow-xs">
                   <input
                     type="checkbox"
                     checked={onlyAdminPlaylist}
                     onChange={(e) => setOnlyAdminPlaylist(e.target.checked)}
-                    className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-gray-700"
+                    className="w-4 h-4 rounded text-[#0075de] focus:ring-[#0075de] border-[#e6e6e6]"
                   />
                   <div className="text-xs">
-                    <span className="text-gray-200 font-medium">จำกัดสิทธิ์จัดการ Playlist</span>
-                    <p className="text-[10px] text-gray-400">
+                    <span className="text-[#000000] font-semibold">จำกัดสิทธิ์จัดการ Playlist</span>
+                    <p className="text-[10px] text-[#615d59]">
                       เฉพาะ Owner & Admin เท่านั้นที่สามารถเพิ่ม ลบ หรือสลับคิวเพลงได้
                     </p>
                   </div>
@@ -527,7 +527,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full py-2.5 px-4 rounded-xl font-medium text-xs bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg shadow-purple-600/30 transition-all cursor-pointer"
+                  className="w-full py-2.5 px-4 rounded-full font-semibold text-xs bg-[#0075de] hover:bg-[#005bab] text-white shadow-xs transition-all cursor-pointer"
                 >
                   บันทึกการตั้งค่าห้อง
                 </button>
@@ -537,20 +537,20 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
           {/* TAB 3: Banned Users */}
           {activeTab === 'banned' && (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {bannedUsers.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 text-xs">
+                <div className="text-center py-8 text-[#615d59] text-xs">
                   ยังไม่มีผู้ใช้ที่ถูกแบนในห้องนี้
                 </div>
               ) : (
                 bannedUsers.map((banned) => (
                   <div
                     key={banned.id}
-                    className="p-3 rounded-xl bg-red-950/20 border border-red-900/40 flex items-center justify-between"
+                    className="p-3 rounded-xl bg-white border border-[#e6e6e6] flex items-center justify-between shadow-xs"
                   >
                     <div>
-                      <p className="text-xs font-semibold text-rose-300">{banned.name}</p>
-                      <p className="text-[10px] text-gray-400">
+                      <p className="text-xs font-semibold text-rose-600">{banned.name}</p>
+                      <p className="text-[10px] text-[#615d59]">
                         แบนโดย {banned.bannedByName} • {new Date(banned.bannedAt).toLocaleTimeString()}
                       </p>
                     </div>
@@ -558,7 +558,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     {isAdminOrOwner && (
                       <button
                         onClick={() => onUnbanUser(banned.id)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-800 hover:bg-emerald-600/30 text-emerald-400 border border-gray-700 hover:border-emerald-500 transition-colors cursor-pointer"
+                        className="px-3 py-1.5 rounded-full text-xs font-medium bg-white hover:bg-emerald-50 text-[#1aae39] border border-emerald-200 transition-colors cursor-pointer shadow-xs"
                       >
                         ปลดแบน
                       </button>

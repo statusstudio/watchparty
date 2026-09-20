@@ -1205,11 +1205,11 @@ export function App() {
           onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
         />
       ) : (
-        <main className="flex-1 min-h-0 max-w-[1920px] w-full mx-auto p-2 sm:p-3 lg:p-3.5 flex flex-col lg:grid lg:grid-cols-12 gap-2 sm:gap-3 lg:gap-3.5 overflow-hidden">
+        <main className="flex-1 min-h-0 max-w-[1920px] w-full mx-auto p-2 sm:p-3 lg:p-3.5 flex flex-col lg:grid lg:grid-cols-12 gap-2 sm:gap-3 lg:gap-3.5 overflow-hidden bg-[#f6f5f4]">
           {/* Left Column: Synchronized Video Player & Open Voice Bar (Desktop: 8 cols) */}
           <div className="w-full lg:col-span-8 flex flex-col shrink-0 lg:shrink lg:h-full min-h-0 gap-2 sm:gap-2.5">
             {/* Synchronized YouTube Video Player */}
-            <div className="w-full aspect-video max-h-[25vh] sm:max-h-[34vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black/50 rounded-2xl overflow-hidden border border-gray-800/80 shadow-2xl relative shrink-0">
+            <div className="w-full aspect-video max-h-[25vh] sm:max-h-[34vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black rounded-xl overflow-hidden border border-[#e6e6e6] shadow-[0_4px_12px_rgba(0,0,0,0.06)] relative shrink-0">
               <VideoPlayer
                 video={video}
                 reactions={reactions}
@@ -1235,17 +1235,17 @@ export function App() {
               />
             </div>
 
-            {/* Current Video Info Banner & Quick Controls */}
-            <div className="bg-[#13141c]/90 border border-gray-800/80 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center justify-between shrink-0 gap-1.5 sm:gap-2">
+            {/* Current Video Info Banner & Quick Controls - Notion White Surface */}
+            <div className="bg-white border border-[#e6e6e6] rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center justify-between shrink-0 gap-1.5 sm:gap-2 shadow-xs">
               {/* Video Title & Channel */}
               <div className="min-w-0 flex-1 pr-2">
-                <h2 className="text-xs sm:text-sm font-semibold text-white truncate" title={video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}>
+                <h2 className="text-xs sm:text-sm font-bold text-[#000000] truncate" title={video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}>
                   {video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}
                 </h2>
-                <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-0.5">
+                <div className="flex items-center gap-2 text-[11px] text-[#615d59] mt-0.5">
                   <span className="truncate max-w-[140px] sm:max-w-[200px]">{video.channel || 'pleng.online'}</span>
                   {playlist.length > 0 && (
-                    <span className="text-[10px] text-violet-300 font-mono bg-violet-950/50 px-1.5 py-0.5 rounded border border-violet-500/30 shrink-0">
+                    <span className="text-[10px] text-[#0075de] font-mono bg-[#0075de]/10 px-1.5 py-0.5 rounded border border-[#0075de]/20 shrink-0">
                       คิว: {playlist.findIndex((p) => p.videoId === video.videoId) >= 0 ? playlist.findIndex((p) => p.videoId === video.videoId) + 1 : 1}/{playlist.length}
                     </span>
                   )}
@@ -1260,7 +1260,7 @@ export function App() {
                   onClick={handlePrevTrack}
                   title="เพลงก่อนหน้า (Previous Track)"
                   disabled={playlist.length === 0}
-                  className="p-1.5 rounded-lg bg-gray-800/70 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-700/60 disabled:opacity-30 transition-all cursor-pointer"
+                  className="p-1.5 rounded-md bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] disabled:opacity-30 transition-all cursor-pointer shadow-xs"
                 >
                   <SkipBack className="w-3.5 h-3.5" />
                 </button>
@@ -1270,13 +1270,13 @@ export function App() {
                   type="button"
                   onClick={handleToggleShuffle}
                   title={isShuffle ? 'สุ่มเพลง: เปิด (คลิกเพื่อปิด)' : 'สุ่มเพลง: ปิด (คลิกเพื่อเปิด)'}
-                  className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                  className={`p-1.5 rounded-md border transition-all cursor-pointer shadow-xs ${
                     isShuffle
-                      ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-sm'
-                      : 'bg-gray-800/70 text-gray-400 border-gray-700/60 hover:text-gray-200'
+                      ? 'bg-[#0075de]/10 text-[#0075de] border-[#0075de]/30'
+                      : 'bg-white hover:bg-[#f6f5f4] text-[#a39e98] border-[#e6e6e6]'
                   }`}
                 >
-                  <Shuffle className={`w-3.5 h-3.5 ${isShuffle ? 'text-purple-400' : 'opacity-60'}`} />
+                  <Shuffle className={`w-3.5 h-3.5 ${isShuffle ? 'text-[#0075de]' : 'opacity-60'}`} />
                 </button>
 
                 {/* Loop Mode Cycle Button */}
@@ -1291,20 +1291,20 @@ export function App() {
                     handleSetLoopMode(nextMode[loopMode]);
                   }}
                   title={`โหมดเล่นวน: ${loopMode}`}
-                  className={`px-2 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-all cursor-pointer ${
+                  className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1 transition-all cursor-pointer shadow-xs ${
                     loopMode !== 'off'
-                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
-                      : 'bg-gray-800/70 text-gray-400 border-gray-700/60 hover:text-gray-200'
+                      ? 'bg-[#1aae39]/10 text-[#1aae39] border-[#1aae39]/30'
+                      : 'bg-white hover:bg-[#f6f5f4] text-[#a39e98] border-[#e6e6e6]'
                   }`}
                 >
                   {loopMode === 'single' ? (
                     <>
-                      <Repeat1 className="w-3.5 h-3.5 text-emerald-400" />
+                      <Repeat1 className="w-3.5 h-3.5 text-[#1aae39]" />
                       <span className="text-[10px] hidden sm:inline">ซ้ำ 1</span>
                     </>
                   ) : loopMode === 'all' ? (
                     <>
-                      <Repeat className="w-3.5 h-3.5 text-emerald-400" />
+                      <Repeat className="w-3.5 h-3.5 text-[#1aae39]" />
                       <span className="text-[10px] hidden sm:inline">วนคิว</span>
                     </>
                   ) : (
@@ -1321,7 +1321,7 @@ export function App() {
                   onClick={handleNextTrack}
                   title="เพลงถัดไป (Next Track)"
                   disabled={playlist.length === 0}
-                  className="p-1.5 rounded-lg bg-gray-800/70 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-700/60 disabled:opacity-30 transition-all cursor-pointer"
+                  className="p-1.5 rounded-md bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] disabled:opacity-30 transition-all cursor-pointer shadow-xs"
                 >
                   <SkipForward className="w-3.5 h-3.5" />
                 </button>
@@ -1334,23 +1334,23 @@ export function App() {
                     showToast('เข้าสู่โหมดพักหน้าจอ (OLED Black) แตะหน้าจอเพื่อปลดล็อค 🌙', 'info');
                   }}
                   title="โหมดพักหน้าจอประหยัดแบตเตอรี่ (หน้าจอดำสนิท ฟังเพลงไม่ตัด)"
-                  className="px-2 py-1 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-purple-300 border border-purple-500/30 text-xs font-medium transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                  className="px-2 py-1 rounded-md bg-white hover:bg-[#f6f5f4] text-[#615d59] border border-[#e6e6e6] text-xs font-medium transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-xs"
                 >
-                  <Moon className="w-3.5 h-3.5 text-purple-400" />
+                  <Moon className="w-3.5 h-3.5 text-[#615d59]" />
                   <span className="text-[10px] hidden sm:inline">พักจอ</span>
                 </button>
               </div>
             </div>
 
-            {/* Mobile / Tablet Tab Switcher (Visible on < lg screens only) */}
-            <div className="flex lg:hidden items-center bg-[#13141c] border border-gray-800 rounded-xl p-1 shrink-0 overflow-x-auto">
+            {/* Mobile / Tablet Tab Switcher (Visible on < lg screens only) - Notion Style */}
+            <div className="flex lg:hidden items-center bg-white border border-[#e6e6e6] rounded-xl p-1 shrink-0 overflow-x-auto shadow-xs">
               <button
                 type="button"
                 onClick={() => setActiveMobileTab('voice')}
                 className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   activeMobileTab === 'voice'
-                    ? 'bg-violet-600 text-white shadow-md'
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-[#0075de] text-white shadow-xs'
+                    : 'text-[#615d59] hover:text-[#000000]'
                 }`}
               >
                 <Radio className="w-3.5 h-3.5" />
@@ -1362,8 +1362,8 @@ export function App() {
                 onClick={() => setActiveMobileTab('queue')}
                 className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   activeMobileTab === 'queue'
-                    ? 'bg-violet-600 text-white shadow-md'
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-[#0075de] text-white shadow-xs'
+                    : 'text-[#615d59] hover:text-[#000000]'
                 }`}
               >
                 <ListMusic className="w-3.5 h-3.5" />
@@ -1378,8 +1378,8 @@ export function App() {
                 }}
                 className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap relative ${
                   activeMobileTab === 'chat'
-                    ? 'bg-violet-600 text-white shadow-md'
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-[#0075de] text-white shadow-xs'
+                    : 'text-[#615d59] hover:text-[#000000]'
                 }`}
               >
                 <div className="relative flex items-center">
@@ -1387,7 +1387,7 @@ export function App() {
                 </div>
                 <span>แชทสด</span>
                 {unreadChatCount > 0 && activeMobileTab !== 'chat' && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-bold font-mono shadow-sm shadow-rose-500/50 animate-pulse">
+                  <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-bold font-mono shadow-xs animate-pulse">
                     {unreadChatCount > 99 ? '99+' : unreadChatCount}
                   </span>
                 )}
@@ -1398,8 +1398,8 @@ export function App() {
                 onClick={() => setActiveMobileTab('members')}
                 className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   activeMobileTab === 'members'
-                    ? 'bg-violet-600 text-white shadow-md'
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-[#0075de] text-white shadow-xs'
+                    : 'text-[#615d59] hover:text-[#000000]'
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
@@ -1431,24 +1431,24 @@ export function App() {
             </div>
           </div>
 
-          {/* Right Column: GroupTube Multi-Tab Sidebar (Desktop 4 cols, Mobile conditional) */}
-          <div className={`w-full lg:col-span-4 flex-1 lg:h-full min-h-0 flex flex-col bg-[#13141c]/90 backdrop-blur-md rounded-2xl border border-gray-800/80 shadow-xl overflow-hidden ${
+          {/* Right Column: GroupTube Multi-Tab Sidebar (Desktop 4 cols, Mobile conditional) - Notion Card Style */}
+          <div className={`w-full lg:col-span-4 flex-1 lg:h-full min-h-0 flex flex-col bg-white rounded-xl border border-[#e6e6e6] shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden ${
             activeMobileTab === 'voice' ? 'hidden lg:flex' : 'flex'
           }`}>
             {/* Desktop Tab Switcher */}
-            <div className="hidden lg:flex items-center p-1.5 border-b border-gray-800/80 bg-[#171824]/60 shrink-0 gap-1">
+            <div className="hidden lg:flex items-center p-1.5 border-b border-[#e6e6e6] bg-[#f6f5f4] shrink-0 gap-1">
               <button
                 type="button"
                 onClick={() => setActiveSidebarTab('queue')}
-                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   activeSidebarTab === 'queue'
-                    ? 'bg-violet-600 text-white shadow-sm'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    ? 'bg-white text-[#0075de] border border-[#e6e6e6] shadow-xs'
+                    : 'text-[#615d59] hover:text-[#000000] hover:bg-black/5'
                 }`}
               >
                 <ListMusic className="w-3.5 h-3.5" />
                 <span>คิวเพลง</span>
-                <span className="px-1.5 py-0.2 rounded-full bg-black/30 text-[10px] font-mono">
+                <span className="px-1.5 py-0.2 rounded-full bg-[#f6f5f4] text-[#615d59] text-[10px] font-mono border border-[#e6e6e6]">
                   {playlist.length}
                 </span>
               </button>
@@ -1459,10 +1459,10 @@ export function App() {
                   setActiveSidebarTab('chat');
                   setUnreadChatCount(0);
                 }}
-                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer relative ${
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer relative ${
                   activeSidebarTab === 'chat'
-                    ? 'bg-violet-600 text-white shadow-sm'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    ? 'bg-white text-[#0075de] border border-[#e6e6e6] shadow-xs'
+                    : 'text-[#615d59] hover:text-[#000000] hover:bg-black/5'
                 }`}
               >
                 <div className="relative flex items-center">
@@ -1470,7 +1470,7 @@ export function App() {
                 </div>
                 <span>แชทสด</span>
                 {unreadChatCount > 0 && activeSidebarTab !== 'chat' && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-bold font-mono shadow-sm shadow-rose-500/50 animate-pulse">
+                  <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-bold font-mono shadow-xs animate-pulse">
                     {unreadChatCount > 99 ? '99+' : unreadChatCount}
                   </span>
                 )}
@@ -1479,15 +1479,15 @@ export function App() {
               <button
                 type="button"
                 onClick={() => setActiveSidebarTab('members')}
-                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   activeSidebarTab === 'members'
-                    ? 'bg-violet-600 text-white shadow-sm'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    ? 'bg-white text-[#0075de] border border-[#e6e6e6] shadow-xs'
+                    : 'text-[#615d59] hover:text-[#000000] hover:bg-black/5'
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
                 <span>สมาชิก</span>
-                <span className="px-1.5 py-0.2 rounded-full bg-black/30 text-[10px] font-mono">
+                <span className="px-1.5 py-0.2 rounded-full bg-[#f6f5f4] text-[#615d59] text-[10px] font-mono border border-[#e6e6e6]">
                   {members.length || onlineCount}
                 </span>
               </button>
