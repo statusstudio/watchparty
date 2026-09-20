@@ -67,11 +67,14 @@ export const PlengLogo: React.FC<PlengLogoProps> = ({
         />
       </div>
 
-      {/* Brand Text Typography with Capital 'P' */}
+      {/* Brand Text Typography matching the logo style (Big P, half-sized LENG) */}
       {showText && (
-        <div className="flex items-center tracking-tight leading-none">
-          <span className={`${textSize} font-black text-[#000000] tracking-[-0.03em]`}>
-            Pleng
+        <div className="flex items-baseline tracking-tight leading-none">
+          <span className={`${textSize} font-black text-[#000000] tracking-tight`}>
+            P
+          </span>
+          <span className="text-[0.68em] font-black text-[#000000] tracking-wider uppercase ml-[1px]">
+            LENG
           </span>
           <span
             className={`${badgeSize} font-bold rounded-md bg-[#000000] text-amber-400 font-mono shadow-xs border border-amber-400/30`}
