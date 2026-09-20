@@ -107,6 +107,22 @@ export interface StageRequest {
   timestamp: number;
 }
 
+export interface RoomWidgetsConfig {
+  enableVoiceStage: boolean;
+  enableChat: boolean;
+  enableQueue: boolean;
+  enableReactions: boolean;
+  enableSoundboard: boolean;
+}
+
+export const DEFAULT_ROOM_WIDGETS: RoomWidgetsConfig = {
+  enableVoiceStage: true,
+  enableChat: true,
+  enableQueue: true,
+  enableReactions: true,
+  enableSoundboard: true,
+};
+
 export interface RoomMetadata {
   id: string;
   name: string;
@@ -120,6 +136,7 @@ export interface RoomMetadata {
   stageAccessMode: StageAccessMode;
   category?: RoomCategory;
   coverImage?: string;
+  widgets?: RoomWidgetsConfig;
   createdAt: number;
 }
 
@@ -133,6 +150,7 @@ export interface RoomSummary {
   stageAccessMode?: StageAccessMode;
   category?: RoomCategory;
   coverImage?: string;
+  widgets?: RoomWidgetsConfig;
   onlineCount: number;
   currentVideo: {
     videoId: string;
@@ -165,7 +183,8 @@ export type WSClientMessage =
   | { type: 'GET_ROOMS' }
   | { type: 'VERIFY_ROOM_PASSWORD'; roomId: string; password: string; user?: UserProfile }
   | { type: 'UPDATE_PROFILE'; user: UserProfile }
-  | { type: 'UPDATE_ROOM_SETTINGS'; settings: { name: string; description: string; isPrivate: boolean; password?: string; category?: RoomCategory; coverImage?: string; onlyAdminManagePlaylist: boolean; stageAccessMode?: StageAccessMode } }
+  | { type: 'UPDATE_ROOM_SETTINGS'; settings: { name: string; description: string; isPrivate: boolean; password?: string; category?: RoomCategory; coverImage?: string; onlyAdminManagePlaylist: boolean; stageAccessMode?: StageAccessMode; widgets?: RoomWidgetsConfig } }
+  | { type: 'UPDATE_ROOM_WIDGETS'; widgets: Partial<RoomWidgetsConfig> }
   | { type: 'SET_ADMIN_ROLE'; targetUserId: string; role: 'admin' | 'member' }
   | { type: 'KICK_USER'; targetUserId: string }
   | { type: 'BAN_USER'; targetUserId: string }
@@ -217,7 +236,9 @@ export type WSServerMessage =
   | { type: 'SIGNAL_DATA'; senderId: string; data: any }
   | { type: 'SYNC_TOAST'; message: string; toastType?: 'info' | 'success' | 'warning' }
   | { type: 'YOU_WERE_SUSPENDED'; reason: string }
-  | { type: 'ROOM_FORCE_CLOSED'; roomId: string; reason: string };
+  | { type: 'ROOM_FORCE_CLOSED'; roomId: string; reason: string }
+  | { type: 'PLATFORM_CONFIG_UPDATED'; config: PlatformConfig }
+  | { type: 'SYSTEM_ANNOUNCEMENT'; text: string; announcementType?: 'info' | 'warning' | 'alert' };
 
 // Platform Owner & Super Admin Types
 export interface PlatformUser {
@@ -260,6 +281,57 @@ export interface SupportTicket {
   messages: TicketMessage[];
   createdAt: number;
   updatedAt: number;
+}
+
+export interface PlatformConfig {
+  maintenanceMode: boolean;
+  announcementBanner?: {
+    enabled: boolean;
+    text: string;
+    type: 'info' | 'warning' | 'alert';
+  };
+  globalWidgets: {
+    enableVoiceStage: boolean;
+    enableChat: boolean;
+    enableSoundboard: boolean;
+  };
+}
+
+export const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
+  maintenanceMode: false,
+  announcementBanner: {
+    enabled: false,
+    text: '',
+    type: 'info',
+  },
+  globalWidgets: {
+    enableVoiceStage: true,
+    enableChat: true,
+    enableSoundboard: true,
+  },
+};
+
+export interface TrackPlayStat {
+  videoId: string;
+  title: string;
+  channel?: string;
+  thumbnail?: string;
+  playCount: number;
+  lastPlayedAt: number;
+}
+
+export interface PlatformAnalytics {
+  onlineVisitors: number;
+  totalUsers: number;
+  usersByProvider: {
+    google: number;
+    facebook: number;
+    guest: number;
+  };
+  activeRooms: number;
+  topTracks: TrackPlayStat[];
+  serverUptimeSeconds: number;
+  memoryUsageMb: number;
 }
 
 export interface PlatformStats {

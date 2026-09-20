@@ -16,6 +16,9 @@ import {
   RoomCategory,
   StageRequest,
   StageAccessMode,
+  PlatformConfig,
+  DEFAULT_PLATFORM_CONFIG,
+  RoomWidgetsConfig,
 } from './types/index.js';
 import { getStoredUser, saveUser, clearUser } from './services/auth.js';
 import { socketService } from './services/socket.js';
@@ -115,6 +118,54 @@ export function App() {
   const [activeMobileTab, setActiveMobileTab] = useState<'voice' | 'queue' | 'chat' | 'members'>('voice');
   const [unreadChatCount, setUnreadChatCount] = useState<number>(0);
   const [quickUrlText, setQuickUrlText] = useState('');
+
+  // Global Platform Config & Announcements
+  const [platformConfig, setPlatformConfig] = useState<PlatformConfig>({ ...DEFAULT_PLATFORM_CONFIG });
+
+  useEffect(() => {
+    fetch('/api/platform/config')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data) setPlatformConfig(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Widget Toggles Evaluation (Inherits from Global & Room level)
+  const isVoiceStageEnabled =
+    platformConfig.globalWidgets?.enableVoiceStage !== false &&
+    roomMetadata.widgets?.enableVoiceStage !== false;
+
+  const isChatEnabled =
+    platformConfig.globalWidgets?.enableChat !== false &&
+    roomMetadata.widgets?.enableChat !== false;
+
+  const isQueueEnabled = roomMetadata.widgets?.enableQueue !== false;
+
+  const isReactionsEnabled =
+    platformConfig.globalWidgets?.enableSoundboard !== false &&
+    roomMetadata.widgets?.enableReactions !== false;
+
+  // Auto-switch tabs if currently selected tab is disabled
+  useEffect(() => {
+    if (!isVoiceStageEnabled && activeMobileTab === 'voice') {
+      setActiveMobileTab(isQueueEnabled ? 'queue' : isChatEnabled ? 'chat' : 'members');
+    }
+  }, [isVoiceStageEnabled, activeMobileTab, isQueueEnabled, isChatEnabled]);
+
+  useEffect(() => {
+    if (!isChatEnabled) {
+      if (activeMobileTab === 'chat') setActiveMobileTab(isQueueEnabled ? 'queue' : 'members');
+      if (activeSidebarTab === 'chat') setActiveSidebarTab(isQueueEnabled ? 'queue' : 'members');
+    }
+  }, [isChatEnabled, activeMobileTab, activeSidebarTab, isQueueEnabled]);
+
+  useEffect(() => {
+    if (!isQueueEnabled) {
+      if (activeMobileTab === 'queue') setActiveMobileTab(isChatEnabled ? 'chat' : 'members');
+      if (activeSidebarTab === 'queue') setActiveSidebarTab(isChatEnabled ? 'chat' : 'members');
+    }
+  }, [isQueueEnabled, isChatEnabled, activeMobileTab, activeSidebarTab]);
 
   // Tab and View refs to avoid stale closures in socket listener
   const activeSidebarTabRef = useRef(activeSidebarTab);
@@ -755,6 +806,14 @@ export function App() {
           showToast(msg.message, msg.toastType);
           break;
 
+        case 'PLATFORM_CONFIG_UPDATED':
+          setPlatformConfig(msg.config);
+          break;
+
+        case 'SYSTEM_ANNOUNCEMENT':
+          showToast(`📢 ${msg.text}`, msg.announcementType === 'alert' ? 'warning' : 'info');
+          break;
+
         default:
           break;
       }
@@ -889,6 +948,7 @@ export function App() {
     coverImage?: string;
     onlyAdminManagePlaylist: boolean;
     stageAccessMode?: StageAccessMode;
+    widgets?: RoomWidgetsConfig;
   }) => {
     socketService.send({
       type: 'UPDATE_ROOM_SETTINGS',
@@ -1272,6 +1332,22 @@ export function App() {
         </div>
       )}
 
+      {/* Global System Announcement Banner */}
+      {platformConfig.announcementBanner?.enabled && platformConfig.announcementBanner.text && (
+        <div
+          className={`w-full py-2 px-4 text-xs font-semibold flex items-center justify-center gap-2 border-b shadow-xs transition-all shrink-0 z-40 ${
+            platformConfig.announcementBanner.type === 'alert'
+              ? 'bg-rose-500 text-white border-rose-600'
+              : platformConfig.announcementBanner.type === 'warning'
+              ? 'bg-amber-500 text-white border-amber-600'
+              : 'bg-[#0075de] text-white border-[#005bab]'
+          }`}
+        >
+          <span>📢</span>
+          <span>{platformConfig.announcementBanner.text}</span>
+        </div>
+      )}
+
       {/* Main View Router */}
       {currentView === 'home' ? (
         <HomeView
@@ -1288,7 +1364,7 @@ export function App() {
             <div className="w-full aspect-video max-h-[25vh] sm:max-h-[34vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black rounded-xl overflow-hidden border border-[#e6e6e6] shadow-[0_4px_12px_rgba(0,0,0,0.06)] relative shrink-0">
               <VideoPlayer
                 video={video}
-                reactions={reactions}
+                reactions={isReactionsEnabled ? reactions : []}
                 onRemoveReaction={handleRemoveReaction}
                 isSomeoneSpeaking={isSomeoneSpeaking}
                 isAudioDuckingEnabled={isAudioDuckingEnabled}
@@ -1420,54 +1496,60 @@ export function App() {
 
             {/* Mobile / Tablet Tab Switcher (Visible on < lg screens only) - Notion Style */}
             <div className="flex lg:hidden items-center bg-white border border-[#e6e6e6] rounded-xl p-1 shrink-0 overflow-x-auto shadow-xs">
-              <button
-                type="button"
-                onClick={() => setActiveMobileTab('voice')}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
-                  activeMobileTab === 'voice'
-                    ? 'bg-[#0075de] text-white shadow-xs'
-                    : 'text-[#615d59] hover:text-[#000000]'
-                }`}
-              >
-                <Radio className="w-3.5 h-3.5" />
-                <span>สายไมค์ ({seats.filter((s) => s.user).length})</span>
-              </button>
+              {isVoiceStageEnabled && (
+                <button
+                  type="button"
+                  onClick={() => setActiveMobileTab('voice')}
+                  className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                    activeMobileTab === 'voice'
+                      ? 'bg-[#0075de] text-white shadow-xs'
+                      : 'text-[#615d59] hover:text-[#000000]'
+                  }`}
+                >
+                  <Radio className="w-3.5 h-3.5" />
+                  <span>สายไมค์ ({seats.filter((s) => s.user).length})</span>
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => setActiveMobileTab('queue')}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
-                  activeMobileTab === 'queue'
-                    ? 'bg-[#0075de] text-white shadow-xs'
-                    : 'text-[#615d59] hover:text-[#000000]'
-                }`}
-              >
-                <ListMusic className="w-3.5 h-3.5" />
-                <span>คิวเพลง ({playlist.length})</span>
-              </button>
+              {isQueueEnabled && (
+                <button
+                  type="button"
+                  onClick={() => setActiveMobileTab('queue')}
+                  className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                    activeMobileTab === 'queue'
+                      ? 'bg-[#0075de] text-white shadow-xs'
+                      : 'text-[#615d59] hover:text-[#000000]'
+                  }`}
+                >
+                  <ListMusic className="w-3.5 h-3.5" />
+                  <span>คิวเพลง ({playlist.length})</span>
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveMobileTab('chat');
-                  setUnreadChatCount(0);
-                }}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap relative ${
-                  activeMobileTab === 'chat'
-                    ? 'bg-[#0075de] text-white shadow-xs'
-                    : 'text-[#615d59] hover:text-[#000000]'
-                }`}
-              >
-                <div className="relative flex items-center">
-                  <MessageSquare className="w-3.5 h-3.5" />
-                </div>
-                <span>แชทสด</span>
-                {unreadChatCount > 0 && activeMobileTab !== 'chat' && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-bold font-mono shadow-xs animate-pulse">
-                    {unreadChatCount > 99 ? '99+' : unreadChatCount}
-                  </span>
-                )}
-              </button>
+              {isChatEnabled && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveMobileTab('chat');
+                    setUnreadChatCount(0);
+                  }}
+                  className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap relative ${
+                    activeMobileTab === 'chat'
+                      ? 'bg-[#0075de] text-white shadow-xs'
+                      : 'text-[#615d59] hover:text-[#000000]'
+                  }`}
+                >
+                  <div className="relative flex items-center">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                  </div>
+                  <span>แชทสด</span>
+                  {unreadChatCount > 0 && activeMobileTab !== 'chat' && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-bold font-mono shadow-xs animate-pulse">
+                      {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                    </span>
+                  )}
+                </button>
+              )}
 
               <button
                 type="button"
@@ -1484,28 +1566,30 @@ export function App() {
             </div>
 
             {/* Open Voice Channel (Visible on desktop or when mobileTab === 'voice') */}
-            <div className={`${activeMobileTab === 'voice' ? 'flex-1 min-h-0 overflow-y-auto' : 'hidden'} lg:block shrink-0`}>
-              <VoiceStage
-                seats={seats}
-                currentUser={currentUser}
-                myRole={myRole}
-                stageAccessMode={roomMetadata.stageAccessMode || 'everyone'}
-                pendingStageRequests={pendingStageRequests}
-                approvedSpeakerIds={approvedSpeakerIds}
-                onTakeSeat={handleTakeSeat}
-                onLeaveSeat={handleLeaveSeat}
-                onToggleMute={handleToggleMute}
-                onSpeakingState={handleSpeakingState}
-                onLocalStreamReady={handleLocalStreamReady}
-                onOpenProfile={() => setIsProfileModalOpen(true)}
-                onSelectUser={handleOpenUserCard}
-                onShowToast={showToast}
-                onRequestToSpeak={handleRequestToSpeak}
-                onApproveSpeakRequest={handleApproveSpeakRequest}
-                onRevokeSpeakPermission={handleRevokeSpeakPermission}
-                onVoiceVolumeChange={handleVoiceVolumeChange}
-              />
-            </div>
+            {isVoiceStageEnabled && (
+              <div className={`${activeMobileTab === 'voice' ? 'flex-1 min-h-0 overflow-y-auto' : 'hidden'} lg:block shrink-0`}>
+                <VoiceStage
+                  seats={seats}
+                  currentUser={currentUser}
+                  myRole={myRole}
+                  stageAccessMode={roomMetadata.stageAccessMode || 'everyone'}
+                  pendingStageRequests={pendingStageRequests}
+                  approvedSpeakerIds={approvedSpeakerIds}
+                  onTakeSeat={handleTakeSeat}
+                  onLeaveSeat={handleLeaveSeat}
+                  onToggleMute={handleToggleMute}
+                  onSpeakingState={handleSpeakingState}
+                  onLocalStreamReady={handleLocalStreamReady}
+                  onOpenProfile={() => setIsProfileModalOpen(true)}
+                  onSelectUser={handleOpenUserCard}
+                  onShowToast={showToast}
+                  onRequestToSpeak={handleRequestToSpeak}
+                  onApproveSpeakRequest={handleApproveSpeakRequest}
+                  onRevokeSpeakPermission={handleRevokeSpeakPermission}
+                  onVoiceVolumeChange={handleVoiceVolumeChange}
+                />
+              </div>
+            )}
           </div>
 
           {/* Right Column: GroupTube Multi-Tab Sidebar (Desktop 4 cols, Mobile conditional) - Notion Card Style */}
@@ -1514,44 +1598,48 @@ export function App() {
           }`}>
             {/* Desktop Tab Switcher */}
             <div className="hidden lg:flex items-center p-1.5 border-b border-[#e6e6e6] bg-[#f6f5f4] shrink-0 gap-1">
-              <button
-                type="button"
-                onClick={() => setActiveSidebarTab('queue')}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  activeSidebarTab === 'queue'
-                    ? 'bg-white text-[#0075de] border border-[#e6e6e6] shadow-xs'
-                    : 'text-[#615d59] hover:text-[#000000] hover:bg-black/5'
-                }`}
-              >
-                <ListMusic className="w-3.5 h-3.5" />
-                <span>คิวเพลง</span>
-                <span className="px-1.5 py-0.2 rounded-full bg-[#f6f5f4] text-[#615d59] text-[10px] font-mono border border-[#e6e6e6]">
-                  {playlist.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveSidebarTab('chat');
-                  setUnreadChatCount(0);
-                }}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer relative ${
-                  activeSidebarTab === 'chat'
-                    ? 'bg-white text-[#0075de] border border-[#e6e6e6] shadow-xs'
-                    : 'text-[#615d59] hover:text-[#000000] hover:bg-black/5'
-                }`}
-              >
-                <div className="relative flex items-center">
-                  <MessageSquare className="w-3.5 h-3.5" />
-                </div>
-                <span>แชทสด</span>
-                {unreadChatCount > 0 && activeSidebarTab !== 'chat' && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-bold font-mono shadow-xs animate-pulse">
-                    {unreadChatCount > 99 ? '99+' : unreadChatCount}
+              {isQueueEnabled && (
+                <button
+                  type="button"
+                  onClick={() => setActiveSidebarTab('queue')}
+                  className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    activeSidebarTab === 'queue'
+                      ? 'bg-white text-[#0075de] border border-[#e6e6e6] shadow-xs'
+                      : 'text-[#615d59] hover:text-[#000000] hover:bg-black/5'
+                  }`}
+                >
+                  <ListMusic className="w-3.5 h-3.5" />
+                  <span>คิวเพลง</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-[#f6f5f4] text-[#615d59] text-[10px] font-mono border border-[#e6e6e6]">
+                    {playlist.length}
                   </span>
-                )}
-              </button>
+                </button>
+              )}
+
+              {isChatEnabled && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveSidebarTab('chat');
+                    setUnreadChatCount(0);
+                  }}
+                  className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer relative ${
+                    activeSidebarTab === 'chat'
+                      ? 'bg-white text-[#0075de] border border-[#e6e6e6] shadow-xs'
+                      : 'text-[#615d59] hover:text-[#000000] hover:bg-black/5'
+                  }`}
+                >
+                  <div className="relative flex items-center">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                  </div>
+                  <span>แชทสด</span>
+                  {unreadChatCount > 0 && activeSidebarTab !== 'chat' && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-bold font-mono shadow-xs animate-pulse">
+                      {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                    </span>
+                  )}
+                </button>
+              )}
 
               <button
                 type="button"

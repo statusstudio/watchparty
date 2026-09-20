@@ -16,6 +16,8 @@ import {
   RoomCategory,
   StageAccessMode,
   StageRequest,
+  RoomWidgetsConfig,
+  DEFAULT_ROOM_WIDGETS,
 } from '../src/types/index.js';
 
 interface ClientConnection {
@@ -72,6 +74,7 @@ export class RoomManager {
       initialVideoId?: string;
       initialVideoTitle?: string;
       initialVideoChannel?: string;
+      widgets?: RoomWidgetsConfig;
     },
     creator: UserProfile
   ): InternalRoomData {
@@ -93,6 +96,7 @@ export class RoomManager {
         coverImage: settings.coverImage || undefined,
         onlyAdminManagePlaylist: !!settings.onlyAdminManagePlaylist,
         stageAccessMode,
+        widgets: settings.widgets || { ...DEFAULT_ROOM_WIDGETS },
         createdAt: Date.now(),
       },
       seats: this.createDefaultSeats(),
@@ -182,6 +186,7 @@ export class RoomManager {
         stageAccessMode: room.metadata.stageAccessMode || 'everyone',
         category: room.metadata.category || 'general',
         coverImage: room.metadata.coverImage,
+        widgets: room.metadata.widgets || { ...DEFAULT_ROOM_WIDGETS },
         onlineCount,
         currentVideo: {
           videoId: room.video.videoId,
@@ -194,6 +199,19 @@ export class RoomManager {
 
     // Sort by online count desc then createdAt desc
     return list.sort((a, b) => b.onlineCount - a.onlineCount || b.createdAt - a.createdAt);
+  }
+
+  public broadcastToAll(message: any) {
+    const raw = JSON.stringify(message);
+    for (const client of this.clients.values()) {
+      if (client.ws.readyState === WebSocket.OPEN) {
+        try {
+          client.ws.send(raw);
+        } catch (e) {
+          console.error('Failed to send broadcastToAll to client:', e);
+        }
+      }
+    }
   }
 
   public getAllRoomsAdmin(): any[] {
@@ -211,6 +229,7 @@ export class RoomManager {
         hasPassword: room.metadata.hasPassword,
         category: room.metadata.category || 'general',
         coverImage: room.metadata.coverImage,
+        widgets: room.metadata.widgets || { ...DEFAULT_ROOM_WIDGETS },
         onlineCount: clients.length,
         members: clients.map((c) => c.user.name),
         currentVideo: room.video,
@@ -523,6 +542,7 @@ export class RoomManager {
       coverImage?: string;
       onlyAdminManagePlaylist: boolean;
       stageAccessMode?: StageAccessMode;
+      widgets?: RoomWidgetsConfig;
     }
   ) {
     const client = this.clients.get(ws);
@@ -549,6 +569,19 @@ export class RoomManager {
     if (settings.category) room.metadata.category = settings.category;
     if (settings.coverImage !== undefined) room.metadata.coverImage = settings.coverImage;
     room.metadata.onlyAdminManagePlaylist = settings.onlyAdminManagePlaylist;
+    if (settings.widgets) {
+      room.metadata.widgets = {
+        ...(room.metadata.widgets || { ...DEFAULT_ROOM_WIDGETS }),
+        ...settings.widgets,
+      };
+      if (settings.widgets.enableVoiceStage === false) {
+        room.seats = room.seats.map((s) => ({ ...s, user: null, isSpeaking: false, isMuted: false }));
+        this.broadcastToRoom(client.roomId, {
+          type: 'SEATS_UPDATED',
+          seats: room.seats,
+        });
+      }
+    }
     if (settings.stageAccessMode) {
       room.stageAccessMode = settings.stageAccessMode;
       room.metadata.stageAccessMode = settings.stageAccessMode;
@@ -584,6 +617,50 @@ export class RoomManager {
       type: 'SYNC_TOAST',
       message: 'เจ้าของห้องได้อัพเดทการตั้งค่าห้องแล้ว ⚙️',
       toastType: 'success',
+    });
+  }
+
+  public handleUpdateRoomWidgets(ws: WebSocket, widgets: Partial<RoomWidgetsConfig>) {
+    const client = this.clients.get(ws);
+    if (!client) return;
+
+    const room = this.rooms.get(client.roomId);
+    if (!room) return;
+
+    if (client.user.id !== room.metadata.ownerId && !room.adminIds.has(client.user.id)) {
+      this.sendToClient(ws, {
+        type: 'SYNC_TOAST',
+        message: 'เฉพาะเจ้าของห้องหรือผู้ดูแลห้องเท่านั้นที่สามารถเปลี่ยน Widget ได้',
+        toastType: 'warning',
+      });
+      return;
+    }
+
+    room.metadata.widgets = {
+      ...(room.metadata.widgets || { ...DEFAULT_ROOM_WIDGETS }),
+      ...widgets,
+    };
+
+    if (widgets.enableVoiceStage === false) {
+      room.seats = room.seats.map((s) => ({ ...s, user: null, isSpeaking: false, isMuted: false }));
+      this.broadcastToRoom(client.roomId, {
+        type: 'SEATS_UPDATED',
+        seats: room.seats,
+      });
+    }
+
+    this.broadcastToRoom(client.roomId, {
+      type: 'ROOM_METADATA_UPDATED',
+      metadata: {
+        ...room.metadata,
+        password: undefined,
+      },
+    });
+
+    this.broadcastToRoom(client.roomId, {
+      type: 'SYNC_TOAST',
+      message: 'อัพเดทโมดูล Widget ประจำห้องแล้ว 🎛️',
+      toastType: 'info',
     });
   }
 
@@ -1158,6 +1235,12 @@ export class RoomManager {
       isPlaying: true,
       lastUpdated: Date.now(),
     };
+
+    platformManager.recordTrackPlay({
+      videoId,
+      title: room.video.title,
+      channel: room.video.channel,
+    });
 
     this.broadcastToRoom(client.roomId, {
       type: 'VIDEO_SYNC',

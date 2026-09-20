@@ -8,6 +8,10 @@ import {
   TicketMessage,
   PlatformStats,
   UserProfile,
+  PlatformConfig,
+  DEFAULT_PLATFORM_CONFIG,
+  TrackPlayStat,
+  PlatformAnalytics,
 } from '../src/types/index.js';
 import type { RoomManager } from './roomManager.js';
 
@@ -18,11 +22,15 @@ export const MASTER_PASSCODE = 'admin888';
 interface StoreSchema {
   users: PlatformUser[];
   tickets: SupportTicket[];
+  config?: PlatformConfig;
+  topTracks?: TrackPlayStat[];
 }
 
 export class PlatformManager {
   private users: Map<string, PlatformUser> = new Map();
   private tickets: Map<string, SupportTicket> = new Map();
+  private config: PlatformConfig = { ...DEFAULT_PLATFORM_CONFIG };
+  private topTracks: Map<string, TrackPlayStat> = new Map();
   private startTime: number = Date.now();
   private saveTimeout: NodeJS.Timeout | null = null;
 
@@ -53,6 +61,26 @@ export class PlatformManager {
         if (Array.isArray(data.tickets)) {
           data.tickets.forEach((t) => this.tickets.set(t.id, t));
         }
+        if (data.config) {
+          this.config = {
+            ...DEFAULT_PLATFORM_CONFIG,
+            ...data.config,
+            globalWidgets: {
+              ...DEFAULT_PLATFORM_CONFIG.globalWidgets,
+              ...(data.config.globalWidgets || {}),
+            },
+            announcementBanner: data.config.announcementBanner
+              ? {
+                  enabled: !!data.config.announcementBanner.enabled,
+                  text: String(data.config.announcementBanner.text || ''),
+                  type: (data.config.announcementBanner.type as 'info' | 'warning' | 'alert') || 'info',
+                }
+              : DEFAULT_PLATFORM_CONFIG.announcementBanner,
+          };
+        }
+        if (Array.isArray(data.topTracks)) {
+          data.topTracks.forEach((tr) => this.topTracks.set(tr.videoId, tr));
+        }
       } catch (err) {
         console.error('Failed to parse platform_store.json:', err);
       }
@@ -66,6 +94,8 @@ export class PlatformManager {
         const data: StoreSchema = {
           users: Array.from(this.users.values()),
           tickets: Array.from(this.tickets.values()),
+          config: this.config,
+          topTracks: Array.from(this.topTracks.values()),
         };
         fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), 'utf-8');
       } catch (err) {
@@ -294,6 +324,86 @@ export class PlatformManager {
 
   public getTicketById(ticketId: string): SupportTicket | null {
     return this.tickets.get(ticketId) || null;
+  }
+
+  public getConfig(): PlatformConfig {
+    return { ...this.config };
+  }
+
+  public updateConfig(patch: Partial<PlatformConfig>): PlatformConfig {
+    this.config = {
+      ...this.config,
+      ...patch,
+      globalWidgets: {
+        ...this.config.globalWidgets,
+        ...(patch.globalWidgets || {}),
+      },
+      announcementBanner: patch.announcementBanner !== undefined
+        ? patch.announcementBanner
+        : this.config.announcementBanner,
+    };
+    this.scheduleSave();
+    return this.getConfig();
+  }
+
+  public recordTrackPlay(track: { videoId: string; title: string; channel?: string; thumbnail?: string }): void {
+    if (!track.videoId) return;
+    const existing = this.topTracks.get(track.videoId);
+    const now = Date.now();
+    if (existing) {
+      existing.playCount += 1;
+      existing.lastPlayedAt = now;
+      if (track.title) existing.title = track.title;
+      if (track.channel) existing.channel = track.channel;
+      if (track.thumbnail) existing.thumbnail = track.thumbnail;
+    } else {
+      this.topTracks.set(track.videoId, {
+        videoId: track.videoId,
+        title: track.title || 'Untitled Video',
+        channel: track.channel || '',
+        thumbnail: track.thumbnail || `https://img.youtube.com/vi/${track.videoId}/mqdefault.jpg`,
+        playCount: 1,
+        lastPlayedAt: now,
+      });
+    }
+    this.scheduleSave();
+  }
+
+  public getAnalytics(roomManager: RoomManager): PlatformAnalytics {
+    let totalOnline = 0;
+    const summaries = roomManager.getAllRoomSummaries();
+    summaries.forEach((s) => {
+      totalOnline += s.onlineCount;
+    });
+
+    const usersByProvider = {
+      google: 0,
+      facebook: 0,
+      guest: 0,
+    };
+
+    for (const u of this.users.values()) {
+      if (u.provider === 'google') usersByProvider.google++;
+      else if (u.provider === 'facebook') usersByProvider.facebook++;
+      else usersByProvider.guest++;
+    }
+
+    const topTracks = Array.from(this.topTracks.values())
+      .sort((a, b) => b.playCount - a.playCount)
+      .slice(0, 10);
+
+    const memUsage = process.memoryUsage ? Math.round(process.memoryUsage().rss / 1024 / 1024) : 0;
+    const uptimeSeconds = Math.floor((Date.now() - this.startTime) / 1000);
+
+    return {
+      onlineVisitors: totalOnline,
+      totalUsers: this.users.size,
+      usersByProvider,
+      activeRooms: summaries.length,
+      topTracks,
+      serverUptimeSeconds: uptimeSeconds,
+      memoryUsageMb: memUsage,
+    };
   }
 
   public getStats(roomManager: RoomManager): PlatformStats {

@@ -130,6 +130,41 @@ async function startServer() {
     res.json(roomManager.getAllRoomsAdmin());
   });
 
+  // Get Platform Global Config (Widgets, Banners, Maintenance)
+  app.get('/api/platform/config', (req, res) => {
+    res.json(platformManager.getConfig());
+  });
+
+  // Update Platform Global Config
+  app.post('/api/platform/config', (req, res) => {
+    const updated = platformManager.updateConfig(req.body);
+    roomManager.broadcastToAll({
+      type: 'PLATFORM_CONFIG_UPDATED',
+      config: updated,
+    });
+    res.json(updated);
+  });
+
+  // Get Deep Analytics (Live visitors, Provider breakdown, Top tracks, Memory)
+  app.get('/api/platform/analytics', (req, res) => {
+    res.json(platformManager.getAnalytics(roomManager));
+  });
+
+  // Broadcast System Announcement to All Active Users
+  app.post('/api/platform/broadcast', (req, res) => {
+    const { text, announcementType } = req.body;
+    if (!text || !text.trim()) {
+      res.status(400).json({ error: 'Announcement text is required' });
+      return;
+    }
+    roomManager.broadcastToAll({
+      type: 'SYSTEM_ANNOUNCEMENT',
+      text: text.trim(),
+      announcementType: announcementType || 'info',
+    });
+    res.json({ success: true });
+  });
+
   // Force Delete Room (by Super Admin)
   app.delete('/api/platform/rooms/:roomId', (req, res) => {
     const { roomId } = req.params;
@@ -270,6 +305,9 @@ async function startServer() {
             break;
           case 'UPDATE_ROOM_SETTINGS':
             roomManager.handleUpdateRoomSettings(ws, msg.settings);
+            break;
+          case 'UPDATE_ROOM_WIDGETS':
+            roomManager.handleUpdateRoomWidgets(ws, msg.widgets);
             break;
           case 'SET_ADMIN_ROLE':
             roomManager.handleSetAdminRole(ws, msg.targetUserId, msg.role);

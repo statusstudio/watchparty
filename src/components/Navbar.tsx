@@ -201,11 +201,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         {isSuperAdmin && onOpenSuperAdminDashboard && (
           <button
             onClick={onOpenSuperAdminDashboard}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#dd5b00]/10 text-[#dd5b00] border border-[#dd5b00]/30 text-xs font-medium hover:bg-[#dd5b00]/20 transition-colors cursor-pointer shadow-xs"
-            title="แดชบอร์ดเจ้าของเว็บ"
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#dd5b00]/10 text-[#dd5b00] border border-[#dd5b00]/30 text-xs font-semibold hover:bg-[#dd5b00]/20 transition-colors cursor-pointer shadow-xs"
+            title="ระบบหลังบ้าน & ผู้ดูแลระบบ (Backoffice)"
           >
             <Crown className="w-3.5 h-3.5 text-[#dd5b00]" />
-            <span>แดชบอร์ด</span>
+            <span>ระบบหลังบ้าน</span>
           </button>
         )}
 
@@ -385,10 +385,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onOpenSuperAdminDashboard();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="w-full px-3 py-2 rounded-lg hover:bg-[#dd5b00]/10 text-left text-xs text-[#dd5b00] flex items-center gap-2.5 transition-colors cursor-pointer"
+                    className="w-full px-3 py-2 rounded-lg hover:bg-[#dd5b00]/10 text-left text-xs text-[#dd5b00] font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
                   >
                     <Crown className="w-4 h-4 text-[#dd5b00]" />
-                    <span>แดชบอร์ดเจ้าของเว็บ</span>
+                    <span>ระบบหลังบ้าน (Backoffice)</span>
                   </button>
                 )}
 

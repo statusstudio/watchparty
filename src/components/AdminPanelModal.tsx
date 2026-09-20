@@ -15,7 +15,7 @@ import {
   RefreshCw,
   Image as ImageIcon,
 } from 'lucide-react';
-import { RoomMember, BannedUser, UserRole, RoomMetadata, RoomCategory, StageAccessMode } from '../types/index.js';
+import { RoomMember, BannedUser, UserRole, RoomMetadata, RoomCategory, StageAccessMode, RoomWidgetsConfig, DEFAULT_ROOM_WIDGETS } from '../types/index.js';
 import { ROOM_CATEGORIES } from '../data/presets.js';
 
 interface AdminPanelModalProps {
@@ -43,6 +43,7 @@ interface AdminPanelModalProps {
     coverImage?: string;
     onlyAdminManagePlaylist: boolean;
     stageAccessMode?: StageAccessMode;
+    widgets?: RoomWidgetsConfig;
   }) => void;
   onShowToast?: (msg: string, type?: 'info' | 'success' | 'warning') => void;
 }
@@ -77,6 +78,9 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   const [password, setPassword] = useState(metadata.password || '');
   const [onlyAdminPlaylist, setOnlyAdminPlaylist] = useState(metadata.onlyAdminManagePlaylist || false);
   const [stageAccessMode, setStageAccessMode] = useState<StageAccessMode>(metadata.stageAccessMode || 'everyone');
+  const [widgets, setWidgets] = useState<RoomWidgetsConfig>(
+    metadata.widgets || { ...DEFAULT_ROOM_WIDGETS }
+  );
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Sync current room data whenever modal opens or metadata updates from server
@@ -90,6 +94,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       setPassword(metadata.password || '');
       setOnlyAdminPlaylist(metadata.onlyAdminManagePlaylist || false);
       setStageAccessMode(metadata.stageAccessMode || 'everyone');
+      setWidgets(metadata.widgets || { ...DEFAULT_ROOM_WIDGETS });
       setSavedSuccess(false);
     }
   }, [isOpen, metadata]);
@@ -112,6 +117,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       password: isPrivate ? password.trim() : undefined,
       onlyAdminManagePlaylist: onlyAdminPlaylist,
       stageAccessMode,
+      widgets,
     });
 
     onShowToast?.('บันทึกการตั้งค่าห้องเรียบร้อยแล้ว 🎉', 'success');
@@ -522,6 +528,93 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     </p>
                   </div>
                 </label>
+              </div>
+
+              {/* Room Widgets & Modules Toggles */}
+              <div className="pt-2 space-y-2 border-t border-[#e6e6e6]">
+                <label className="block text-xs font-semibold text-[#31302e] flex items-center justify-between">
+                  <span>🎛️ โมดูลและวิดเจ็ตในห้อง (Room Widgets)</span>
+                  <span className="text-[10px] text-[#0075de] font-normal">👑 เจ้าของห้องกำหนดได้</span>
+                </label>
+                <div className="space-y-2 bg-[#f6f5f4] p-3 rounded-xl border border-[#e6e6e6]">
+                  {/* Voice Stage Widget */}
+                  <label className="flex items-center justify-between p-2 rounded-lg bg-white border border-[#e6e6e6] cursor-pointer hover:border-[#0075de]/30 transition-all shadow-xs">
+                    <div className="text-xs pr-2">
+                      <span className="text-[#000000] font-semibold flex items-center gap-1.5">
+                        🎙️ สายไมค์สด (Voice Stage)
+                      </span>
+                      <p className="text-[10px] text-[#615d59] mt-0.5">
+                        เปิด/ปิด เวทีไมค์ 9 ที่นั่ง (หากปิด หน้าจอวิดีโอจะขยายเต็มพื้นที่อัตโนมัติแบบ Cinema Mode)
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={widgets.enableVoiceStage}
+                      onChange={(e) => setWidgets({ ...widgets, enableVoiceStage: e.target.checked })}
+                      className="w-4 h-4 rounded text-[#0075de] focus:ring-[#0075de] border-[#e6e6e6] shrink-0"
+                    />
+                  </label>
+
+                  {/* Live Chat Widget */}
+                  <label className="flex items-center justify-between p-2 rounded-lg bg-white border border-[#e6e6e6] cursor-pointer hover:border-[#0075de]/30 transition-all shadow-xs">
+                    <div className="text-xs pr-2">
+                      <span className="text-[#000000] font-semibold flex items-center gap-1.5">
+                        💬 แชทสด (Live Chat)
+                      </span>
+                      <p className="text-[10px] text-[#615d59] mt-0.5">
+                        เปิด/ปิด กล่องข้อความแชทสดในห้อง
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={widgets.enableChat}
+                      onChange={(e) => setWidgets({ ...widgets, enableChat: e.target.checked })}
+                      className="w-4 h-4 rounded text-[#0075de] focus:ring-[#0075de] border-[#e6e6e6] shrink-0"
+                    />
+                  </label>
+
+                  {/* Playlist Queue Widget */}
+                  <label className="flex items-center justify-between p-2 rounded-lg bg-white border border-[#e6e6e6] cursor-pointer hover:border-[#0075de]/30 transition-all shadow-xs">
+                    <div className="text-xs pr-2">
+                      <span className="text-[#000000] font-semibold flex items-center gap-1.5">
+                        🎶 รายการคิวเพลง (Queue)
+                      </span>
+                      <p className="text-[10px] text-[#615d59] mt-0.5">
+                        เปิด/ปิด แท็บรายการคิวเพลงสำหรับดูและจัดคิวเพลง
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={widgets.enableQueue}
+                      onChange={(e) => setWidgets({ ...widgets, enableQueue: e.target.checked })}
+                      className="w-4 h-4 rounded text-[#0075de] focus:ring-[#0075de] border-[#e6e6e6] shrink-0"
+                    />
+                  </label>
+
+                  {/* Reactions & Soundboard */}
+                  <label className="flex items-center justify-between p-2 rounded-lg bg-white border border-[#e6e6e6] cursor-pointer hover:border-[#0075de]/30 transition-all shadow-xs">
+                    <div className="text-xs pr-2">
+                      <span className="text-[#000000] font-semibold flex items-center gap-1.5">
+                        🎉 สติ๊กเกอร์ & ซาวด์บอร์ด (Reactions & Soundboard)
+                      </span>
+                      <p className="text-[10px] text-[#615d59] mt-0.5">
+                        เปิด/ปิด การส่งอีโมจิลอยและกดเอฟเฟกต์เสียง
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={widgets.enableReactions}
+                      onChange={(e) =>
+                        setWidgets({
+                          ...widgets,
+                          enableReactions: e.target.checked,
+                          enableSoundboard: e.target.checked,
+                        })
+                      }
+                      className="w-4 h-4 rounded text-[#0075de] focus:ring-[#0075de] border-[#e6e6e6] shrink-0"
+                    />
+                  </label>
+                </div>
               </div>
 
               <div className="pt-2">
