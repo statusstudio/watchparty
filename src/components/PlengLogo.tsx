@@ -17,14 +17,14 @@ export const PlengLogo: React.FC<PlengLogoProps> = ({
     return (
       <div className={`flex flex-col items-center select-none ${className}`}>
         <div className="relative group cursor-pointer">
-          <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-3xl overflow-hidden shadow-[0_10px_35px_rgba(245,166,35,0.3)] border-2 border-amber-300/80 bg-amber-400 transition-transform duration-300 group-hover:scale-105">
+          <div className="w-32 h-32 sm:w-44 sm:h-44 rounded-3xl overflow-hidden shadow-[0_12px_35px_rgba(245,166,35,0.3)] border-2 border-amber-300/80 bg-amber-400 transition-transform duration-300 group-hover:scale-105">
             <img
               src="/logo-wordmark.jpg"
               alt="Pleng Logo"
               className="w-full h-full object-cover"
             />
           </div>
-          <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[#000000] text-amber-400 text-xs font-bold font-mono shadow-md border border-amber-400/40 whitespace-nowrap">
+          <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-3.5 py-0.5 rounded-full bg-[#000000] text-amber-400 text-xs font-bold font-mono shadow-md border border-amber-400/40 whitespace-nowrap">
             pleng.online
           </div>
         </div>
