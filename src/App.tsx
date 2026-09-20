@@ -203,8 +203,14 @@ export function App() {
   const webrtcRef = useRef<WebRTCVoiceEngine | null>(null);
 
   const showToast = useCallback((message: string, type: 'info' | 'success' | 'warning' = 'info') => {
-    const id = 't-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => {
+      // Prevent duplicate toasts with the exact same message
+      if (prev.some((t) => t.message === message)) return prev;
+      // Cap at maximum 3 visible toasts to prevent cluttering the screen
+      const trimmed = prev.length >= 3 ? prev.slice(prev.length - 2) : prev;
+      const id = 't-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+      return [...trimmed, { id, message, type }];
+    });
   }, []);
 
   const dismissToast = useCallback((id: string) => {
@@ -325,23 +331,19 @@ export function App() {
   const touchStartXRef = useRef(0);
   const isPullingRef = useRef(false);
 
-  // Unified Refresh (Home Lobby or Room)
+  // Unified Refresh (Home Lobby or Room) - Silent refresh without noisy popups
   const handleRefresh = useCallback(() => {
     if (isRefreshing) return;
     setIsRefreshing(true);
 
     if (currentView === 'home') {
-      showToast('กำลังรีเฟรชรายการห้อง... 🔄', 'info');
       fetchPublicRooms();
       socketService.send({ type: 'GET_ROOMS' });
 
       setTimeout(() => {
         setIsRefreshing(false);
-        showToast('รีเฟรชหน้าหลักเรียบร้อยแล้ว ✨', 'success');
-      }, 600);
+      }, 500);
     } else {
-      showToast('กำลังรีเฟรชข้อมูลห้อง... 🔄', 'info');
-
       const currentRoom = roomId || getHashRoomId();
       if (currentRoom) {
         socketService.send({
@@ -354,10 +356,9 @@ export function App() {
 
       setTimeout(() => {
         setIsRefreshing(false);
-        showToast('รีเฟรชห้องสำเร็จ เรียลไทม์พร้อมใช้งาน! ✨', 'success');
-      }, 800);
+      }, 600);
     }
-  }, [isRefreshing, currentView, roomId, currentUser, showToast, fetchPublicRooms]);
+  }, [isRefreshing, currentView, roomId, currentUser, fetchPublicRooms]);
 
   // Pull-to-refresh listener on touch devices (Supported on both Home and Room)
   useEffect(() => {
@@ -696,13 +697,21 @@ export function App() {
         case 'VIDEO_SYNC':
           setVideo(msg.video);
           if (msg.triggeredByName && msg.actionType) {
-            const actionText = {
-              play: 'กดเล่นวิดีโอ ▶️',
-              pause: 'กดพักวิดีโอ ⏸️',
-              seek: 'เลื่อนแถบเวลา ⏩',
-              change: 'เปลี่ยนเพลงใหม่ 🎵',
-            }[msg.actionType];
-            showToast(`${msg.triggeredByName} ${actionText}`, 'info');
+            // Ignore generic change toast (since SYNC_TOAST handles song titles)
+            if (msg.actionType !== 'change') {
+              // Only notify when someone else in the room triggers play/pause/seek
+              if (msg.triggeredByName !== currentUser.name) {
+                const actionText: Record<string, string> = {
+                  play: 'กดเล่นวิดีโอ ▶️',
+                  pause: 'กดพักวิดีโอ ⏸️',
+                  seek: 'เลื่อนแถบเวลา ⏩',
+                };
+                const text = actionText[msg.actionType];
+                if (text) {
+                  showToast(`${msg.triggeredByName} ${text}`, 'info');
+                }
+              }
+            }
           }
           break;
 

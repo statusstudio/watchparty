@@ -179,11 +179,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (duration > 0 && currentTime < duration - 2) {
         hasEndedRef.current = false;
       }
-      onPlay(currentTime, duration);
+      // ONLY trigger onPlay if room is NOT currently playing
+      // (prevents players loading a new song from echoing back a false play command)
+      if (!videoRef.current.isPlaying) {
+        onPlay(currentTime, duration);
+      }
     }
     // 2: PAUSED
     else if (state === 2) {
-      onPause(currentTime, duration);
+      // ONLY trigger onPause if room was actually playing
+      if (videoRef.current.isPlaying) {
+        onPause(currentTime, duration);
+      }
     }
   };
 
@@ -252,9 +259,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       } catch (err) {
         console.error('Error applying remote video state:', err);
       } finally {
+        const timeoutMs = currentVideoIdRef.current !== targetVideo.videoId ? 2500 : 800;
         setTimeout(() => {
           isApplyingRemoteRef.current = false;
-        }, 600);
+        }, timeoutMs);
       }
     },
     [isMuted]
