@@ -936,6 +936,29 @@ export function App() {
 
   // Stage seat interactions
   const handleTakeSeat = (seatNumber: number) => {
+    // Optimistic UI update: immediately seat the user locally (0ms perceived latency)
+    setSeats((prev) =>
+      prev.map((s) => {
+        if (s.seatNumber === seatNumber) {
+          return {
+            ...s,
+            user: currentUser,
+            isMuted: false,
+            isSpeaking: false,
+          };
+        }
+        if (s.user?.id === currentUser.id) {
+          return {
+            ...s,
+            user: null,
+            isSpeaking: false,
+            isMuted: false,
+          };
+        }
+        return s;
+      })
+    );
+
     socketService.send({
       type: 'TAKE_SEAT',
       seatNumber,
@@ -943,6 +966,15 @@ export function App() {
   };
 
   const handleLeaveSeat = () => {
+    // Optimistic UI update: immediately vacate the seat locally
+    setSeats((prev) =>
+      prev.map((s) =>
+        s.user?.id === currentUser.id
+          ? { ...s, user: null, isSpeaking: false, isMuted: false }
+          : s
+      )
+    );
+
     socketService.send({
       type: 'LEAVE_SEAT',
     });
@@ -1029,6 +1061,27 @@ export function App() {
 
   // Playlist actions
   const handleAddToPlaylist = (item: Omit<PlaylistItem, 'id'>) => {
+    // Optimistic UI update: immediately append song to playlist queue
+    const tempId = 'temp-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+    const optimisticItem: PlaylistItem = {
+      ...item,
+      id: tempId,
+    };
+    setPlaylist((prev) => [...prev, optimisticItem]);
+
+    // If no video is currently active, start playing immediately
+    if (!video.videoId) {
+      setVideo({
+        videoId: item.videoId,
+        title: item.title,
+        channel: item.channel,
+        isPlaying: true,
+        currentTime: 0,
+        duration: 0,
+        lastUpdated: Date.now(),
+      });
+    }
+
     socketService.send({
       type: 'PLAYLIST_ADD',
       item,
@@ -1037,6 +1090,9 @@ export function App() {
   };
 
   const handleRemovePlaylistItem = (id: string) => {
+    // Optimistic UI update: immediately remove from playlist
+    setPlaylist((prev) => prev.filter((item) => item.id !== id));
+
     socketService.send({
       type: 'PLAYLIST_REMOVE',
       id,
@@ -1044,6 +1100,9 @@ export function App() {
   };
 
   const handleClearPlaylist = () => {
+    // Optimistic UI update: immediately clear playlist
+    setPlaylist([]);
+
     socketService.send({
       type: 'PLAYLIST_CLEAR',
     });

@@ -76,35 +76,38 @@ export class WebRTCVoiceEngine {
     this.localStream = stream;
     const audioTrack = stream ? stream.getAudioTracks()[0] : null;
 
-    for (const [remoteUserId, meta] of this.peers.entries()) {
-      const pc = meta.pc;
-      const transceivers = pc.getTransceivers();
-      const audioTransceiver = transceivers.find(
-        (t) => t.sender.track?.kind === 'audio' || t.receiver.track?.kind === 'audio'
-      );
+    const peerEntries = Array.from(this.peers.entries());
+    await Promise.allSettled(
+      peerEntries.map(async ([remoteUserId, meta]) => {
+        const pc = meta.pc;
+        const transceivers = pc.getTransceivers();
+        const audioTransceiver = transceivers.find(
+          (t) => t.sender.track?.kind === 'audio' || t.receiver.track?.kind === 'audio'
+        );
 
-      try {
-        if (audioTrack) {
-          // User is on stage with microphone: set direction to sendrecv
-          if (audioTransceiver) {
-            audioTransceiver.direction = 'sendrecv';
-            await audioTransceiver.sender.replaceTrack(audioTrack);
+        try {
+          if (audioTrack) {
+            // User is on stage with microphone: set direction to sendrecv
+            if (audioTransceiver) {
+              audioTransceiver.direction = 'sendrecv';
+              await audioTransceiver.sender.replaceTrack(audioTrack);
+            } else {
+              pc.addTrack(audioTrack, stream!);
+            }
+            await this.renegotiate(remoteUserId);
           } else {
-            pc.addTrack(audioTrack, stream!);
+            // User left stage: set direction to recvonly and remove audio track
+            if (audioTransceiver) {
+              audioTransceiver.direction = 'recvonly';
+              await audioTransceiver.sender.replaceTrack(null);
+            }
+            await this.renegotiate(remoteUserId);
           }
-          await this.renegotiate(remoteUserId);
-        } else {
-          // User left stage: set direction to recvonly and remove audio track
-          if (audioTransceiver) {
-            audioTransceiver.direction = 'recvonly';
-            await audioTransceiver.sender.replaceTrack(null);
-          }
-          await this.renegotiate(remoteUserId);
+        } catch (err) {
+          console.warn(`[WebRTC] Error updating track for peer ${remoteUserId}:`, err);
         }
-      } catch (err) {
-        console.warn(`[WebRTC] Error updating track for peer ${remoteUserId}:`, err);
-      }
-    }
+      })
+    );
   }
 
   /**

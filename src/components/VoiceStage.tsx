@@ -59,6 +59,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
   const [isLocalMuted, setIsLocalMuted] = useState(false);
   const [localSpeaking, setLocalSpeaking] = useState(false);
   const [volumeRms, setVolumeRms] = useState(0);
+  const [isConnectingMic, setIsConnectingMic] = useState(false);
 
   const analyserRef = useRef<MicrophoneAnalyser | null>(null);
 
@@ -77,6 +78,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
   useEffect(() => {
     if (isSitting) {
       if (!analyserRef.current) {
+        setIsConnectingMic(true);
         const analyser = new MicrophoneAnalyser({
           onVolumeChange: (vol) => {
             setVolumeRms(vol);
@@ -91,10 +93,12 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
         analyser
           .start()
           .then((stream) => {
+            setIsConnectingMic(false);
             onLocalStreamReady(stream);
             onShowToast('เชื่อมต่อไมโครโฟนเรียบร้อยแล้ว 🎙️', 'success');
           })
           .catch((err) => {
+            setIsConnectingMic(false);
             console.warn('Microphone permission error:', err);
             onShowToast('ไม่สามารถเข้าถึงไมโครโฟนได้ หรือยังไม่ได้อนุญาตสิทธิ์', 'warning');
           });
@@ -394,7 +398,12 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
 
                   {/* Status subtitle */}
                   <span className="text-[10px] text-[#615d59] flex items-center gap-1">
-                    {isSpeakingNow ? (
+                    {isMe && isConnectingMic ? (
+                      <span className="text-amber-600 font-medium flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                        เปิดไมค์...
+                      </span>
+                    ) : isSpeakingNow ? (
                       <span className="text-[#1aae39] font-semibold flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#1aae39] animate-pulse" />
                         กำลังพูด...
