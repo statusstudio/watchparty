@@ -18,6 +18,7 @@ import {
   ChevronDown,
   CheckCircle2,
   Volume2,
+  Star,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { RoomSummary, UserProfile } from '../types/index.js';
@@ -38,8 +39,37 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [quickRoomCode, setQuickRoomCode] = useState('');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [roomTab, setRoomTab] = useState<'all' | 'favorites' | 'mine'>('all');
+  const [favoriteRoomIds, setFavoriteRoomIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(`fav_rooms_${currentUser.id}`);
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch (e) {
+      return new Set();
+    }
+  });
+
+  const handleToggleFavoriteRoom = (e: React.MouseEvent, roomId: string) => {
+    e.stopPropagation();
+    setFavoriteRoomIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(roomId)) {
+        next.delete(roomId);
+      } else {
+        next.add(roomId);
+      }
+      localStorage.setItem(`fav_rooms_${currentUser.id}`, JSON.stringify(Array.from(next)));
+      return next;
+    });
+  };
 
   const filteredRooms = rooms.filter((r) => {
+    if (roomTab === 'favorites' && !favoriteRoomIds.has(r.id)) {
+      return false;
+    }
+    if (roomTab === 'mine' && r.ownerId !== currentUser.id) {
+      return false;
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
@@ -183,15 +213,67 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </div>
             </div>
 
+            {/* Filter Tabs: All vs Favorites vs Mine */}
+            <div className="flex items-center gap-1.5 mb-5 overflow-x-auto pb-1">
+              <button
+                type="button"
+                onClick={() => setRoomTab('all')}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer shadow-xs shrink-0 ${
+                  roomTab === 'all'
+                    ? 'bg-[#0075de] text-white'
+                    : 'bg-white hover:bg-[#f6f5f4] text-[#615d59] border border-[#e6e6e6]'
+                }`}
+              >
+                ทั้งหมด ({rooms.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRoomTab('favorites')}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer shadow-xs shrink-0 flex items-center gap-1.5 ${
+                  roomTab === 'favorites'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-white hover:bg-[#f6f5f4] text-[#615d59] border border-[#e6e6e6]'
+                }`}
+              >
+                <Star className={`w-3.5 h-3.5 ${roomTab === 'favorites' ? 'fill-current text-white' : 'text-amber-500'}`} />
+                <span>ห้องโปรด</span>
+                {favoriteRoomIds.size > 0 && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                      roomTab === 'favorites' ? 'bg-black/20 text-white' : 'bg-amber-50 text-amber-700'
+                    }`}
+                  >
+                    {rooms.filter((r) => favoriteRoomIds.has(r.id)).length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRoomTab('mine')}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer shadow-xs shrink-0 ${
+                  roomTab === 'mine'
+                    ? 'bg-[#31302e] text-white'
+                    : 'bg-white hover:bg-[#f6f5f4] text-[#615d59] border border-[#e6e6e6]'
+                }`}
+              >
+                ห้องของฉัน ({rooms.filter((r) => r.ownerId === currentUser.id).length})
+              </button>
+            </div>
+
             {/* Room Grid */}
             {filteredRooms.length === 0 ? (
               <div className="text-center py-12 text-[#615d59] text-xs">
-                ไม่พบห้องที่ตรงกับคำค้นหา "{searchQuery}"
+                {roomTab === 'favorites'
+                  ? 'คุณยังไม่มีห้องโปรดที่ติดตามไว้ กด ⭐ ที่ห้องเพื่อติดตามได้เลย'
+                  : `ไม่พบห้องที่ตรงกับคำค้นหา "${searchQuery}"`}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredRooms.map((room) => {
                   const isMine = room.ownerId === currentUser.id;
+                  const isFav = favoriteRoomIds.has(room.id);
 
                   return (
                     <div
@@ -208,10 +290,27 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-white/90 via-transparent to-black/20" />
 
-                        {/* Online count badge */}
-                        <div className="absolute top-2.5 right-2.5 px-2 py-1 rounded-md bg-white/90 backdrop-blur-md border border-[#e6e6e6] text-[10px] font-semibold text-[#31302e] flex items-center gap-1 shadow-xs">
-                          <Users className="w-3 h-3 text-[#2a9d99]" />
-                          <span>{room.onlineCount} คน</span>
+                        {/* Top Right: Star Button & Online Count */}
+                        <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10">
+                          {/* Favorite Star Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleFavoriteRoom(e, room.id)}
+                            title={isFav ? 'เลิกติดตามห้องนี้' : 'บันทึกเป็นห้องโปรด ⭐'}
+                            className={`p-1 rounded-md backdrop-blur-md border text-[10px] transition-colors shadow-xs ${
+                              isFav
+                                ? 'bg-amber-500 text-white border-amber-600'
+                                : 'bg-white/90 hover:bg-white text-[#a39e98] hover:text-amber-500 border-[#e6e6e6]'
+                            }`}
+                          >
+                            <Star className={`w-3 h-3 ${isFav ? 'fill-current text-white' : ''}`} />
+                          </button>
+
+                          {/* Online count badge */}
+                          <div className="px-2 py-1 rounded-md bg-white/90 backdrop-blur-md border border-[#e6e6e6] text-[10px] font-semibold text-[#31302e] flex items-center gap-1 shadow-xs">
+                            <Users className="w-3 h-3 text-[#2a9d99]" />
+                            <span>{room.onlineCount} คน</span>
+                          </div>
                         </div>
 
                         {/* Privacy badge */}

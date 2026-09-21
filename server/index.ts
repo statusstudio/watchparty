@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { RoomManager } from './roomManager.js';
 import { platformManager } from './platformManager.js';
-import { searchYouTube } from './youtubeSearch.js';
+import { searchYouTube, extractYouTubePlaylistId, fetchYouTubePlaylist } from './youtubeSearch.js';
 import { WSClientMessage } from '../src/types/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -73,6 +73,22 @@ async function startServer() {
     } catch (err: any) {
       console.error('Search error:', err);
       res.status(500).json({ error: 'Search failed', results: [] });
+    }
+  });
+
+  // YouTube Playlist fetch endpoint
+  app.get('/api/youtube/playlist', async (req, res) => {
+    const listIdOrUrl = ((req.query.listId || req.query.url || req.query.q) as string || '').trim();
+    if (!listIdOrUrl) {
+      return res.status(400).json({ error: 'Missing playlist ID or URL', items: [] });
+    }
+    const cleanId = extractYouTubePlaylistId(listIdOrUrl) || listIdOrUrl;
+    try {
+      const data = await fetchYouTubePlaylist(cleanId, 60);
+      res.json(data);
+    } catch (err: any) {
+      console.error('Playlist fetch error:', err);
+      res.status(500).json({ error: 'Failed to fetch playlist', items: [] });
     }
   });
 
@@ -416,6 +432,9 @@ async function startServer() {
             break;
           case 'PLAYLIST_ADD':
             roomManager.handlePlaylistAdd(ws, msg.item, msg.roomId);
+            break;
+          case 'PLAYLIST_ADD_BATCH':
+            roomManager.handlePlaylistAddBatch(ws, msg.items, msg.roomId);
             break;
           case 'PLAYLIST_REMOVE':
             roomManager.handlePlaylistRemove(ws, msg.id);

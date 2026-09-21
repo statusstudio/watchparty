@@ -378,6 +378,65 @@ export function App() {
     }
   }, [video.videoId, video.title, video.channel, currentUser.id, isVideoFavorite, showToast]);
 
+  // Favorite Rooms State
+  const [favoriteRoomIds, setFavoriteRoomIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(`fav_rooms_${currentUser.id}`);
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch (e) {
+      return new Set();
+    }
+  });
+
+  const handleToggleFavoriteCurrentRoom = useCallback(() => {
+    if (!roomId) return;
+    setFavoriteRoomIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(roomId)) {
+        next.delete(roomId);
+        showToast('เลิกติดตามห้องนี้แล้ว', 'info');
+      } else {
+        next.add(roomId);
+        showToast('บันทึกเป็นห้องโปรดของคุณแล้ว ⭐', 'success');
+      }
+      localStorage.setItem(`fav_rooms_${currentUser.id}`, JSON.stringify(Array.from(next)));
+      return next;
+    });
+  }, [roomId, currentUser.id, showToast]);
+
+  // Active Listening XP & Level Tracker (Category 4 Gamification)
+  useEffect(() => {
+    if (currentView !== 'room') return;
+
+    // Every 60 seconds of listening to music in a room
+    const xpTimer = setInterval(() => {
+      setCurrentUser((prev) => {
+        const prevMins = prev.listeningTimeMinutes || 0;
+        const prevXp = prev.xp || 0;
+        const newMins = prevMins + 1;
+        const newXp = prevXp + 10; // +10 XP per minute
+        const newLevel = Math.floor(Math.sqrt(newXp / 25)) + 1;
+
+        const prevLevel = prev.level || Math.floor(Math.sqrt(prevXp / 25)) + 1;
+        if (newLevel > prevLevel) {
+          showToast(`🎉 เลเวลอัป! คุณได้เลื่อนขั้นเป็น Lv.${newLevel} แล้ว!`, 'success');
+        }
+
+        const updated: UserProfile = {
+          ...prev,
+          listeningTimeMinutes: newMins,
+          xp: newXp,
+          level: newLevel,
+        };
+
+        saveUser(updated);
+        return updated;
+      });
+    }, 60000);
+
+    return () => clearInterval(xpTimer);
+  }, [currentView, showToast]);
+
   // Refresh Room & Pull-to-Refresh
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
@@ -1179,6 +1238,15 @@ export function App() {
     });
   };
 
+  const handleAddToPlaylistBatch = useCallback((items: Omit<PlaylistItem, 'id'>[]) => {
+    if (!items || items.length === 0) return;
+    socketService.send({
+      type: 'PLAYLIST_ADD_BATCH',
+      items,
+      roomId,
+    });
+  }, [roomId]);
+
   const handleRemovePlaylistItem = (id: string) => {
     // Optimistic UI update: immediately remove from playlist
     setPlaylist((prev) => prev.filter((item) => item.id !== id));
@@ -1265,6 +1333,8 @@ export function App() {
         myRole={myRole}
         isSuperAdmin={isSuperAdmin}
         isRefreshing={isRefreshing}
+        isFavoriteRoom={favoriteRoomIds.has(roomId)}
+        onToggleFavoriteRoom={handleToggleFavoriteCurrentRoom}
         onRefreshRoom={handleRefresh}
         onToggleOledSleep={() => setIsOledSleepMode(true)}
         onNavigateHome={handleNavigateHome}
@@ -1722,6 +1792,7 @@ export function App() {
                 onlyAdminManagePlaylist={roomMetadata.onlyAdminManagePlaylist}
                 onPlayNow={handleVideoChange}
                 onAddToPlaylist={handleAddToPlaylist}
+                onAddToPlaylistBatch={handleAddToPlaylistBatch}
                 onRemoveItem={handleRemovePlaylistItem}
                 onClearPlaylist={handleClearPlaylist}
                 onSetLoopMode={handleSetLoopMode}
@@ -1909,8 +1980,11 @@ export function App() {
         onClose={() => setIsProfileModalOpen(false)}
         currentUser={currentUser}
         onSave={handleSaveProfile}
+        onAddToPlaylist={handleAddToPlaylist}
+        onPlayNow={handleVideoChange}
         onOpenSupport={() => setIsSupportModalOpen(true)}
         onOpenSuperAdmin={() => setIsSuperAdminUnlockModalOpen(true)}
+        onShowToast={showToast}
       />
 
       <PlaylistModal

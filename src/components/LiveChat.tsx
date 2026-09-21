@@ -195,6 +195,34 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                       {msg.sender.name}
                       {isMe && <span className="text-[10px] text-[#a39e98] ml-1">(คุณ)</span>}
                     </button>
+
+                    {/* Listener Level Badge */}
+                    {(() => {
+                      const lvl =
+                        msg.sender.level ||
+                        (msg.sender.xp ? Math.floor(Math.sqrt(msg.sender.xp / 25)) + 1 : 1);
+                      return (
+                        <span
+                          className={`px-1.5 py-0.2 rounded text-[9px] font-bold font-mono border shrink-0 ${
+                            lvl >= 50
+                              ? 'bg-amber-500/15 text-amber-600 border-amber-500/30'
+                              : lvl >= 30
+                              ? 'bg-purple-500/15 text-purple-600 border-purple-500/30'
+                              : lvl >= 20
+                              ? 'bg-indigo-500/15 text-indigo-600 border-indigo-500/30'
+                              : lvl >= 10
+                              ? 'bg-rose-500/15 text-rose-600 border-rose-500/30'
+                              : lvl >= 5
+                              ? 'bg-[#0075de]/15 text-[#0075de] border-[#0075de]/30'
+                              : 'bg-black/5 text-[#615d59] border-black/10'
+                          }`}
+                          title={`เลเวลผู้ฟัง: Lv.${lvl}`}
+                        >
+                          Lv.{lvl}
+                        </span>
+                      );
+                    })()}
+
                     <span className="text-[10px] text-[#a39e98]">
                       {formatMessageTime(msg.timestamp)}
                     </span>

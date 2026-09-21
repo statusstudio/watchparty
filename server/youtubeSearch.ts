@@ -37,6 +37,27 @@ export function extractYouTubeId(input: string): string | null {
 }
 
 /**
+ * Extracts a YouTube Playlist ID from a URL or raw ID string.
+ */
+export function extractYouTubePlaylistId(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  // Match list=... parameter
+  const match = trimmed.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  // If user pasted pure playlist id (e.g. PL...)
+  if (/^(PL|UU|LL|RD|OLAK5uy_)[a-zA-Z0-9_-]+$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  return null;
+}
+
+/**
  * Fetches oEmbed metadata for a specific video ID.
  */
 async function fetchOEmbed(videoId: string): Promise<YouTubeSearchResult | null> {
@@ -180,3 +201,124 @@ export async function searchYouTube(query: string, limit: number = 20): Promise<
     return [];
   }
 }
+
+/**
+ * Fetches all videos in a YouTube playlist (up to limit).
+ */
+export async function fetchYouTubePlaylist(
+  listId: string,
+  limit: number = 60
+): Promise<{ title?: string; items: YouTubeSearchResult[] }> {
+  const cleanId = listId.trim();
+  if (!cleanId) return { items: [] };
+
+  const cacheKey = `playlist_${cleanId}`;
+  const cached = cache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return { items: cached.results.slice(0, limit) };
+  }
+
+  try {
+    const url = `https://www.youtube.com/playlist?list=${encodeURIComponent(cleanId)}`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'th,en-US;q=0.9,en;q=0.8',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`YouTube playlist responded with status ${response.status}`);
+    }
+
+    const html = await response.text();
+    const match =
+      html.match(/var ytInitialData = ({.*?});<\/script>/) ||
+      html.match(/ytInitialData\s*=\s*({.+?});/);
+    if (!match || !match[1]) {
+      return { items: [] };
+    }
+
+    const data = JSON.parse(match[1]);
+    const items: YouTubeSearchResult[] = [];
+    const seenIds = new Set<string>();
+    let playlistTitle = '';
+
+    function extractPlaylistRecursively(obj: any) {
+      if (!obj || typeof obj !== 'object') return;
+
+      if (!playlistTitle && obj.title && typeof obj.title === 'string' && obj.playlistId) {
+        playlistTitle = obj.title;
+      }
+
+      // Check playlistVideoRenderer or videoRenderer
+      const vr = obj.playlistVideoRenderer || obj.videoRenderer;
+      if (vr) {
+        const videoId = vr.videoId;
+        if (videoId && typeof videoId === 'string' && !seenIds.has(videoId)) {
+          seenIds.add(videoId);
+
+          const title =
+            vr.title?.runs?.map((r: any) => r.text).join('') ||
+            vr.title?.simpleText ||
+            '';
+
+          const channel =
+            vr.shortBylineText?.runs?.map((r: any) => r.text).join('') ||
+            vr.ownerText?.runs?.map((r: any) => r.text).join('') ||
+            'YouTube';
+
+          const duration =
+            vr.lengthText?.simpleText ||
+            (vr.lengthSeconds ? `${Math.floor(vr.lengthSeconds / 60)}:${String(vr.lengthSeconds % 60).padStart(2, '0')}` : '');
+
+          const thumbnails = vr.thumbnail?.thumbnails || [];
+          const thumbnail =
+            thumbnails.length > 0
+              ? thumbnails[thumbnails.length - 1].url
+              : `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+          if (
+            title &&
+            title !== '[Private video]' &&
+            title !== '[Deleted video]' &&
+            title !== 'Private video' &&
+            title !== 'Deleted video'
+          ) {
+            items.push({
+              videoId,
+              title,
+              channel,
+              duration: typeof duration === 'string' ? duration : String(duration),
+              thumbnail,
+            });
+          }
+        }
+      }
+
+      for (const key of Object.keys(obj)) {
+        extractPlaylistRecursively(obj[key]);
+      }
+    }
+
+    extractPlaylistRecursively(data);
+
+    if (items.length > 0) {
+      if (cache.size >= MAX_CACHE_SIZE) {
+        const oldestKey = cache.keys().next().value;
+        if (oldestKey) cache.delete(oldestKey);
+      }
+      cache.set(cacheKey, { timestamp: Date.now(), results: items });
+    }
+
+    return {
+      title: playlistTitle || 'YouTube Playlist',
+      items: items.slice(0, limit),
+    };
+  } catch (error) {
+    console.error('Failed to fetch YouTube playlist:', error);
+    return { items: [] };
+  }
+}
+

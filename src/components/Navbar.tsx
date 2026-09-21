@@ -15,6 +15,7 @@ import {
   LogIn,
   X,
   HelpCircle,
+  Star,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { UserProfile, UserRole } from '../types/index.js';
@@ -29,6 +30,8 @@ interface NavbarProps {
   myRole: UserRole;
   isSuperAdmin?: boolean;
   isRefreshing?: boolean;
+  isFavoriteRoom?: boolean;
+  onToggleFavoriteRoom?: () => void;
   onRefreshRoom: () => void;
   onToggleOledSleep: () => void;
   onNavigateHome: () => void;
@@ -53,6 +56,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   myRole,
   isSuperAdmin,
   isRefreshing,
+  isFavoriteRoom,
+  onToggleFavoriteRoom,
   onRefreshRoom,
   onToggleOledSleep,
   onNavigateHome,
@@ -164,6 +169,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {roomName || roomId}
               </span>
             </div>
+
+            {/* Favorite / Follow Room Star Button */}
+            {onToggleFavoriteRoom && (
+              <button
+                type="button"
+                onClick={onToggleFavoriteRoom}
+                title={isFavoriteRoom ? 'เลิกติดตามห้องนี้' : 'บันทึกเป็นห้องโปรด ⭐'}
+                className={`p-1.5 rounded-md border text-xs transition-colors cursor-pointer shrink-0 shadow-xs flex items-center justify-center ${
+                  isFavoriteRoom
+                    ? 'bg-amber-500/10 text-amber-600 border-amber-500/30'
+                    : 'bg-white hover:bg-[#f6f5f4] text-[#a39e98] border-[#e6e6e6]'
+                }`}
+              >
+                <Star className={`w-3.5 h-3.5 ${isFavoriteRoom ? 'fill-current text-amber-500' : ''}`} />
+              </button>
+            )}
 
             {/* Desktop Invite Button (hidden on mobile < md:, inside mobile 3-dots menu) */}
             <button

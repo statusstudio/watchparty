@@ -1506,6 +1506,75 @@ export class RoomManager {
     });
   }
 
+  public handlePlaylistAddBatch(ws: WebSocket, items: Omit<PlaylistItem, 'id'>[], roomIdParam?: string) {
+    if (!items || !Array.isArray(items) || items.length === 0) return;
+
+    let client = this.clients.get(ws);
+    const targetRoomId = client?.roomId || roomIdParam;
+    if (!targetRoomId) {
+      console.warn('[PLAYLIST_ADD_BATCH] No roomId found for websocket request');
+      return;
+    }
+
+    const room = this.getOrCreateRoom(targetRoomId);
+
+    if (room.metadata.onlyAdminManagePlaylist && client) {
+      const isOwner = client.user.id === room.metadata.ownerId;
+      const isAdmin = room.adminIds.has(client.user.id);
+      if (!isOwner && !isAdmin) {
+        this.sendToClient(ws, {
+          type: 'SYNC_TOAST',
+          message: 'ห้องนี้จำกัดสิทธิ์เฉพาะ Owner & Admin เท่านั้นในการเพิ่มเพลง ⚠️',
+          toastType: 'warning',
+        });
+        return;
+      }
+    }
+
+    const newItems: PlaylistItem[] = items.map((item, idx) => ({
+      ...item,
+      id: 'pl-' + Date.now() + '-' + idx + '-' + Math.random().toString(36).substr(2, 4),
+    }));
+
+    room.playlist.push(...newItems);
+
+    // If room is idle, play the first item immediately
+    if (!room.video.videoId && newItems.length > 0) {
+      const first = newItems[0];
+      room.video.videoId = first.videoId;
+      room.video.title = first.title;
+      room.video.channel = first.channel;
+      room.video.isPlaying = true;
+      room.video.currentTime = 0;
+      room.video.lastUpdated = Date.now();
+
+      this.broadcastToRoom(targetRoomId, {
+        type: 'VIDEO_SYNC',
+        video: room.video,
+        triggeredByName: client?.user.name || 'System',
+        actionType: 'change',
+      });
+    }
+
+    room.lastActiveTime = Date.now();
+    if (room.isMemberRoom) {
+      this.savePersistentRooms();
+    }
+
+    this.broadcastToRoom(targetRoomId, {
+      type: 'PLAYLIST_UPDATED',
+      playlist: room.playlist,
+      loopMode: room.loopMode,
+      isShuffle: room.isShuffle,
+    });
+
+    this.broadcastToRoom(targetRoomId, {
+      type: 'SYNC_TOAST',
+      message: `เพิ่มเพลย์ลิสต์ (${newItems.length} เพลง) เข้าคิวแล้ว 🎶`,
+      toastType: 'success',
+    });
+  }
+
   public handlePlaylistRemove(ws: WebSocket, id: string) {
     const client = this.clients.get(ws);
     if (!client) return;
