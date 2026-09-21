@@ -554,7 +554,7 @@ async function startServer() {
   });
 
   // Reply to ticket
-  app.post('/api/support/tickets/:ticketId/reply', (req, res) => {
+  app.post('/api/support/tickets/:ticketId/reply', async (req, res) => {
     const { ticketId } = req.params;
     const { senderId, senderName, senderAvatar, isSuperAdmin, text } = req.body;
     if (!text || !senderId || !senderName) {
@@ -569,6 +569,16 @@ async function startServer() {
       text
     );
     if (updated) {
+      // If admin replied and user provided an email, send email notification
+      if (isSuperAdmin && updated.userEmail) {
+        emailService.sendTicketUpdateEmail(
+          updated.userEmail,
+          updated.userName,
+          updated.title,
+          updated.status,
+          text
+        ).catch(err => console.error('Failed sending ticket email:', err));
+      }
       res.json({ success: true, ticket: updated });
     } else {
       res.status(404).json({ error: 'Ticket not found' });
@@ -576,14 +586,24 @@ async function startServer() {
   });
 
   // Update ticket status
-  app.patch('/api/support/tickets/:ticketId/status', (req, res) => {
+  app.patch('/api/support/tickets/:ticketId/status', async (req, res) => {
     const { ticketId } = req.params;
-    const { status } = req.body;
+    const { status, adminMessage } = req.body;
     if (!status) {
       return res.status(400).json({ error: 'Missing status' });
     }
     const updated = platformManager.updateTicketStatus(ticketId, status);
     if (updated) {
+      // If user provided an email, notify about status change (e.g. resolved)
+      if (updated.userEmail) {
+        emailService.sendTicketUpdateEmail(
+          updated.userEmail,
+          updated.userName,
+          updated.title,
+          status,
+          adminMessage || undefined
+        ).catch(err => console.error('Failed sending ticket status email:', err));
+      }
       res.json({ success: true, ticket: updated });
     } else {
       res.status(404).json({ error: 'Ticket not found' });

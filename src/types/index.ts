@@ -395,10 +395,10 @@ export const DEFAULT_SMTP_CONFIG: SmtpConfig = {
 
 export interface EmailLogEntry {
   id: string;
-  type: 'register_otp' | 'reset_password_otp' | 'test';
+  type: 'register_otp' | 'reset_password_otp' | 'test' | 'ticket_update';
   email: string;
   code?: string;
-  status: 'sent_smtp' | 'console_fallback' | 'failed';
+  status: 'sent_smtp' | 'console_fallback' | 'failed' | 'simulated';
   errorMessage?: string;
   timestamp: number;
 }

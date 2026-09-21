@@ -279,7 +279,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
           }`}
         >
           <ListMusic className="w-3.5 h-3.5" />
-          <span>คิวเพลง</span>
+          <span>รายการคิว</span>
           <span className="px-1.5 py-0.2 rounded-full bg-[#f6f5f4] text-[#615d59] text-[10px] font-mono border border-[#e6e6e6]">
             {playlist.length}
           </span>
@@ -295,7 +295,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
           }`}
         >
           <Search className="w-3.5 h-3.5" />
-          <span>ค้นหา</span>
+          <span>ค้นหาเพลง</span>
         </button>
 
         <button

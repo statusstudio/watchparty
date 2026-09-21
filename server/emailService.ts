@@ -473,6 +473,129 @@ class EmailService {
       };
     }
   }
+
+  /**
+   * Send notification to user when admin replies or updates status of a support ticket
+   */
+  public async sendTicketUpdateEmail(
+    toEmail: string,
+    userName: string,
+    ticketTitle: string,
+    status: string,
+    adminReply?: string
+  ): Promise<boolean> {
+    const cleanEmail = toEmail.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) return false;
+
+    const statusText =
+      status === 'resolved'
+        ? 'แก้ไขเสร็จสิ้นเรียบร้อยแล้ว (Resolved) ✅'
+        : status === 'in_progress'
+        ? 'ผู้ดูแลระบบกำลังตรวจสอบและดำเนินการ (In Progress) 🔍'
+        : 'ได้รับเรื่องแล้ว รอดำเนินการ (Pending) ⏳';
+
+    const statusBadgeColor =
+      status === 'resolved' ? '#10b981' : status === 'in_progress' ? '#0075de' : '#f59e0b';
+
+    const subject =
+      status === 'resolved'
+        ? `[pleng.online] ✅ แจ้งผล: ปัญหาได้รับการแก้ไขแล้ว ("${ticketTitle}")`
+        : `[pleng.online] 📩 มีข้อความตอบกลับเกี่ยวกับ: "${ticketTitle}"`;
+
+    const config = this.getEffectiveSmtpConfig();
+
+    console.log(`\n======================================================`);
+    console.log(`📩 [EMAIL SERVICE] ส่งอีเมลแจ้งเตือนสถานะ Ticket ไปยังผู้ใช้`);
+    console.log(`👤 ถึง: ${userName} <${cleanEmail}>`);
+    console.log(`📋 หัวข้อ: ${ticketTitle}`);
+    console.log(`🚦 สถานะ: ${statusText}`);
+    if (adminReply) console.log(`💬 ข้อความแอดมิน: ${adminReply}`);
+    console.log(`======================================================\n`);
+
+    if (config.enabled && config.host && config.user && config.pass) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: config.host,
+          port: config.port,
+          secure: config.secure || config.port === 465,
+          auth: {
+            user: config.user,
+            pass: config.pass,
+          },
+          tls: { rejectUnauthorized: false },
+        });
+
+        const fromAddress = config.fromEmail.includes('<')
+          ? config.fromEmail
+          : `"${config.fromName || 'pleng.online'}" <${config.fromEmail || config.user}>`;
+
+        await transporter.sendMail({
+          from: fromAddress,
+          to: cleanEmail,
+          subject,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 540px; margin: 0 auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 14px; background: #ffffff;">
+              <div style="text-align: center; margin-bottom: 20px;">
+                <h1 style="color: #0075de; margin: 0; font-size: 22px;">pleng.online ศูนย์แจ้งปัญหา 🎧</h1>
+                <p style="color: #64748b; font-size: 13px; margin-top: 6px;">แจ้งความคืบหน้าเรื่องที่คุณส่งเข้ามาในระบบ</p>
+              </div>
+
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin: 16px 0;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: #1e293b;"><strong>เรื่องที่แจ้ง:</strong> ${ticketTitle}</p>
+                <div style="display: inline-block; padding: 4px 10px; border-radius: 6px; background: ${statusBadgeColor}18; border: 1px solid ${statusBadgeColor}40; color: ${statusBadgeColor}; font-size: 12px; font-weight: bold;">
+                  สถานะ: ${statusText}
+                </div>
+              </div>
+
+              ${adminReply ? `
+              <div style="background: #eff6ff; border-left: 4px solid #0075de; border-radius: 6px; padding: 14px; margin: 16px 0;">
+                <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: bold; color: #0075de;">👑 ข้อความตอบกลับจากผู้ดูแลระบบ:</p>
+                <p style="margin: 0; font-size: 13px; color: #1e293b; line-height: 1.6; white-space: pre-wrap;">${adminReply}</p>
+              </div>
+              ` : ''}
+
+              <p style="font-size: 13px; color: #475569; line-height: 1.6; margin-top: 16px;">
+                สวัสดีครับคุณ <strong>${userName}</strong> ทีมงานได้ดำเนินการตรวจสอบและปรับปรุงตามที่ท่านแจ้งเข้ามาเรียบร้อยแล้ว ท่านสามารถเข้าใช้งานเว็บไซต์หรือตรวจสอบประวัติได้ที่:
+              </p>
+
+              <div style="text-align: center; margin: 24px 0;">
+                <a href="https://pleng.online" style="display: inline-block; padding: 12px 28px; background: #0075de; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 14px; border-radius: 8px;">
+                  เข้าสู่เว็บไซต์ pleng.online
+                </a>
+              </div>
+
+              <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+                ขอขอบคุณที่ร่วมส่งข้อเสนอแนะเพื่อพัฒนา pleng.online 🎵
+              </p>
+            </div>
+          `,
+        });
+
+        this.addLog({
+          type: 'ticket_update',
+          email: cleanEmail,
+          status: 'sent_smtp',
+        });
+        return true;
+      } catch (err: any) {
+        console.error('Failed to send ticket email:', err);
+        this.addLog({
+          type: 'ticket_update',
+          email: cleanEmail,
+          status: 'failed',
+          errorMessage: err.message,
+        });
+        return false;
+      }
+    } else {
+      this.addLog({
+        type: 'ticket_update',
+        email: cleanEmail,
+        status: 'simulated',
+      });
+      return true;
+    }
+  }
 }
 
 export const emailService = new EmailService();

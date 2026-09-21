@@ -33,6 +33,8 @@ import {
   Trash2,
   Search,
   X,
+  Sparkles,
+  Clock,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -42,6 +44,7 @@ import {
   PlatformAnalytics,
   PlatformUser,
   SupportTicket,
+  TicketStatus,
   SmtpConfig,
   DEFAULT_SMTP_CONFIG,
   EmailLogEntry,
@@ -108,6 +111,14 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const [users, setUsers] = useState<PlatformUser[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
+
+  // Tickets Management State
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [ticketStatusFilter, setTicketStatusFilter] = useState<'all' | TicketStatus>('all');
+  const [ticketSearchQuery, setTicketSearchQuery] = useState('');
+  const [adminReplyText, setAdminReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  const [updatingTicketStatus, setUpdatingTicketStatus] = useState(false);
 
   // User Management State
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -262,8 +273,75 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const fetchTickets = async () => {
     try {
       const res = await fetch('/api/support/tickets');
-      if (res.ok) setTickets(await res.json());
+      if (res.ok) {
+        const data: SupportTicket[] = await res.json();
+        setTickets(data);
+        if (selectedTicket) {
+          const updated = data.find((t) => t.id === selectedTicket.id);
+          if (updated) setSelectedTicket(updated);
+        }
+      }
     } catch (e) {}
+  };
+
+  const handleUpdateTicketStatus = async (ticketId: string, status: TicketStatus, adminMessage?: string) => {
+    setUpdatingTicketStatus(true);
+    try {
+      const res = await fetch(`/api/support/tickets/${ticketId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, adminMessage }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const statusLabel =
+          status === 'resolved' ? 'แก้ไขเสร็จสิ้นเรียบร้อย ✅' : status === 'in_progress' ? 'กำลังตรวจสอบ 🔍' : 'รอดำเนินการ ⏳';
+        onShowToast(`เปลี่ยนสถานะเป็น "${statusLabel}" สำเร็จ`, 'success');
+        if (selectedTicket?.id === ticketId) {
+          setSelectedTicket(data.ticket);
+        }
+        fetchTickets();
+      } else {
+        onShowToast('ไม่สามารถเปลี่ยนสถานะได้', 'warning');
+      }
+    } catch (err) {
+      onShowToast('เกิดข้อผิดพลาดในการเปลี่ยนสถานะ', 'warning');
+    } finally {
+      setUpdatingTicketStatus(false);
+    }
+  };
+
+  const handleSendAdminReply = async (ticketId: string) => {
+    if (!adminReplyText.trim()) return;
+    setSendingReply(true);
+    try {
+      const res = await fetch(`/api/support/tickets/${ticketId}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderId: adminCredentials.username || 'admin',
+          senderName: 'ผู้ดูแลระบบ (Admin)',
+          senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=admin',
+          isSuperAdmin: true,
+          text: adminReplyText.trim(),
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onShowToast('ส่งข้อความตอบกลับเรียบร้อย ✉️', 'success');
+        setAdminReplyText('');
+        if (selectedTicket?.id === ticketId) {
+          setSelectedTicket(data.ticket);
+        }
+        fetchTickets();
+      } else {
+        onShowToast('ไม่สามารถส่งข้อความตอบกลับได้', 'warning');
+      }
+    } catch (err) {
+      onShowToast('เกิดข้อผิดพลาดในการส่งข้อความ', 'warning');
+    } finally {
+      setSendingReply(false);
+    }
   };
 
   // Login handler
@@ -765,6 +843,20 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       </div>
     );
   }
+
+  // Filtered Tickets
+  const filteredTickets = tickets.filter((t) => {
+    if (ticketStatusFilter !== 'all' && t.status !== ticketStatusFilter) return false;
+    if (ticketSearchQuery.trim()) {
+      const q = ticketSearchQuery.toLowerCase();
+      const matchTitle = t.title?.toLowerCase().includes(q);
+      const matchDesc = t.description?.toLowerCase().includes(q);
+      const matchUser = t.userName?.toLowerCase().includes(q);
+      const matchEmail = t.userEmail?.toLowerCase().includes(q);
+      return matchTitle || matchDesc || matchUser || matchEmail;
+    }
+    return true;
+  });
 
   // LOGGED IN ADMIN PORTAL DASHBOARD
   return (
@@ -2260,30 +2352,289 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         {/* TAB 8: TICKETS */}
         {activeTab === 'tickets' && (
           <div className="bg-white border border-[#e6e6e6] rounded-2xl p-6 shadow-xs space-y-6">
-            <div className="border-b border-[#e6e6e6] pb-4">
-              <h2 className="text-base font-bold text-[#000000] flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-[#0075de]" />
-                <span>ศูนย์แจ้งปัญหาและข้อเสนอแนะ ({tickets.length})</span>
-              </h2>
+            <div className="border-b border-[#e6e6e6] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-[#000000] flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-[#0075de]" />
+                  <span>ศูนย์แจ้งปัญหาและข้อเสนอแนะ ({tickets.length})</span>
+                </h2>
+                <p className="text-xs text-[#615d59] mt-0.5">
+                  อ่านข้อความแจ้งปัญหา ตอบกลับผู้ใช้งาน และเปลี่ยนสถานะเพื่อแจ้งผลการแก้ไข (ระบบส่งอีเมลแจ้งเตือนผู้ใช้ทันที)
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={fetchTickets}
+                className="px-3 py-1.5 rounded-xl border border-[#e6e6e6] hover:bg-[#f6f5f4] text-xs font-semibold text-[#615d59] flex items-center gap-1.5 self-start cursor-pointer transition-colors shadow-xs"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>รีเฟรชคำร้อง</span>
+              </button>
             </div>
 
-            <div className="space-y-3">
-              {tickets.length === 0 ? (
-                <p className="text-xs text-[#615d59] py-8 text-center">ยังไม่มีข้อความแจ้งปัญหาในระบบ</p>
-              ) : (
-                tickets.map((t) => (
-                  <div key={t.id} className="p-4 rounded-xl border border-[#e6e6e6] bg-[#f6f5f4] space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold text-[#000000]">{t.title}</h3>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-white border border-[#e6e6e6] text-[#615d59]">
-                        {t.status}
-                      </span>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[550px]">
+              {/* Left Column: Tickets List */}
+              <div className="lg:col-span-5 flex flex-col space-y-3">
+                {/* Search & Filter */}
+                <div className="relative">
+                  <Search className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={ticketSearchQuery}
+                    onChange={(e) => setTicketSearchQuery(e.target.value)}
+                    placeholder="ค้นหาชื่อผู้แจ้ง, อีเมล หรือหัวข้อ..."
+                    className="w-full pl-9 pr-3.5 py-2 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-colors"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1 bg-[#f6f5f4] p-1 rounded-xl border border-[#e6e6e6] text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setTicketStatusFilter('all')}
+                    className={`flex-1 py-1 px-1.5 rounded-lg font-medium transition-all cursor-pointer text-center text-[11px] ${
+                      ticketStatusFilter === 'all'
+                        ? 'bg-white text-[#0075de] font-bold shadow-xs'
+                        : 'text-[#615d59] hover:text-[#000000]'
+                    }`}
+                  >
+                    ทั้งหมด ({tickets.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTicketStatusFilter('pending')}
+                    className={`flex-1 py-1 px-1.5 rounded-lg font-medium transition-all cursor-pointer text-center text-[11px] ${
+                      ticketStatusFilter === 'pending'
+                        ? 'bg-white text-amber-600 font-bold shadow-xs'
+                        : 'text-[#615d59] hover:text-[#000000]'
+                    }`}
+                  >
+                    รอดำเนินการ ({tickets.filter((t) => t.status === 'pending').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTicketStatusFilter('in_progress')}
+                    className={`flex-1 py-1 px-1.5 rounded-lg font-medium transition-all cursor-pointer text-center text-[11px] ${
+                      ticketStatusFilter === 'in_progress'
+                        ? 'bg-white text-[#0075de] font-bold shadow-xs'
+                        : 'text-[#615d59] hover:text-[#000000]'
+                    }`}
+                  >
+                    ตรวจ ({tickets.filter((t) => t.status === 'in_progress').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTicketStatusFilter('resolved')}
+                    className={`flex-1 py-1 px-1.5 rounded-lg font-medium transition-all cursor-pointer text-center text-[11px] ${
+                      ticketStatusFilter === 'resolved'
+                        ? 'bg-white text-emerald-600 font-bold shadow-xs'
+                        : 'text-[#615d59] hover:text-[#000000]'
+                    }`}
+                  >
+                    เสร็จ ({tickets.filter((t) => t.status === 'resolved').length})
+                  </button>
+                </div>
+
+                {/* Tickets Items */}
+                <div className="space-y-2 overflow-y-auto max-h-[500px] pr-1">
+                  {filteredTickets.length === 0 ? (
+                    <div className="text-center py-10 px-4 border border-dashed border-[#e6e6e6] rounded-xl bg-[#f6f5f4] text-xs text-[#615d59]">
+                      ไม่พบคำร้องที่ตรงกับเงื่อนไข
                     </div>
-                    <p className="text-xs text-[#615d59]">{t.description}</p>
-                    <p className="text-[10px] text-gray-400">จาก: {t.userName} ({t.userEmail || 'ไม่มีอีเมล'})</p>
+                  ) : (
+                    filteredTickets.map((t) => (
+                      <div
+                        key={t.id}
+                        onClick={() => setSelectedTicket(t)}
+                        className={`p-3.5 rounded-xl border transition-all cursor-pointer shadow-xs ${
+                          selectedTicket?.id === t.id
+                            ? 'border-[#0075de] bg-[#0075de]/5 ring-1 ring-[#0075de]'
+                            : 'border-[#e6e6e6] bg-[#f6f5f4] hover:bg-white hover:border-[#0075de]/40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1.5 mb-1">
+                          <span className="text-xs font-bold text-[#000000] truncate">
+                            {t.title}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                              t.status === 'resolved'
+                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                                : t.status === 'in_progress'
+                                ? 'bg-[#0075de]/10 text-[#0075de] border border-[#0075de]/20'
+                                : 'bg-amber-50 text-amber-600 border border-amber-200'
+                            }`}
+                          >
+                            {t.status === 'resolved'
+                              ? 'เสร็จสิ้น'
+                              : t.status === 'in_progress'
+                              ? 'กำลังตรวจ'
+                              : 'รอดำเนินการ'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#615d59] line-clamp-2 leading-relaxed">
+                          {t.description}
+                        </p>
+                        <div className="flex items-center justify-between text-[10px] text-[#a39e98] mt-2 pt-1.5 border-t border-[#e6e6e6]/60">
+                          <span className="truncate">โดย: <strong>{t.userName}</strong></span>
+                          <span>{new Date(t.updatedAt).toLocaleDateString('th-TH')}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: Ticket Detail, Messages & Action Center */}
+              <div className="lg:col-span-7 flex flex-col bg-[#f6f5f4] border border-[#e6e6e6] rounded-xl p-4 shadow-xs">
+                {selectedTicket ? (
+                  <div className="flex flex-col h-full space-y-3">
+                    {/* Header */}
+                    <div className="p-3 bg-white rounded-xl border border-[#e6e6e6] space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="text-sm font-bold text-[#000000]">{selectedTicket.title}</h3>
+                          <div className="flex items-center gap-2 text-xs text-[#615d59] mt-0.5">
+                            <span>ผู้แจ้ง: <strong>{selectedTicket.userName}</strong></span>
+                            {selectedTicket.userEmail ? (
+                              <span className="inline-flex items-center gap-1 text-[#0075de] font-mono">
+                                <Mail className="w-3 h-3" /> {selectedTicket.userEmail}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">(ไม่มีอีเมล)</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Quick Status Dropdown */}
+                        <div className="shrink-0">
+                          <select
+                            value={selectedTicket.status}
+                            disabled={updatingTicketStatus}
+                            onChange={(e) =>
+                              handleUpdateTicketStatus(
+                                selectedTicket.id,
+                                e.target.value as TicketStatus
+                              )
+                            }
+                            className="px-2.5 py-1.5 bg-white border border-[#e6e6e6] rounded-xl text-xs font-bold text-[#000000] focus:outline-none focus:border-[#0075de] cursor-pointer shadow-xs"
+                          >
+                            <option value="pending">⏳ รอดำเนินการ (Pending)</option>
+                            <option value="in_progress">🔍 กำลังตรวจสอบ (In Progress)</option>
+                            <option value="resolved">✅ แก้ไขเสร็จสิ้น (Resolved)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Status Action Buttons */}
+                      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#e6e6e6]">
+                        <span className="text-[11px] text-[#615d59] font-medium">เปลี่ยนสถานะด่วน:</span>
+                        <button
+                          type="button"
+                          disabled={updatingTicketStatus || selectedTicket.status === 'resolved'}
+                          onClick={() => handleUpdateTicketStatus(selectedTicket.id, 'resolved')}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>แจ้งว่าแก้ไขเสร็จแล้ว ✅</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={updatingTicketStatus || selectedTicket.status === 'in_progress'}
+                          onClick={() => handleUpdateTicketStatus(selectedTicket.id, 'in_progress')}
+                          className="px-2.5 py-1 rounded-lg bg-[#0075de]/10 hover:bg-[#0075de]/20 text-[#0075de] border border-[#0075de]/20 text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-[#0075de]" />
+                          <span>กำลังตรวจสอบ</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={updatingTicketStatus || selectedTicket.status === 'pending'}
+                          onClick={() => handleUpdateTicketStatus(selectedTicket.id, 'pending')}
+                          className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <Clock className="w-3.5 h-3.5 text-amber-600" />
+                          <span>รอดำเนินการ</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Chat & Thread Messages */}
+                    <div className="flex-1 overflow-y-auto space-y-2.5 p-3 bg-white rounded-xl border border-[#e6e6e6] min-h-[220px] max-h-[320px]">
+                      {selectedTicket.messages?.map((msg) => (
+                        <div
+                          key={msg.id}
+                          className={`p-3 rounded-2xl text-xs max-w-[85%] ${
+                            msg.isSuperAdmin
+                              ? 'ml-auto bg-[#0075de]/10 border border-[#0075de]/20 text-[#000000] rounded-tr-sm'
+                              : 'mr-auto bg-[#f6f5f4] border border-[#e6e6e6] text-[#31302e] rounded-tl-sm'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 font-bold text-[10px] text-[#615d59] mb-1">
+                            <span className="flex items-center gap-1">
+                              {msg.senderName}
+                              {msg.isSuperAdmin && (
+                                <Crown className="w-3 h-3 text-amber-500 fill-current" />
+                              )}
+                            </span>
+                            <span className="font-normal text-gray-400">
+                              {new Date(msg.timestamp).toLocaleTimeString('th-TH', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                          <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Reply Form */}
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSendAdminReply(selectedTicket.id);
+                      }}
+                      className="space-y-2"
+                    >
+                      {selectedTicket.userEmail && (
+                        <p className="text-[11px] text-[#615d59] flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-[#0075de]" />
+                          <span>
+                            ระบบจะส่งอีเมลแจ้งเตือนไปยัง <strong>{selectedTicket.userEmail}</strong> อัตโนมัติเมื่อตอบกลับ
+                          </span>
+                        </p>
+                      )}
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={adminReplyText}
+                          onChange={(e) => setAdminReplyText(e.target.value)}
+                          placeholder="พิมพ์ข้อความตอบกลับไปยังผู้แจ้งปัญหา..."
+                          className="flex-1 px-3.5 py-2.5 bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] shadow-xs"
+                        />
+                        <button
+                          type="submit"
+                          disabled={sendingReply || !adminReplyText.trim()}
+                          className="py-2.5 px-4 rounded-xl bg-[#0075de] hover:bg-[#0062bd] text-white font-semibold text-xs shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>{sendingReply ? 'กำลังส่ง...' : 'ตอบกลับ'}</span>
+                        </button>
+                      </div>
+                    </form>
                   </div>
-                ))
-              )}
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full py-16 text-center text-[#615d59] space-y-2">
+                    <MessageSquare className="w-10 h-10 text-[#a39e98] opacity-50" />
+                    <p className="text-xs font-semibold text-[#000000]">เลือกคำร้องจากรายการด้านซ้าย</p>
+                    <p className="text-[11px] text-[#615d59]">
+                      เพื่อดูข้อความทั้งหมด ตอบกลับ หรือกดเปลี่ยนสถานะเป็นแก้ไขเสร็จสิ้น
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
