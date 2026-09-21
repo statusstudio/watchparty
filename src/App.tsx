@@ -788,6 +788,10 @@ export function App() {
           }
           break;
 
+        case 'CHAT_MESSAGE_DELETED':
+          setChat((prev) => prev.filter((m) => m.id !== msg.messageId));
+          break;
+
         case 'EMOJI_REACTION': {
           const item: FloatingItem = {
             id: 'react-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
@@ -1213,6 +1217,14 @@ export function App() {
   const handleCloseRoom = () => {
     socketService.send({
       type: 'CLOSE_ROOM',
+    });
+  };
+
+  // Delete chat message (Sender / Admin / Owner)
+  const handleDeleteMessage = (messageId: string) => {
+    socketService.send({
+      type: 'DELETE_CHAT_MESSAGE',
+      messageId,
     });
   };
 
@@ -1737,6 +1749,7 @@ export function App() {
                   setIsUserProfileModalOpen(true);
                 }}
                 onSelectUser={handleOpenUserCard}
+                onDeleteMessage={handleDeleteMessage}
                 onShowToast={showToast}
               />
             </div>

@@ -1852,6 +1852,42 @@ export class RoomManager {
     });
   }
 
+  public handleDeleteChatMessage(ws: WebSocket, messageId: string) {
+    const client = this.clients.get(ws);
+    if (!client) return;
+
+    const room = this.rooms.get(client.roomId);
+    if (!room) return;
+
+    const targetIndex = room.chat.findIndex((m) => m.id === messageId);
+    if (targetIndex === -1) return;
+
+    const targetMsg = room.chat[targetIndex];
+
+    // Allowed if: sender of message, room owner, or room admin
+    const isSender = targetMsg.sender.id === client.user.id;
+    const isOwner = client.user.id === room.metadata.ownerId;
+    const isAdmin = room.adminIds.has(client.user.id);
+
+    if (!isSender && !isOwner && !isAdmin) {
+      this.sendToClient(ws, {
+        type: 'SYNC_TOAST',
+        message: 'คุณไม่มีสิทธิ์ลบข้อความนี้',
+        toastType: 'warning',
+      });
+      return;
+    }
+
+    // Remove from in-memory chat array
+    room.chat.splice(targetIndex, 1);
+
+    // Broadcast deletion to all participants in the room
+    this.broadcastToRoom(client.roomId, {
+      type: 'CHAT_MESSAGE_DELETED',
+      messageId,
+    });
+  }
+
   public handleCloseRoom(ws: WebSocket) {
     const client = this.clients.get(ws);
     if (!client) return;

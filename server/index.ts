@@ -441,6 +441,9 @@ async function startServer() {
           case 'SEND_CHAT':
             roomManager.handleChat(ws, msg.text, (msg as any).imageUrl);
             break;
+          case 'DELETE_CHAT_MESSAGE':
+            roomManager.handleDeleteChatMessage(ws, msg.messageId);
+            break;
           case 'CLOSE_ROOM':
             roomManager.handleCloseRoom(ws);
             break;

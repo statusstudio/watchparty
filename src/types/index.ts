@@ -214,6 +214,7 @@ export type WSClientMessage =
   | { type: 'SET_LOOP_MODE'; loopMode: LoopMode }
   | { type: 'SET_SHUFFLE'; isShuffle: boolean }
   | { type: 'SEND_CHAT'; text: string; imageUrl?: string }
+  | { type: 'DELETE_CHAT_MESSAGE'; messageId: string }
   | { type: 'CLOSE_ROOM' }
   | { type: 'EMOJI_REACTION'; emoji: string }
   | { type: 'PLAY_SOUND'; soundId: string; soundName: string }
@@ -235,6 +236,7 @@ export type WSServerMessage =
   | { type: 'VIDEO_SYNC'; video: VideoState; triggeredByName?: string; actionType?: 'play' | 'pause' | 'seek' | 'change' }
   | { type: 'PLAYLIST_UPDATED'; playlist: PlaylistItem[]; loopMode: LoopMode; isShuffle: boolean }
   | { type: 'NEW_CHAT'; message: ChatMessage }
+  | { type: 'CHAT_MESSAGE_DELETED'; messageId: string }
   | { type: 'EMOJI_REACTION'; emoji: string; sender: UserProfile }
   | { type: 'PLAY_SOUND'; soundId: string; soundName: string; playedBy: UserProfile }
   | { type: 'SIGNAL_DATA'; senderId: string; data: any }

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MessageSquare, Clock, Image as ImageIcon, X, Loader2 } from 'lucide-react';
+import { Send, MessageSquare, Clock, Image as ImageIcon, X, Loader2, Trash2 } from 'lucide-react';
 import { ChatMessage, UserProfile } from '../types/index.js';
 import { compressChatImage } from '../services/imageCompressor.js';
 
@@ -8,6 +8,7 @@ interface LiveChatProps {
   currentUser: UserProfile;
   enableChatImages?: boolean;
   onSendMessage: (text: string, imageUrl?: string) => void;
+  onDeleteMessage?: (messageId: string) => void;
   onSendReaction?: (emoji: string) => void;
   onSeekTo: (seconds: number) => void;
   onOpenProfile: () => void;
@@ -20,6 +21,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
   currentUser,
   enableChatImages = true,
   onSendMessage,
+  onDeleteMessage,
   onSendReaction,
   onSeekTo,
   onOpenProfile,
@@ -30,6 +32,8 @@ export const LiveChat: React.FC<LiveChatProps> = ({
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isCompressingImage, setIsCompressingImage] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [confirmModalImage, setConfirmModalImage] = useState<string | null>(null);
+  const [confirmModalCaption, setConfirmModalCaption] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -46,13 +50,25 @@ export const LiveChat: React.FC<LiveChatProps> = ({
     setIsCompressingImage(true);
     try {
       const dataUri = await compressChatImage(file, 800, 0.75);
-      setSelectedImage(dataUri);
+      // Open confirmation modal so user can preview and verify before sending
+      setConfirmModalImage(dataUri);
+      setConfirmModalCaption(inputText);
     } catch (err: any) {
       onShowToast(err.message || 'เกิดข้อผิดพลาดในการประมวลผลรูปภาพ', 'warning');
     } finally {
       setIsCompressingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const handleConfirmSendImage = () => {
+    if (!confirmModalImage) return;
+    onSendMessage(confirmModalCaption.trim(), confirmModalImage);
+    setConfirmModalImage(null);
+    setConfirmModalCaption('');
+    setInputText('');
+    setSelectedImage(null);
+    onShowToast('ส่งรูปภาพเรียบร้อย 📷', 'success');
   };
 
   const handleSend = (e: React.FormEvent) => {
@@ -161,26 +177,44 @@ export const LiveChat: React.FC<LiveChatProps> = ({
 
               {/* Message Bubble */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2 mb-0.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isMe) {
-                        onOpenProfile();
-                      } else if (onSelectUser) {
-                        onSelectUser(msg.sender);
-                      }
-                    }}
-                    className="text-xs font-semibold truncate max-w-[130px] hover:underline cursor-pointer text-left"
-                    style={{ color: msg.sender.color }}
-                    title={`ดูโปรไฟล์ของ ${msg.sender.name}`}
-                  >
-                    {msg.sender.name}
-                    {isMe && <span className="text-[10px] text-[#a39e98] ml-1">(คุณ)</span>}
-                  </button>
-                  <span className="text-[10px] text-[#a39e98]">
-                    {formatMessageTime(msg.timestamp)}
-                  </span>
+                <div className="flex items-center justify-between gap-2 mb-0.5">
+                  <div className="flex items-baseline gap-2 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isMe) {
+                          onOpenProfile();
+                        } else if (onSelectUser) {
+                          onSelectUser(msg.sender);
+                        }
+                      }}
+                      className="text-xs font-semibold truncate max-w-[130px] hover:underline cursor-pointer text-left"
+                      style={{ color: msg.sender.color }}
+                      title={`ดูโปรไฟล์ของ ${msg.sender.name}`}
+                    >
+                      {msg.sender.name}
+                      {isMe && <span className="text-[10px] text-[#a39e98] ml-1">(คุณ)</span>}
+                    </button>
+                    <span className="text-[10px] text-[#a39e98]">
+                      {formatMessageTime(msg.timestamp)}
+                    </span>
+                  </div>
+
+                  {/* Delete button (sender can delete their own message) */}
+                  {onDeleteMessage && isMe && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('คุณต้องการลบข้อความนี้ใช่หรือไม่? (คนอื่นจะไม่เห็นอีก)')) {
+                          onDeleteMessage(msg.id);
+                        }
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-0.5 text-[#a39e98] hover:text-rose-600 transition-opacity cursor-pointer shrink-0"
+                      title="ลบข้อความ/รูปภาพนี้"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
 
                 <div className={`text-xs rounded-2xl rounded-tl-sm px-3 py-2 inline-block max-w-full break-words leading-relaxed border shadow-xs ${
@@ -189,13 +223,29 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                     : 'bg-white text-[#31302e] border-[#e6e6e6]'
                 }`}>
                   {msg.imageUrl && (
-                    <div className="mb-1.5">
+                    <div className="relative mb-1.5 inline-block group/img">
                       <img
                         src={msg.imageUrl}
                         alt="แนบรูปภาพ"
                         className="max-w-[200px] sm:max-w-[260px] max-h-60 rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity border border-black/10 shadow-xs"
                         onClick={() => setLightboxImage(msg.imageUrl || null)}
                       />
+                      {onDeleteMessage && isMe && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm('ต้องการลบรูปภาพนี้ใช่หรือไม่? ผู้ใช้อื่นในห้องจะไม่เห็นรูปนี้ทันที')) {
+                              onDeleteMessage(msg.id);
+                            }
+                          }}
+                          className="absolute top-2 right-2 p-1.5 rounded-full bg-black/65 hover:bg-rose-600 text-white transition-colors shadow-md cursor-pointer flex items-center gap-1 text-[10px] font-medium"
+                          title="ลบรูปภาพนี้ทันที"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span className="hidden sm:inline">ลบรูป</span>
+                        </button>
+                      )}
                     </div>
                   )}
                   {msg.text && renderMessageWithTimestamps(msg.text)}
@@ -314,6 +364,94 @@ export const LiveChat: React.FC<LiveChatProps> = ({
               className="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl border border-white/10"
               onClick={(e) => e.stopPropagation()}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Image Send Confirmation Modal (Prevents accidental uploads) */}
+      {confirmModalImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
+          onClick={() => setConfirmModalImage(null)}
+        >
+          <div
+            className="bg-white border border-[#e6e6e6] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col text-[#31302e] animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-5 py-3.5 border-b border-[#e6e6e6] flex items-center justify-between bg-[#f6f5f4]">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-[#0075de]" />
+                <h3 className="text-sm font-bold text-[#000000]">
+                  ตรวจสอบรูปภาพก่อนส่ง
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmModalImage(null)}
+                className="p-1 rounded-full text-[#615d59] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 space-y-3">
+              {/* Preview Image */}
+              <div className="relative w-full max-h-[48vh] flex items-center justify-center bg-black/5 rounded-xl overflow-hidden border border-[#e6e6e6] p-1">
+                <img
+                  src={confirmModalImage}
+                  alt="Confirmation Preview"
+                  className="max-h-[42vh] w-auto object-contain rounded-lg shadow-xs"
+                />
+              </div>
+
+              {/* Caption Input */}
+              <div>
+                <label className="block text-xs font-semibold text-[#31302e] mb-1">
+                  ข้อความประกอบรูปภาพ (ไม่บังคับ)
+                </label>
+                <input
+                  type="text"
+                  value={confirmModalCaption}
+                  onChange={(e) => setConfirmModalCaption(e.target.value)}
+                  placeholder="พิมพ์ข้อความบรรยายรูป..."
+                  className="w-full px-3 py-2 bg-white border border-[#e6e6e6] focus:border-[#0075de] rounded-xl text-xs text-[#000000] focus:outline-none shadow-xs transition-colors"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleConfirmSendImage();
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] leading-relaxed flex items-start gap-2">
+                <span className="text-base leading-none">🛡️</span>
+                <span>
+                  ตรวจสอบให้แน่ใจว่าเป็นรูปที่ต้องการส่ง (หากส่งผิด คุณสามารถกดปุ่มลบรูปที่มุมรูปในแชทได้ตลอดเวลา)
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-3 border-t border-[#e6e6e6] bg-[#f6f5f4] flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setConfirmModalImage(null)}
+                className="px-4 py-2 rounded-full text-xs font-medium text-[#615d59] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSendImage}
+                className="px-5 py-2 rounded-full bg-[#0075de] hover:bg-[#005bab] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>ยืนยันส่งรูปภาพ</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
