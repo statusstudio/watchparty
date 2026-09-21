@@ -74,17 +74,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
           {/* Primary SEO Heading */}
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#000000] tracking-tight max-w-2xl mx-auto leading-snug">
-            ฟังเพลงออนไลน์ไม่มีโฆษณา ดู YouTube กับเพื่อน ซิงค์ตรงเป๊ะ
+            ฟังเพลงออนไลน์ไม่มีโฆษณา ดู YouTube กับเพื่อน
           </h1>
 
           {/* Feature Badges Pills - Notion badge-pill specs */}
           <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e6e6e6] text-[#0075de] text-xs font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-              <span className="w-2 h-2 rounded-full bg-[#1aae39] animate-pulse" />
-              <span>ซิงค์เพลงตรงเป๊ะ</span>
+              <span className="w-2 h-2 rounded-full bg-[#0075de] animate-pulse" />
+              <span>ฟังเพลงออนไลน์</span>
             </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e6e6e6] text-[#391c57] text-xs font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-              <span>🎙️ คุยไมค์สด 9 ที่นั่ง</span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e6e6e6] text-[#e02424] text-xs font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+              <span>▶️ ดู YouTube</span>
             </div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e6e6e6] text-[#1aae39] text-xs font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
               <span>🎧 ไม่มีโฆษณาคั่น</span>
