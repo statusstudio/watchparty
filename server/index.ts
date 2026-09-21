@@ -311,6 +311,59 @@ async function startServer() {
     }
   });
 
+  // Get SMTP Configuration (Public info, masked password)
+  app.get('/api/admin/smtp', (req, res) => {
+    res.json(platformManager.getPublicSmtpConfig());
+  });
+
+  // Update SMTP Configuration
+  app.post('/api/admin/smtp', (req, res) => {
+    try {
+      const updated = platformManager.updateSmtpConfig(req.body);
+      res.json({
+        success: true,
+        message: 'บันทึกการตั้งค่าระบบส่งอีเมล (SMTP) สำเร็จ',
+        config: platformManager.getPublicSmtpConfig(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: 'ไม่สามารถบันทึกการตั้งค่า SMTP ได้' });
+    }
+  });
+
+  // Test SMTP Email Delivery
+  app.post('/api/admin/smtp/test', async (req, res) => {
+    try {
+      const { toEmail, customConfig } = req.body;
+      if (!toEmail || !toEmail.includes('@')) {
+        return res.status(400).json({ error: 'กรุณากรอกอีเมลผู้รับที่ถูกต้องสำหรับการทดสอบ' });
+      }
+
+      // If customConfig is passed and has empty password but hasPass is true, use stored password
+      let effectiveConfig = customConfig;
+      if (effectiveConfig && (!effectiveConfig.pass || effectiveConfig.pass.trim() === '')) {
+        const stored = platformManager.getSmtpConfig();
+        effectiveConfig = {
+          ...effectiveConfig,
+          pass: stored.pass,
+        };
+      }
+
+      const result = await emailService.sendTestEmail(toEmail, effectiveConfig);
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (err: any) {
+      res.status(500).json({ success: false, message: err.message || 'เกิดข้อผิดพลาดในการทดสอบส่งอีเมล' });
+    }
+  });
+
+  // Get Email & OTP Activity Logs
+  app.get('/api/admin/email-logs', (req, res) => {
+    res.json(emailService.getEmailLogs());
+  });
+
   // Verify Master Passcode (Legacy support)
   app.post('/api/platform/auth', (req, res) => {
     const { passcode } = req.body;

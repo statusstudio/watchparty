@@ -12,6 +12,8 @@ import {
   DEFAULT_PLATFORM_CONFIG,
   TrackPlayStat,
   PlatformAnalytics,
+  SmtpConfig,
+  DEFAULT_SMTP_CONFIG,
 } from '../src/types/index.js';
 import type { RoomManager } from './roomManager.js';
 import { emailService } from './emailService.js';
@@ -45,6 +47,7 @@ interface StoreSchema {
   topTracks?: TrackPlayStat[];
   adminCredentials?: AdminCredentials;
   userAccounts?: StoredUserAccount[];
+  smtpConfig?: SmtpConfig;
 }
 
 export class PlatformManager {
@@ -56,6 +59,15 @@ export class PlatformManager {
     email: 'admin@pleng.online',
     updatedAt: Date.now(),
   };
+  private smtpConfig: SmtpConfig = {
+    ...DEFAULT_SMTP_CONFIG,
+    host: process.env.SMTP_HOST || DEFAULT_SMTP_CONFIG.host,
+    port: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587,
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    fromEmail: process.env.SMTP_FROM || 'admin@pleng.online',
+    enabled: !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
+  };
   private tickets: Map<string, SupportTicket> = new Map();
   private config: PlatformConfig = { ...DEFAULT_PLATFORM_CONFIG };
   private topTracks: Map<string, TrackPlayStat> = new Map();
@@ -66,6 +78,7 @@ export class PlatformManager {
     this.ensureDataDir();
     this.loadStore();
     this.seedDefaults();
+    emailService.setSmtpConfigGetter(() => this.getSmtpConfig());
   }
 
   private ensureDataDir() {
@@ -154,6 +167,13 @@ export class PlatformManager {
         if (Array.isArray(data.topTracks)) {
           data.topTracks.forEach((tr) => this.topTracks.set(tr.videoId, tr));
         }
+
+        if (data.smtpConfig) {
+          this.smtpConfig = {
+            ...DEFAULT_SMTP_CONFIG,
+            ...data.smtpConfig,
+          };
+        }
       } catch (err) {
         console.error('Failed to parse platform_store.json:', err);
       }
@@ -171,6 +191,7 @@ export class PlatformManager {
           tickets: Array.from(this.tickets.values()),
           config: this.config,
           topTracks: Array.from(this.topTracks.values()),
+          smtpConfig: this.smtpConfig,
         };
         fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), 'utf-8');
       } catch (err) {
@@ -315,6 +336,43 @@ export class PlatformManager {
         email: this.adminCredentials.email,
       },
     };
+  }
+
+  // --- SMTP Configuration ---
+
+  public getSmtpConfig(): SmtpConfig {
+    return { ...this.smtpConfig };
+  }
+
+  public getPublicSmtpConfig(): Omit<SmtpConfig, 'pass'> & { hasPass: boolean } {
+    return {
+      enabled: this.smtpConfig.enabled,
+      host: this.smtpConfig.host,
+      port: this.smtpConfig.port,
+      secure: this.smtpConfig.secure,
+      user: this.smtpConfig.user,
+      fromName: this.smtpConfig.fromName,
+      fromEmail: this.smtpConfig.fromEmail,
+      hasPass: !!(this.smtpConfig.pass && this.smtpConfig.pass.trim().length > 0),
+    };
+  }
+
+  public updateSmtpConfig(newConfig: Partial<SmtpConfig>): SmtpConfig {
+    const updated: SmtpConfig = {
+      ...this.smtpConfig,
+      ...newConfig,
+    };
+
+    // If new password is not provided or empty string, preserve existing password
+    if (newConfig.pass === undefined || newConfig.pass === '') {
+      updated.pass = this.smtpConfig.pass;
+    } else {
+      updated.pass = newConfig.pass.trim();
+    }
+
+    this.smtpConfig = updated;
+    this.scheduleSave();
+    return { ...this.smtpConfig };
   }
 
   // --- Member Registration & Login ---

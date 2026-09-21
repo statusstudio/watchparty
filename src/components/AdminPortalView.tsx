@@ -21,8 +21,26 @@ import {
   ShieldCheck,
   Save,
   UserCheck,
+  Send,
+  Check,
+  Copy,
+  Server,
+  HelpCircle,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
-import { UserProfile, PlatformConfig, DEFAULT_PLATFORM_CONFIG, PlatformStats, PlatformAnalytics, PlatformUser, SupportTicket } from '../types/index.js';
+import {
+  UserProfile,
+  PlatformConfig,
+  DEFAULT_PLATFORM_CONFIG,
+  PlatformStats,
+  PlatformAnalytics,
+  PlatformUser,
+  SupportTicket,
+  SmtpConfig,
+  DEFAULT_SMTP_CONFIG,
+  EmailLogEntry,
+} from '../types/index.js';
 import { AdPopupModal } from './AdPopupModal.js';
 import { compressChatImage } from '../services/imageCompressor.js';
 
@@ -55,9 +73,20 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const [editConfirmPass, setEditConfirmPass] = useState('');
   const [savingAccount, setSavingAccount] = useState(false);
 
+  // SMTP Configuration & Email Logs State
+  const [smtpConfig, setSmtpConfig] = useState<SmtpConfig>({ ...DEFAULT_SMTP_CONFIG });
+  const [smtpHasPass, setSmtpHasPass] = useState(false);
+  const [smtpShowPass, setSmtpShowPass] = useState(false);
+  const [smtpSaving, setSmtpSaving] = useState(false);
+  const [smtpTestEmail, setSmtpTestEmail] = useState('');
+  const [smtpTesting, setSmtpTesting] = useState(false);
+  const [smtpTestResult, setSmtpTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [emailLogs, setEmailLogs] = useState<EmailLogEntry[]>([]);
+  const [copiedLogId, setCopiedLogId] = useState<string | null>(null);
+
   // Backoffice State & Tabs
   const [activeTab, setActiveTab] = useState<
-    'account' | 'overview' | 'widgets' | 'ad_popup' | 'users' | 'rooms' | 'announcements' | 'tickets'
+    'account' | 'smtp' | 'overview' | 'widgets' | 'ad_popup' | 'users' | 'rooms' | 'announcements' | 'tickets'
   >('account');
   const [loading, setLoading] = useState(false);
 
@@ -101,11 +130,37 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     } catch (e) {}
   };
 
+  const fetchSmtpConfig = async () => {
+    try {
+      const res = await fetch('/api/admin/smtp');
+      if (res.ok) {
+        const data = await res.json();
+        setSmtpConfig({
+          ...DEFAULT_SMTP_CONFIG,
+          ...data,
+          pass: '', // Leave blank for security unless editing
+        });
+        setSmtpHasPass(!!data.hasPass);
+      }
+    } catch (e) {}
+  };
+
+  const fetchEmailLogs = async () => {
+    try {
+      const res = await fetch('/api/admin/email-logs');
+      if (res.ok) {
+        setEmailLogs(await res.json());
+      }
+    } catch (e) {}
+  };
+
   const loadAllData = async () => {
     setLoading(true);
     try {
       await Promise.all([
         fetchAdminCredentials(),
+        fetchSmtpConfig(),
+        fetchEmailLogs(),
         fetchStats(),
         fetchAnalytics(),
         fetchConfig(),
@@ -268,6 +323,122 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     } finally {
       setSavingAccount(false);
     }
+  };
+
+  // --- SMTP Settings Handlers ---
+  const handleSaveSmtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSmtpSaving(true);
+    setSmtpTestResult(null);
+    try {
+      const res = await fetch('/api/admin/smtp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(smtpConfig),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onShowToast('บันทึกการตั้งค่าระบบส่งอีเมล (SMTP) เรียบร้อยแล้ว 🎉', 'success');
+        if (data.config) {
+          setSmtpConfig((prev) => ({ ...prev, ...data.config, pass: '' }));
+          setSmtpHasPass(!!data.config.hasPass);
+        }
+      } else {
+        onShowToast(data.error || 'ไม่สามารถบันทึกการตั้งค่าได้', 'warning');
+      }
+    } catch (err) {
+      onShowToast('เกิดข้อผิดพลาดในการบันทึกการตั้งค่า SMTP', 'warning');
+    } finally {
+      setSmtpSaving(false);
+    }
+  };
+
+  const handleTestSmtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!smtpTestEmail.trim() || !smtpTestEmail.includes('@')) {
+      onShowToast('กรุณากรอกอีเมลผู้รับสำหรับการทดสอบ', 'warning');
+      return;
+    }
+
+    setSmtpTesting(true);
+    setSmtpTestResult(null);
+    try {
+      const res = await fetch('/api/admin/smtp/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toEmail: smtpTestEmail.trim(),
+          customConfig: smtpConfig,
+        }),
+      });
+      const data = await res.json();
+      setSmtpTestResult(data);
+      if (res.ok && data.success) {
+        onShowToast('ส่งอีเมลทดสอบสำเร็จ! เช็คกล่องข้อความได้เลย 📩', 'success');
+      } else {
+        onShowToast(data.message || 'ทดสอบส่งอีเมลล้มเหลว', 'warning');
+      }
+      fetchEmailLogs();
+    } catch (err: any) {
+      setSmtpTestResult({
+        success: false,
+        message: err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อทดสอบส่งอีเมลได้',
+      });
+    } finally {
+      setSmtpTesting(false);
+    }
+  };
+
+  const applySmtpPreset = (preset: 'gmail' | 'brevo' | 'resend' | 'custom_domain') => {
+    if (preset === 'gmail') {
+      setSmtpConfig((prev) => ({
+        ...prev,
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        fromName: 'pleng.online 🎧',
+        fromEmail: prev.user || 'admin@pleng.online',
+      }));
+      onShowToast('เลือกพรีเซ็ต Gmail (ใช้ App Password 16 ตัวอักษร)', 'info');
+    } else if (preset === 'brevo') {
+      setSmtpConfig((prev) => ({
+        ...prev,
+        host: 'smtp-relay.brevo.com',
+        port: 587,
+        secure: false,
+        fromName: 'pleng.online 🎧',
+      }));
+      onShowToast('เลือกพรีเซ็ต Brevo / Sendinblue (พอร์ต 587)', 'info');
+    } else if (preset === 'resend') {
+      setSmtpConfig((prev) => ({
+        ...prev,
+        host: 'smtp.resend.com',
+        port: 465,
+        secure: true,
+        user: 'resend',
+        fromName: 'pleng.online 🎧',
+        fromEmail: 'onboarding@resend.dev',
+      }));
+      onShowToast('เลือกพรีเซ็ต Resend SMTP', 'info');
+    } else if (preset === 'custom_domain') {
+      setSmtpConfig((prev) => ({
+        ...prev,
+        host: 'mail.pleng.online',
+        port: 465,
+        secure: true,
+        user: 'admin@pleng.online',
+        fromName: 'pleng.online 🎧',
+        fromEmail: 'admin@pleng.online',
+      }));
+      onShowToast('เลือกพรีเซ็ตโดเมน pleng.online', 'info');
+    }
+  };
+
+  const handleCopyCode = (id: string, code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedLogId(id);
+    onShowToast(`คัดลอกรหัส OTP ${code} แล้ว`, 'success');
+    setTimeout(() => setCopiedLogId(null), 2000);
   };
 
   // Global config save
@@ -567,6 +738,27 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
           </button>
 
           <button
+            onClick={() => {
+              setActiveTab('smtp');
+              fetchSmtpConfig();
+              fetchEmailLogs();
+            }}
+            className={`py-2 px-3.5 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'smtp'
+                ? 'bg-[#0075de]/10 text-[#0075de] font-bold'
+                : 'text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4]'
+            }`}
+          >
+            <Mail className="w-3.5 h-3.5 text-[#0075de]" />
+            <span>📧 ตั้งค่าส่งอีเมล (SMTP)</span>
+            {smtpConfig.enabled ? (
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="กำลังเปิดใช้งาน" />
+            ) : (
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="โหมดจำลอง (Console)" />
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveTab('overview')}
             className={`py-2 px-3.5 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'overview'
@@ -761,6 +953,424 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* TAB 1.5: SMTP MAIL SETTINGS */}
+        {activeTab === 'smtp' && (
+          <div className="space-y-6">
+            {/* Status & Intro Card */}
+            <div className="bg-white border border-[#e6e6e6] rounded-2xl p-6 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e6e6e6] pb-4">
+                <div>
+                  <h2 className="text-base font-bold text-[#000000] flex items-center gap-2">
+                    <Mail className="w-5 h-5 text-[#0075de]" />
+                    <span>ตั้งค่าระบบส่งอีเมล (SMTP Mail Gateway)</span>
+                  </h2>
+                  <p className="text-xs text-[#615d59] mt-1">
+                    เชื่อมต่อ Mail Server เพื่อส่งรหัสยืนยัน OTP 6 หลัก และลิงก์รีเซ็ตรหัสผ่านเข้าสู่กล่องจดหมายของผู้ใช้งานจริง
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[#615d59] font-medium">สถานะระบบ:</span>
+                  {smtpConfig.enabled ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      เปิดใช้งาน (ส่งอีเมลจริง)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      โหมดจำลอง (Console Log)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Preset Buttons */}
+              <div className="mt-5 pt-1">
+                <span className="text-[11px] font-semibold text-[#615d59] uppercase tracking-wider block mb-2">
+                  ⚡ เลือกพรีเซ็ตด่วน (Quick Presets):
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => applySmtpPreset('gmail')}
+                    className="p-3 text-left rounded-xl border border-[#e6e6e6] hover:border-[#0075de] hover:bg-[#0075de]/5 transition-all cursor-pointer group"
+                  >
+                    <p className="text-xs font-bold text-[#000000] group-hover:text-[#0075de] flex items-center gap-1.5">
+                      <span>🟣 Gmail</span>
+                    </p>
+                    <p className="text-[11px] text-[#615d59] mt-0.5">App Password (ฟรี)</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => applySmtpPreset('brevo')}
+                    className="p-3 text-left rounded-xl border border-[#e6e6e6] hover:border-[#0075de] hover:bg-[#0075de]/5 transition-all cursor-pointer group"
+                  >
+                    <p className="text-xs font-bold text-[#000000] group-hover:text-[#0075de] flex items-center gap-1.5">
+                      <span>🟠 Brevo</span>
+                    </p>
+                    <p className="text-[11px] text-[#615d59] mt-0.5">300 เมล/วัน ฟรี</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => applySmtpPreset('resend')}
+                    className="p-3 text-left rounded-xl border border-[#e6e6e6] hover:border-[#0075de] hover:bg-[#0075de]/5 transition-all cursor-pointer group"
+                  >
+                    <p className="text-xs font-bold text-[#000000] group-hover:text-[#0075de] flex items-center gap-1.5">
+                      <span>🔵 Resend</span>
+                    </p>
+                    <p className="text-[11px] text-[#615d59] mt-0.5">3,000 เมล/เดือน</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => applySmtpPreset('custom_domain')}
+                    className="p-3 text-left rounded-xl border border-[#e6e6e6] hover:border-[#0075de] hover:bg-[#0075de]/5 transition-all cursor-pointer group"
+                  >
+                    <p className="text-xs font-bold text-[#000000] group-hover:text-[#0075de] flex items-center gap-1.5">
+                      <span>🟢 pleng.online</span>
+                    </p>
+                    <p className="text-[11px] text-[#615d59] mt-0.5">Mail Server โดเมน</p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Main Configuration Form */}
+              <form onSubmit={handleSaveSmtp} className="mt-6 space-y-5">
+                {/* Enable / Disable Toggle */}
+                <div className="flex items-center justify-between p-4 rounded-xl bg-[#f6f5f4] border border-[#e6e6e6]">
+                  <div>
+                    <span className="text-xs font-bold text-[#000000] block">
+                      เปิดใช้งานการส่งอีเมลจริงผ่าน SMTP (Enable SMTP Delivery)
+                    </span>
+                    <span className="text-[11px] text-[#615d59]">
+                      เมื่อเปิดใช้งาน ระบบจะส่งอีเมล OTP จริงไปยัง Inbox ผู้ใช้ หากปิดใช้งาน จะเก็บรหัสไว้ใน Log หลังบ้าน
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={smtpConfig.enabled}
+                      onChange={(e) => setSmtpConfig({ ...smtpConfig, enabled: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Left Column: Server Credentials */}
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-[#000000]">
+                        SMTP Host / Server
+                      </label>
+                      <div className="relative">
+                        <Server className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={smtpConfig.host}
+                          onChange={(e) => setSmtpConfig({ ...smtpConfig, host: e.target.value })}
+                          placeholder="เช่น smtp.gmail.com หรือ smtp-relay.brevo.com"
+                          className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-[#000000]">
+                          พอร์ต (Port)
+                        </label>
+                        <input
+                          type="number"
+                          value={smtpConfig.port}
+                          onChange={(e) => setSmtpConfig({ ...smtpConfig, port: parseInt(e.target.value, 10) || 587 })}
+                          placeholder="465 หรือ 587"
+                          className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
+                          required
+                        />
+                      </div>
+
+                      <div className="flex flex-col justify-end pb-1.5">
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-[#31302e]">
+                          <input
+                            type="checkbox"
+                            checked={smtpConfig.secure}
+                            onChange={(e) => setSmtpConfig({ ...smtpConfig, secure: e.target.checked })}
+                            className="rounded border-[#e6e6e6] text-[#0075de] focus:ring-[#0075de] cursor-pointer"
+                          />
+                          <span>SSL/TLS (ปกติพอร์ต 465)</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-[#000000]">
+                        SMTP Username / Email
+                      </label>
+                      <div className="relative">
+                        <Mail className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={smtpConfig.user}
+                          onChange={(e) => setSmtpConfig({ ...smtpConfig, user: e.target.value })}
+                          placeholder="เช่น your-email@gmail.com หรือ admin@pleng.online"
+                          className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-[#000000] flex items-center justify-between">
+                        <span>SMTP Password / App Password</span>
+                        {smtpHasPass && (
+                          <span className="text-[10px] text-emerald-600 font-normal">
+                            ✓ มีรหัสผ่านบันทึกไว้แล้ว (เว้นว่างเพื่อคงรหัสเดิม)
+                          </span>
+                        )}
+                      </label>
+                      <div className="relative">
+                        <KeyRound className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type={smtpShowPass ? 'text' : 'password'}
+                          value={smtpConfig.pass}
+                          onChange={(e) => setSmtpConfig({ ...smtpConfig, pass: e.target.value })}
+                          placeholder={smtpHasPass ? '•••••••••••••••• (เว้นว่างไว้เพื่อคงรหัสเดิม)' : 'กรอกรหัสผ่าน SMTP หรือ App Password 16 หลัก'}
+                          className="w-full pl-9 pr-10 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setSmtpShowPass(!smtpShowPass)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a39e98] hover:text-[#000000]"
+                        >
+                          {smtpShowPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Sender Branding & Guidance */}
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-[#000000]">
+                        ชื่อผู้ส่งที่แสดง (Sender Name)
+                      </label>
+                      <input
+                        type="text"
+                        value={smtpConfig.fromName}
+                        onChange={(e) => setSmtpConfig({ ...smtpConfig, fromName: e.target.value })}
+                        placeholder="เช่น pleng.online 🎧"
+                        className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-[#000000]">
+                        อีเมลผู้ส่ง (Sender Email Address)
+                      </label>
+                      <input
+                        type="email"
+                        value={smtpConfig.fromEmail}
+                        onChange={(e) => setSmtpConfig({ ...smtpConfig, fromEmail: e.target.value })}
+                        placeholder="เช่น admin@pleng.online หรือ your-gmail@gmail.com"
+                        className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
+                      />
+                    </div>
+
+                    {/* Quick Guide Card */}
+                    <div className="p-3.5 rounded-xl bg-blue-50/50 border border-blue-200/60 text-xs text-blue-900 space-y-2">
+                      <div className="flex items-center gap-1.5 font-bold text-blue-800">
+                        <HelpCircle className="w-4 h-4 shrink-0 text-blue-600" />
+                        <span>คำแนะนำการใช้ Gmail SMTP:</span>
+                      </div>
+                      <ol className="list-decimal list-inside space-y-1 text-[11px] text-blue-800/90">
+                        <li>เข้าหน้า Google Account &gt; ความปลอดภัย (Security)</li>
+                        <li>เปิดการยืนยันแบบ 2 ขั้นตอน (2-Step Verification)</li>
+                        <li>ค้นหา &quot;รหัสผ่านสำหรับแอป&quot; (App Passwords)</li>
+                        <li>สร้างรหัสใหม่ 16 ตัว แล้วนำมากรอกในช่อง Password ด้านซ้าย</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-[#e6e6e6] flex items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={smtpSaving}
+                    className="py-2.5 px-6 rounded-xl bg-gradient-to-r from-[#0075de] to-[#005fb8] hover:from-[#0065c0] hover:to-[#004f9e] text-white font-semibold text-xs shadow-xs flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>{smtpSaving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า SMTP (Save Settings)'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Test Email Delivery Card */}
+            <div className="bg-white border border-[#e6e6e6] rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="border-b border-[#e6e6e6] pb-3">
+                <h3 className="text-sm font-bold text-[#000000] flex items-center gap-2">
+                  <Send className="w-4 h-4 text-[#0075de]" />
+                  <span>ทดสอบส่งอีเมล (Test SMTP Delivery)</span>
+                </h3>
+                <p className="text-xs text-[#615d59] mt-0.5">
+                  ทดสอบส่งอีเมลยืนยันการเชื่อมต่อไปยังกล่องจดหมายของคุณ เพื่อตรวจสอบว่า SMTP ทำงานได้จริงก่อนเปิดให้สมาชิกใช้งาน
+                </p>
+              </div>
+
+              <form onSubmit={handleTestSmtp} className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Mail className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    value={smtpTestEmail}
+                    onChange={(e) => setSmtpTestEmail(e.target.value)}
+                    placeholder="กรอกอีเมลของคุณเพื่อรับเมลทดสอบ เช่น your-email@gmail.com"
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-medium"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={smtpTesting || !smtpTestEmail.trim()}
+                  className="py-2.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{smtpTesting ? 'กำลังทดสอบส่งเมล...' : 'ส่งอีเมลทดสอบทันที (Send Test)'}</span>
+                </button>
+              </form>
+
+              {smtpTestResult && (
+                <div
+                  className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 border ${
+                    smtpTestResult.success
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-rose-50 border-rose-200 text-rose-800'
+                  }`}
+                >
+                  {smtpTestResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  )}
+                  <div>
+                    <p className="font-bold">{smtpTestResult.success ? 'สำเร็จ!' : 'ทดสอบไม่สำเร็จ:'}</p>
+                    <p className="mt-0.5 font-mono text-[11px] break-all">{smtpTestResult.message}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Email & OTP Activity Logs Card */}
+            <div className="bg-white border border-[#e6e6e6] rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-[#e6e6e6] pb-3">
+                <div>
+                  <h3 className="text-sm font-bold text-[#000000] flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    <span>ประวัติการส่งอีเมล &amp; รหัส OTP ล่าสุด (Recent Email &amp; OTP Logs)</span>
+                  </h3>
+                  <p className="text-xs text-[#615d59] mt-0.5">
+                    แอดมินสามารถดูรหัส OTP ของผู้ใช้ได้ที่นี่ทันที ป้องกันกรณีผู้ใช้พิมพ์อีเมลผิดหรือเมลติด Spam
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchEmailLogs}
+                  className="px-3 py-1.5 rounded-lg border border-[#e6e6e6] hover:bg-[#f6f5f4] text-xs font-semibold text-[#615d59] hover:text-[#000000] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>รีเฟรช Log</span>
+                </button>
+              </div>
+
+              {emailLogs.length === 0 ? (
+                <div className="text-center py-8 text-[#a39e98] text-xs">
+                  ยังไม่มีประวัติการส่งอีเมลหรือขอรหัส OTP ในรอบนี้
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-[#e6e6e6] text-[#615d59] text-[11px] font-semibold uppercase">
+                        <th className="pb-2.5 font-medium">เวลา (Timestamp)</th>
+                        <th className="pb-2.5 font-medium">ประเภทรายการ</th>
+                        <th className="pb-2.5 font-medium">อีเมลปลายทาง</th>
+                        <th className="pb-2.5 font-medium">รหัส OTP 6 หลัก</th>
+                        <th className="pb-2.5 font-medium">สถานะการส่ง</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#f0efee]">
+                      {emailLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-[#fcfbf9] transition-colors">
+                          <td className="py-3 text-[#615d59] whitespace-nowrap font-mono text-[11px]">
+                            {new Date(log.timestamp).toLocaleTimeString('th-TH')}
+                          </td>
+                          <td className="py-3 font-medium text-[#000000]">
+                            {log.type === 'register_otp' && '📝 สมัครสมาชิก (OTP)'}
+                            {log.type === 'reset_password_otp' && '🔐 ลืมรหัสผ่าน (OTP)'}
+                            {log.type === 'test' && '🧪 ทดสอบระบบส่งเมล'}
+                          </td>
+                          <td className="py-3 font-mono text-[#0075de]">{log.email}</td>
+                          <td className="py-3">
+                            {log.code ? (
+                              <div className="inline-flex items-center gap-1.5 bg-[#f6f5f4] px-2 py-0.5 rounded-md border border-[#e6e6e6]">
+                                <span className="font-mono font-bold text-xs text-[#000000] tracking-wider">
+                                  {log.code}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyCode(log.id, log.code!)}
+                                  className="text-[#a39e98] hover:text-[#0075de] cursor-pointer"
+                                  title="คัดลอกรหัส OTP"
+                                >
+                                  {copiedLogId === log.id ? (
+                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                  ) : (
+                                    <Copy className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[#a39e98]">-</span>
+                            )}
+                          </td>
+                          <td className="py-3">
+                            {log.status === 'sent_smtp' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>ส่งผ่าน SMTP สำเร็จ</span>
+                              </span>
+                            )}
+                            {log.status === 'console_fallback' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[11px] font-semibold border border-amber-200">
+                                <AlertCircle className="w-3 h-3" />
+                                <span>โหมดจำลอง (Console Log)</span>
+                              </span>
+                            )}
+                            {log.status === 'failed' && (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 text-[11px] font-semibold border border-rose-200"
+                                title={log.errorMessage}
+                              >
+                                <AlertCircle className="w-3 h-3" />
+                                <span>ส่งไม่สำเร็จ: {log.errorMessage?.substring(0, 20)}...</span>
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

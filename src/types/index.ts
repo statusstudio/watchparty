@@ -370,3 +370,35 @@ export interface PlatformStats {
   openTickets: number;
   serverUptimeSeconds: number;
 }
+
+export interface SmtpConfig {
+  enabled: boolean;
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  fromName: string;
+  fromEmail: string;
+}
+
+export const DEFAULT_SMTP_CONFIG: SmtpConfig = {
+  enabled: false,
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
+  user: '',
+  pass: '',
+  fromName: 'pleng.online 🎧',
+  fromEmail: 'admin@pleng.online',
+};
+
+export interface EmailLogEntry {
+  id: string;
+  type: 'register_otp' | 'reset_password_otp' | 'test';
+  email: string;
+  code?: string;
+  status: 'sent_smtp' | 'console_fallback' | 'failed';
+  errorMessage?: string;
+  timestamp: number;
+}
