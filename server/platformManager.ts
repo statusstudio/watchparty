@@ -65,6 +65,16 @@ export class PlatformManager {
           this.config = {
             ...DEFAULT_PLATFORM_CONFIG,
             ...data.config,
+            adPopup: data.config.adPopup
+              ? {
+                  enabled: !!data.config.adPopup.enabled,
+                  title: String(data.config.adPopup.title || ''),
+                  imageUrl: String(data.config.adPopup.imageUrl || ''),
+                  linkUrl: String(data.config.adPopup.linkUrl || ''),
+                  openInNewTab: data.config.adPopup.openInNewTab !== false,
+                  updatedAt: data.config.adPopup.updatedAt || Date.now(),
+                }
+              : DEFAULT_PLATFORM_CONFIG.adPopup,
             globalWidgets: {
               ...DEFAULT_PLATFORM_CONFIG.globalWidgets,
               ...(data.config.globalWidgets || {}),
@@ -334,6 +344,9 @@ export class PlatformManager {
     this.config = {
       ...this.config,
       ...patch,
+      adPopup: patch.adPopup !== undefined
+        ? patch.adPopup
+        : this.config.adPopup,
       globalWidgets: {
         ...this.config.globalWidgets,
         ...(patch.globalWidgets || {}),

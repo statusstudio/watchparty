@@ -289,6 +289,15 @@ export interface SupportTicket {
   updatedAt: number;
 }
 
+export interface AdPopupConfig {
+  enabled: boolean;
+  title?: string;
+  imageUrl: string;
+  linkUrl: string;
+  openInNewTab?: boolean;
+  updatedAt?: number;
+}
+
 export interface PlatformConfig {
   maintenanceMode: boolean;
   announcementBanner?: {
@@ -296,6 +305,7 @@ export interface PlatformConfig {
     text: string;
     type: 'info' | 'warning' | 'alert';
   };
+  adPopup?: AdPopupConfig;
   globalWidgets: {
     enableVoiceStage: boolean;
     enableChat: boolean;
@@ -309,6 +319,13 @@ export const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
     enabled: false,
     text: '',
     type: 'info',
+  },
+  adPopup: {
+    enabled: false,
+    title: '',
+    imageUrl: '',
+    linkUrl: '',
+    openInNewTab: true,
   },
   globalWidgets: {
     enableVoiceStage: true,

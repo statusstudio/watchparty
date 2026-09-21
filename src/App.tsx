@@ -40,6 +40,7 @@ import { PasswordGateModal } from './components/PasswordGateModal.js';
 import { AdminPanelModal } from './components/AdminPanelModal.js';
 import { SuperAdminUnlockModal } from './components/SuperAdminUnlockModal.js';
 import { SuperAdminDashboardModal } from './components/SuperAdminDashboardModal.js';
+import { AdPopupModal } from './components/AdPopupModal.js';
 import { SupportModal } from './components/SupportModal.js';
 import { FloatingItem } from './components/FloatingReactions.js';
 import { ToastContainer, ToastItem } from './components/Toast.js';
@@ -1987,6 +1988,9 @@ export function App() {
         currentUser={currentUser}
         onShowToast={showToast}
       />
+
+      {/* Global Ad Popup for Website Visitors */}
+      <AdPopupModal adPopup={platformConfig?.adPopup} />
     </div>
   );
 }

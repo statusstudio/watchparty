@@ -27,6 +27,10 @@ import {
   Server,
   Zap,
   Check,
+  Upload,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  ExternalLink,
 } from 'lucide-react';
 import {
   PlatformStats,
@@ -38,6 +42,8 @@ import {
   DEFAULT_PLATFORM_CONFIG,
   PlatformAnalytics,
 } from '../types/index.js';
+import { compressChatImage } from '../services/imageCompressor.js';
+import { AdPopupModal } from './AdPopupModal.js';
 
 interface SuperAdminDashboardModalProps {
   isOpen: boolean;
@@ -53,9 +59,18 @@ export const SuperAdminDashboardModal: React.FC<SuperAdminDashboardModalProps> =
   onShowToast,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'widgets' | 'users' | 'rooms' | 'announcements' | 'tickets'
+    'overview' | 'widgets' | 'ad_popup' | 'users' | 'rooms' | 'announcements' | 'tickets'
   >('overview');
   const [loading, setLoading] = useState(false);
+
+  // Ad Popup State
+  const [adEnabled, setAdEnabled] = useState(false);
+  const [adTitle, setAdTitle] = useState('');
+  const [adImageUrl, setAdImageUrl] = useState('');
+  const [adLinkUrl, setAdLinkUrl] = useState('');
+  const [adOpenInNewTab, setAdOpenInNewTab] = useState(true);
+  const [isUploadingAd, setIsUploadingAd] = useState(false);
+  const [previewTestPopup, setPreviewTestPopup] = useState(false);
 
   // Stats & Analytics
   const [stats, setStats] = useState<PlatformStats>({
@@ -142,6 +157,13 @@ export const SuperAdminDashboardModal: React.FC<SuperAdminDashboardModalProps> =
           setAnnouncementText(data.announcementBanner.text || '');
           setAnnouncementType(data.announcementBanner.type || 'info');
         }
+        if (data.adPopup) {
+          setAdEnabled(!!data.adPopup.enabled);
+          setAdTitle(data.adPopup.title || '');
+          setAdImageUrl(data.adPopup.imageUrl || '');
+          setAdLinkUrl(data.adPopup.linkUrl || '');
+          setAdOpenInNewTab(data.adPopup.openInNewTab !== false);
+        }
       }
     } catch (e) {}
   };
@@ -189,13 +211,51 @@ export const SuperAdminDashboardModal: React.FC<SuperAdminDashboardModalProps> =
       });
       if (res.ok) {
         const updated = await res.json();
-        setConfig(updated);
+        setConfig(updated.config || updated);
         onShowToast('อัพเดทการตั้งค่าระดับระบบสำเร็จ! ⚙️', 'success');
       } else {
         onShowToast('ไม่สามารถบันทึกการตั้งค่าได้', 'warning');
       }
     } catch (err) {
       onShowToast('เกิดข้อผิดพลาดในการบันทึกการตั้งค่า', 'warning');
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  const handleAdImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAd(true);
+    try {
+      const dataUri = await compressChatImage(file, 1000, 0.85);
+      setAdImageUrl(dataUri);
+      onShowToast('อัปโหลดรูปภาพโฆษณาเรียบร้อย 🖼️', 'success');
+    } catch (err: any) {
+      onShowToast(err.message || 'เกิดข้อผิดพลาดในการประมวลผลรูปภาพ', 'warning');
+    } finally {
+      setIsUploadingAd(false);
+    }
+  };
+
+  const handleSaveAdPopup = async () => {
+    if (adEnabled && !adImageUrl.trim()) {
+      onShowToast('กรุณาอัปโหลดรูปภาพโฆษณาก่อนเปิดใช้งาน', 'warning');
+      return;
+    }
+    setSavingConfig(true);
+    try {
+      await handleSaveGlobalConfig({
+        adPopup: {
+          enabled: adEnabled,
+          title: adTitle.trim(),
+          imageUrl: adImageUrl.trim(),
+          linkUrl: adLinkUrl.trim(),
+          openInNewTab: adOpenInNewTab,
+          updatedAt: Date.now(),
+        },
+      });
     } finally {
       setSavingConfig(false);
     }
@@ -532,6 +592,21 @@ export const SuperAdminDashboardModal: React.FC<SuperAdminDashboardModalProps> =
           >
             <Sliders className="w-3.5 h-3.5" />
             <span>ควบคุมโมดูล & Widget</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('ad_popup')}
+            className={`py-2 px-3 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'ad_popup'
+                ? 'bg-[#0075de]/10 text-[#0075de]'
+                : 'text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4]'
+            }`}
+          >
+            <ImageIcon className="w-3.5 h-3.5" />
+            <span>ป๊อปอัพโฆษณา (Ad Popup)</span>
+            {config.adPopup?.enabled && (
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="กำลังเปิดใช้งาน" />
+            )}
           </button>
 
           <button
@@ -905,6 +980,204 @@ export const SuperAdminDashboardModal: React.FC<SuperAdminDashboardModalProps> =
                     }`}
                   >
                     {config.maintenanceMode ? 'เปิดโหมดปรับปรุงอยู่' : 'ปิดอยู่'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: AD POPUP WIDGET */}
+          {activeTab === 'ad_popup' && (
+            <div className="space-y-6 max-w-3xl">
+              <div>
+                <h3 className="text-sm font-bold text-[#000000] flex items-center gap-2">
+                  <Megaphone className="w-4 h-4 text-[#0075de]" />
+                  <span>จัดการวิดเจ็ตป๊อปอัปโฆษณา (Ad Popup Widget)</span>
+                </h3>
+                <p className="text-xs text-[#615d59] mt-0.5">
+                  วิดเจ็ตแสดงแบนเนอร์โฆษณาสำหรับเจ้าของเว็บ ป๊อปอัปจะแสดงเมื่อผู้ใช้เข้าสู่หน้าเว็บ สามารถใส่รูปภาพและลิงก์เปิดหน้าเว็บเป้าหมายในแท็บใหม่ได้
+                </p>
+              </div>
+
+              {/* Master Switch Card */}
+              <div className="p-4 bg-white border border-[#e6e6e6] rounded-xl shadow-xs flex items-center justify-between gap-4">
+                <div className="space-y-1 pr-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-[#000000]">📢 เปิด/ปิดการแสดงผลป๊อปอัปโฆษณา</span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        adEnabled
+                          ? 'bg-emerald-500/10 text-emerald-600'
+                          : 'bg-rose-500/10 text-rose-600'
+                      }`}
+                    >
+                      {adEnabled ? 'เปิดใช้งานอยู่ (Active)' : 'ปิดใช้งาน (Disabled)'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#615d59] leading-relaxed">
+                    เมื่อเปิดใช้งาน ผู้เข้าชมทุกคนจะเห็นป๊อปอัปโฆษณาตามรูปและลิงก์ที่ระบุด้านล่าง (ผู้ใช้สามารถกดปิดหรือเลือกไม่แสดงอีกในวันนั้นได้)
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setAdEnabled(!adEnabled)}
+                  className={`px-4 py-2 rounded-full font-semibold text-xs transition-all cursor-pointer shadow-xs shrink-0 ${
+                    adEnabled
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      : 'bg-[#e6e6e6] hover:bg-[#d8d8d8] text-[#31302e]'
+                  }`}
+                >
+                  {adEnabled ? 'เปิดอยู่ (คลิกเพื่อปิด)' : 'ปิดอยู่ (คลิกเพื่อเปิด)'}
+                </button>
+              </div>
+
+              {/* Ad Configuration Form */}
+              <div className="p-5 bg-white border border-[#e6e6e6] rounded-xl shadow-xs space-y-4">
+                <h4 className="text-xs font-bold text-[#000000] uppercase tracking-wider text-[#615d59]">
+                  รายละเอียดและเนื้อหาโฆษณา
+                </h4>
+
+                {/* 1. Ad Title */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[#31302e] flex items-center justify-between">
+                    <span>หัวข้อหรือชื่อแคมเปญ (ไม่บังคับ)</span>
+                    <span className="text-[11px] text-[#a39e98] font-normal">เช่น โปรโมชั่นพิเศษ หรือ สปอนเซอร์</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={adTitle}
+                    onChange={(e) => setAdTitle(e.target.value)}
+                    placeholder="เช่น โปรโมชั่นสุดคุ้ม! ติดต่อลงโฆษณา LINE: @myshop"
+                    className="w-full px-3.5 py-2.5 bg-[#f6f5f4] border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-colors"
+                  />
+                </div>
+
+                {/* 2. Ad Image Upload & URL */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-[#31302e] flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-[#0075de]" />
+                    <span>รูปภาพแบนเนอร์โฆษณา *</span>
+                  </label>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* File Upload Button */}
+                    <div>
+                      <label
+                        className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
+                          isUploadingAd
+                            ? 'border-[#0075de] bg-[#0075de]/5 opacity-70'
+                            : 'border-[#e6e6e6] hover:border-[#0075de] bg-[#fbfbfa]'
+                        }`}
+                      >
+                        <Upload className={`w-6 h-6 text-[#0075de] mb-1.5 ${isUploadingAd ? 'animate-bounce' : ''}`} />
+                        <span className="text-xs font-semibold text-[#000000]">
+                          {isUploadingAd ? 'กำลังประมวลผลรูปภาพ...' : 'อัปโหลดรูปภาพจากอุปกรณ์'}
+                        </span>
+                        <span className="text-[10px] text-[#a39e98] mt-0.5">
+                          รองรับ JPG, PNG, WEBP (บีบอัดให้อัตโนมัติ)
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAdImageUpload}
+                          disabled={isUploadingAd}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    {/* Direct Image URL input */}
+                    <div className="flex flex-col justify-center space-y-1.5 p-3 bg-[#f6f5f4] border border-[#e6e6e6] rounded-xl">
+                      <span className="text-[11px] font-semibold text-[#615d59]">หรือวางลิงก์รูปภาพโดยตรง:</span>
+                      <input
+                        type="url"
+                        value={adImageUrl}
+                        onChange={(e) => setAdImageUrl(e.target.value)}
+                        placeholder="https://example.com/banner.jpg"
+                        className="w-full px-3 py-2 bg-white border border-[#e6e6e6] rounded-lg text-xs text-[#000000] focus:outline-none focus:border-[#0075de]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Image Live Preview */}
+                  {adImageUrl && (
+                    <div className="relative mt-3 p-3 bg-[#f6f5f4] border border-[#e6e6e6] rounded-xl flex items-center gap-4">
+                      <img
+                        src={adImageUrl}
+                        alt="Preview"
+                        className="w-32 h-20 object-contain bg-black/5 rounded-lg border border-[#e6e6e6]"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-[#000000] truncate">รูปภาพโฆษณาปัจจุบัน</p>
+                        <p className="text-[10px] text-[#a39e98] truncate mt-0.5">{adImageUrl.slice(0, 60)}...</p>
+                        <button
+                          type="button"
+                          onClick={() => setAdImageUrl('')}
+                          className="mt-2 text-xs text-rose-600 hover:text-rose-700 font-medium flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>ลบรูปภาพนี้</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Destination Link URL */}
+                <div className="space-y-2 pt-2 border-t border-[#e6e6e6]">
+                  <label className="text-xs font-semibold text-[#31302e] flex items-center gap-1.5">
+                    <LinkIcon className="w-3.5 h-3.5 text-[#0075de]" />
+                    <span>ลิงก์ปลายทางเมื่อมีคนคลิก (Destination URL)</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={adLinkUrl}
+                    onChange={(e) => setAdLinkUrl(e.target.value)}
+                    placeholder="https://yourwebsite.com/product หรือ https://lin.ee/..."
+                    className="w-full px-3.5 py-2.5 bg-[#f6f5f4] border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-colors"
+                  />
+
+                  {/* Open in new tab checkbox */}
+                  <label className="flex items-center gap-2 cursor-pointer pt-1">
+                    <input
+                      type="checkbox"
+                      checked={adOpenInNewTab}
+                      onChange={(e) => setAdOpenInNewTab(e.target.checked)}
+                      className="w-4 h-4 rounded text-[#0075de] focus:ring-0 cursor-pointer accent-[#0075de]"
+                    />
+                    <span className="text-xs text-[#31302e] flex items-center gap-1">
+                      เปิดในแท็บใหม่เสมอ (Open link in new tab)
+                      <ExternalLink className="w-3 h-3 text-[#a39e98]" />
+                    </span>
+                  </label>
+                </div>
+
+                {/* Buttons & Preview */}
+                <div className="pt-4 border-t border-[#e6e6e6] flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!adImageUrl.trim()) {
+                        onShowToast('กรุณาอัปโหลดรูปภาพก่อนทดสอบดูตัวอย่าง', 'warning');
+                        return;
+                      }
+                      setPreviewTestPopup(true);
+                    }}
+                    className="px-4 py-2 bg-[#f6f5f4] hover:bg-[#e6e6e6] border border-[#e6e6e6] rounded-xl text-xs font-semibold text-[#31302e] flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-[#0075de]" />
+                    <span>ทดสอบดูตัวอย่างป๊อปอัป (Preview)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveAdPopup}
+                    disabled={savingConfig || isUploadingAd}
+                    className="px-6 py-2 bg-[#0075de] hover:bg-[#005bab] text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>{savingConfig ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่าโฆษณา'}</span>
                   </button>
                 </div>
               </div>
@@ -1376,6 +1649,22 @@ export const SuperAdminDashboardModal: React.FC<SuperAdminDashboardModalProps> =
           )}
         </div>
       </div>
+
+      {/* Ad Popup Live Preview Modal */}
+      {previewTestPopup && (
+        <AdPopupModal
+          adPopup={{
+            enabled: true,
+            title: adTitle,
+            imageUrl: adImageUrl,
+            linkUrl: adLinkUrl,
+            openInNewTab: adOpenInNewTab,
+            updatedAt: Date.now(),
+          }}
+          isPreview={true}
+          onClose={() => setPreviewTestPopup(false)}
+        />
+      )}
     </div>
   );
 };
