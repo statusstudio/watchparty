@@ -17,6 +17,7 @@ import {
   Heart,
   ListPlus,
   Loader2,
+  X,
 } from 'lucide-react';
 import { PlaylistItem, VideoState, LoopMode, UserRole, UserProfile, FavoriteSong } from '../types/index.js';
 import { fetchFavorites, addFavorite, removeFavorite } from '../services/supabase.js';
@@ -197,6 +198,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
       const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(q)}`);
       const data = await res.json();
       setSearchResults(data.results || []);
+      setActiveTab('search');
     } catch (err) {
       console.error('Search error:', err);
       onShowToast('ค้นหาไม่สำเร็จ โปรดลองใหม่', 'warning');
@@ -267,57 +269,64 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-white text-[#31302e] overflow-hidden">
-      {/* Sub-Header Tabs: Queue vs Search vs Favorites */}
-      <div className="p-2 border-b border-[#e6e6e6] bg-[#f6f5f4] flex items-center gap-1 shrink-0">
-        <button
-          type="button"
-          onClick={() => setActiveTab('queue')}
-          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer ${
-            activeTab === 'queue'
-              ? 'bg-white text-[#0075de] border border-[#e6e6e6] shadow-xs'
-              : 'text-[#615d59] hover:text-[#000000] hover:bg-black/5'
-          }`}
-        >
-          <ListMusic className="w-3.5 h-3.5" />
-          <span>รายการคิว</span>
-          <span className="px-1.5 py-0.2 rounded-full bg-[#f6f5f4] text-[#615d59] text-[10px] font-mono border border-[#e6e6e6]">
-            {playlist.length}
-          </span>
-        </button>
+      {/* Unified Search & Add Bar at Top (No duplicate sub-tabs) */}
+      <div className="p-2.5 border-b border-[#e6e6e6] bg-[#f6f5f4] shrink-0">
+        <form onSubmit={handleSearch} className="flex items-center gap-1.5">
+          <div className="relative flex-1">
+            <Search className="w-3.5 h-3.5 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="ค้นหาชื่อเพลง หรือ วางลิงก์ YouTube..."
+              className="w-full pl-8 pr-16 py-1.5 bg-white border border-[#e6e6e6] rounded-full text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none focus:border-[#0075de] shadow-xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchResults([]);
+                  setActiveTab('queue');
+                }}
+                className="absolute right-12 top-1/2 -translate-y-1/2 text-[#a39e98] hover:text-[#000000] p-1 cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={!searchQuery.trim() || isSearching}
+              className="absolute right-1 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-full bg-[#0075de] hover:bg-[#005bab] disabled:opacity-30 text-white text-[11px] font-semibold transition-colors cursor-pointer"
+            >
+              {isSearching ? '...' : 'ค้นหา/เพิ่ม'}
+            </button>
+          </div>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('search')}
-          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer ${
-            activeTab === 'search'
-              ? 'bg-white text-[#0075de] border border-[#e6e6e6] shadow-xs'
-              : 'text-[#615d59] hover:text-[#000000] hover:bg-black/5'
-          }`}
-        >
-          <Search className="w-3.5 h-3.5" />
-          <span>ค้นหาเพลง</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab('favorites');
-            loadFavorites();
-          }}
-          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer ${
-            activeTab === 'favorites'
-              ? 'bg-white text-rose-500 border border-[#e6e6e6] shadow-xs'
-              : 'text-[#615d59] hover:text-rose-500 hover:bg-black/5'
-          }`}
-        >
-          <Heart className="w-3.5 h-3.5 fill-current" />
-          <span>เพลงโปรด</span>
-          {favoriteSongs.length > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-rose-50 text-rose-600 text-[10px] font-mono border border-rose-200">
-              {favoriteSongs.length}
-            </span>
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (activeTab === 'favorites') {
+                setActiveTab('queue');
+              } else {
+                setActiveTab('favorites');
+                loadFavorites();
+              }
+            }}
+            title={activeTab === 'favorites' ? 'กลับไปที่คิวเพลง' : 'ดูเพลงโปรด'}
+            className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs shrink-0 ${
+              activeTab === 'favorites'
+                ? 'bg-rose-500 text-white border-rose-500'
+                : 'bg-white hover:bg-rose-50 text-rose-500 border-[#e6e6e6]'
+            }`}
+          >
+            <Heart className="w-3.5 h-3.5 fill-current" />
+            <span className="hidden sm:inline">เพลงโปรด</span>
+            {favoriteSongs.length > 0 && (
+              <span className="text-[10px] font-mono">({favoriteSongs.length})</span>
+            )}
+          </button>
+        </form>
       </div>
 
       {/* Main Tab Content */}
@@ -325,24 +334,6 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
         {/* ==================== QUEUE TAB ==================== */}
         {activeTab === 'queue' && (
           <>
-            {/* Quick URL Input Bar */}
-            <form onSubmit={handleDirectUrlSubmit} className="relative flex items-center">
-              <input
-                type="text"
-                value={directUrl}
-                onChange={(e) => setDirectUrl(e.target.value)}
-                placeholder="วางลิงก์ YouTube ที่นี่..."
-                className="w-full pl-8 pr-16 py-1.5 bg-white border border-[#e6e6e6] rounded-full text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none focus:border-[#0075de] shadow-xs"
-              />
-              <Link className="w-3.5 h-3.5 text-[#a39e98] absolute left-2.5" />
-              <button
-                type="submit"
-                disabled={!directUrl.trim()}
-                className="absolute right-1 px-2.5 py-1 rounded-full bg-[#0075de] hover:bg-[#005bab] disabled:opacity-30 text-white text-[11px] font-semibold transition-colors cursor-pointer"
-              >
-                เพิ่ม
-              </button>
-            </form>
 
             {/* Currently Playing Card */}
             {currentVideo.videoId && (
@@ -515,24 +506,24 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
         {/* ==================== SEARCH TAB ==================== */}
         {activeTab === 'search' && (
           <div className="space-y-3">
-            {/* Search Input Bar */}
-            <form onSubmit={handleSearch} className="relative flex items-center">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ค้นหาชื่อเพลง, ศิลปิน หรือวางลิงก์..."
-                className="w-full pl-8 pr-16 py-1.5 bg-white border border-[#e6e6e6] rounded-full text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none focus:border-[#0075de] shadow-xs"
-              />
-              <Search className="w-3.5 h-3.5 text-[#a39e98] absolute left-2.5" />
+            {/* Search Results Header & Back Button */}
+            <div className="flex items-center justify-between pb-1 border-b border-[#e6e6e6]">
+              <span className="text-xs font-bold text-[#000000] flex items-center gap-1.5">
+                <Search className="w-3.5 h-3.5 text-[#0075de]" />
+                <span>ผลการค้นหา ({searchResults.length})</span>
+              </span>
               <button
-                type="submit"
-                disabled={!searchQuery.trim() || isSearching}
-                className="absolute right-1 px-3 py-1 rounded-full bg-[#0075de] hover:bg-[#005bab] disabled:opacity-30 text-white text-[11px] font-semibold transition-colors cursor-pointer"
+                type="button"
+                onClick={() => {
+                  setActiveTab('queue');
+                  setSearchResults([]);
+                }}
+                className="text-xs text-[#0075de] hover:underline flex items-center gap-1 cursor-pointer font-medium"
               >
-                {isSearching ? 'ค้นหา...' : 'ค้นหา'}
+                <X className="w-3.5 h-3.5" />
+                <span>กลับไปที่คิวเพลง</span>
               </button>
-            </form>
+            </div>
 
             {/* YouTube Playlist Quick Importer Card */}
             <div className="p-3 bg-[#f6f5f4] border border-[#e6e6e6] rounded-xl space-y-2">
@@ -685,32 +676,43 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                 <span className="text-[10px] text-[#615d59]">({favoriteSongs.length})</span>
               </div>
 
-              {favoriteSongs.length > 0 && canManagePlaylist && (
+              <div className="flex items-center gap-2">
+                {favoriteSongs.length > 0 && canManagePlaylist && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const itemsToAdd: Omit<PlaylistItem, 'id'>[] = favoriteSongs.map((f) => ({
+                        videoId: f.videoId,
+                        title: f.title,
+                        channel: f.channel || 'YouTube',
+                        thumbnail: f.thumbnail || `https://i.ytimg.com/vi/${f.videoId}/hqdefault.jpg`,
+                        duration: f.duration || 'YouTube',
+                        addedBy: currentUser?.name || 'คุณ',
+                      }));
+                      if (onAddToPlaylistBatch) {
+                        onAddToPlaylistBatch(itemsToAdd);
+                      } else {
+                        itemsToAdd.forEach((item) => onAddToPlaylist(item));
+                      }
+                      onShowToast(`เพิ่มเพลงโปรดทั้งหมด (${itemsToAdd.length} เพลง) เข้าคิวแล้ว ❤️`, 'success');
+                      setActiveTab('queue');
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>เพิ่มทั้งหมดเข้าคิว</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
-                  onClick={() => {
-                    const itemsToAdd: Omit<PlaylistItem, 'id'>[] = favoriteSongs.map((f) => ({
-                      videoId: f.videoId,
-                      title: f.title,
-                      channel: f.channel || 'YouTube',
-                      thumbnail: f.thumbnail || `https://i.ytimg.com/vi/${f.videoId}/hqdefault.jpg`,
-                      duration: f.duration || 'YouTube',
-                      addedBy: currentUser?.name || 'คุณ',
-                    }));
-                    if (onAddToPlaylistBatch) {
-                      onAddToPlaylistBatch(itemsToAdd);
-                    } else {
-                      itemsToAdd.forEach((item) => onAddToPlaylist(item));
-                    }
-                    onShowToast(`เพิ่มเพลงโปรดทั้งหมด (${itemsToAdd.length} เพลง) เข้าคิวแล้ว ❤️`, 'success');
-                    setActiveTab('queue');
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                  onClick={() => setActiveTab('queue')}
+                  className="text-xs text-[#0075de] hover:underline flex items-center gap-1 cursor-pointer font-medium"
                 >
-                  <Plus className="w-3 h-3" />
-                  <span>เพิ่มทั้งหมดเข้าคิว</span>
+                  <X className="w-3.5 h-3.5" />
+                  <span>กลับคิวเพลง</span>
                 </button>
-              )}
+              </div>
             </div>
 
             {loadingFavorites ? (
