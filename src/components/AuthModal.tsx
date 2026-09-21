@@ -16,8 +16,6 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { UserProfile } from '../types/index.js';
-import { createGoogleUser, createFacebookUser } from '../services/auth.js';
-import { signInWithGoogle, signInWithFacebook, isSupabaseConfigured } from '../services/supabase.js';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -37,7 +35,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onLogout,
 }) => {
   const [authMode, setAuthMode] = useState<'signin' | 'register' | 'forgot'>('signin');
-  const [loadingProvider, setLoadingProvider] = useState<'google' | 'facebook' | 'email' | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -93,13 +91,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
-  const isMember = currentUser.provider === 'google' || currentUser.provider === 'facebook' || currentUser.provider === 'email';
+  const isMember = currentUser.provider === 'email';
 
   // 1. Handle Member Sign In (Email + Password)
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
-    setLoadingProvider('email');
+    setIsLoading(true);
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -121,7 +119,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err) {
       setErrorMessage('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง');
     } finally {
-      setLoadingProvider(null);
+      setIsLoading(false);
     }
   };
 
@@ -147,7 +145,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    setLoadingProvider('email');
+    setIsLoading(true);
     try {
       const res = await fetch('/api/auth/send-otp', {
         method: 'POST',
@@ -170,7 +168,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err) {
       setErrorMessage('เกิดข้อผิดพลาดในการส่งรหัส OTP');
     } finally {
-      setLoadingProvider(null);
+      setIsLoading(false);
     }
   };
 
@@ -184,7 +182,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    setLoadingProvider('email');
+    setIsLoading(true);
     try {
       const res = await fetch('/api/auth/verify-otp', {
         method: 'POST',
@@ -205,7 +203,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err) {
       setErrorMessage('เกิดข้อผิดพลาดในการยืนยันรหัส OTP');
     } finally {
-      setLoadingProvider(null);
+      setIsLoading(false);
     }
   };
 
@@ -219,7 +217,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    setLoadingProvider('email');
+    setIsLoading(true);
     try {
       const res = await fetch('/api/auth/forgot-password/send-otp', {
         method: 'POST',
@@ -238,7 +236,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err) {
       setErrorMessage('เกิดข้อผิดพลาดในการส่งรหัส OTP');
     } finally {
-      setLoadingProvider(null);
+      setIsLoading(false);
     }
   };
 
@@ -260,7 +258,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    setLoadingProvider('email');
+    setIsLoading(true);
     try {
       const res = await fetch('/api/auth/forgot-password/reset', {
         method: 'POST',
@@ -282,57 +280,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err) {
       setErrorMessage('เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน');
     } finally {
-      setLoadingProvider(null);
-    }
-  };
-
-  // Trigger Google Login
-  const handleGoogleAuth = async () => {
-    setLoadingProvider('google');
-    setErrorMessage(null);
-    try {
-      if (isSupabaseConfigured()) {
-        const { error } = await signInWithGoogle();
-        if (error) throw error;
-      } else {
-        const demoUser = createGoogleUser(
-          'Music Traveler 🎧',
-          'music.fan@gmail.com',
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80'
-        );
-        onLoginSuccess(demoUser);
-        onClose();
-      }
-    } catch (err: any) {
-      console.error('Google login error:', err);
-      setErrorMessage(err.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย Google');
-    } finally {
-      setLoadingProvider(null);
-    }
-  };
-
-  // Trigger Facebook Login
-  const handleFacebookAuth = async () => {
-    setLoadingProvider('facebook');
-    setErrorMessage(null);
-    try {
-      if (isSupabaseConfigured()) {
-        const { error } = await signInWithFacebook();
-        if (error) throw error;
-      } else {
-        const demoUser = createFacebookUser(
-          'Melody Lover 🎵',
-          'melody.pleng@facebook.com',
-          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80'
-        );
-        onLoginSuccess(demoUser);
-        onClose();
-      }
-    } catch (err: any) {
-      console.error('Facebook login error:', err);
-      setErrorMessage(err.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย Facebook');
-    } finally {
-      setLoadingProvider(null);
+      setIsLoading(false);
     }
   };
 
@@ -442,16 +390,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     Email Member
                   </span>
                 )}
-                {currentUser.provider === 'google' && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-rose-50 text-rose-600 border border-rose-200 text-[9px] font-medium">
-                    Google
-                  </span>
-                )}
-                {currentUser.provider === 'facebook' && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-blue-50 text-[#1877F2] border border-blue-200 text-[9px] font-medium">
-                    Facebook
-                  </span>
-                )}
                 {(!currentUser.provider || currentUser.provider === 'guest') && (
                   <span className="px-1.5 py-0.2 rounded-full bg-white text-[#615d59] border border-[#e6e6e6] text-[9px] font-medium">
                     Guest Mode
@@ -547,10 +485,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <button
                 type="submit"
-                disabled={loadingProvider !== null}
+                disabled={isLoading}
                 className="w-full py-2.5 px-4 rounded-xl bg-[#0075de] hover:bg-[#0062bd] text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
               >
-                <span>{loadingProvider === 'email' ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบ'}</span>
+                <span>{isLoading ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบ'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
@@ -625,11 +563,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <button
                 type="submit"
-                disabled={loadingProvider !== null}
+                disabled={isLoading}
                 className="w-full mt-2 py-2.5 px-4 rounded-xl bg-[#0075de] hover:bg-[#0062bd] text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
               >
                 <Mail className="w-4 h-4" />
-                <span>{loadingProvider === 'email' ? 'กำลังส่งรหัส...' : 'ขอรับรหัสยืนยัน OTP ทาง Email'}</span>
+                <span>{isLoading ? 'กำลังส่งรหัส...' : 'ขอรับรหัสยืนยัน OTP ทาง Email'}</span>
               </button>
             </form>
           )}
@@ -663,11 +601,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <button
                 type="submit"
-                disabled={loadingProvider !== null || otpCode.length !== 6}
+                disabled={isLoading || otpCode.length !== 6}
                 className="w-full py-2.5 px-4 rounded-xl bg-[#0075de] hover:bg-[#0062bd] text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>{loadingProvider === 'email' ? 'กำลังตรวจสอบรหัส...' : 'ยืนยันรหัสและเปิดใช้งานบัญชี'}</span>
+                <span>{isLoading ? 'กำลังตรวจสอบรหัส...' : 'ยืนยันรหัสและเปิดใช้งานบัญชี'}</span>
               </button>
 
               <div className="flex items-center justify-between text-xs pt-1 text-[#615d59]">
@@ -681,7 +619,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 <button
                   type="button"
-                  disabled={resendCooldown > 0 || loadingProvider !== null}
+                  disabled={resendCooldown > 0 || isLoading}
                   onClick={handleSendOtp}
                   className="hover:text-[#0075de] disabled:opacity-40 cursor-pointer flex items-center gap-1"
                 >
@@ -719,11 +657,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <button
                 type="submit"
-                disabled={loadingProvider !== null}
+                disabled={isLoading}
                 className="w-full py-2.5 px-4 rounded-xl bg-[#0075de] hover:bg-[#0062bd] text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
               >
                 <Mail className="w-4 h-4" />
-                <span>{loadingProvider === 'email' ? 'กำลังส่งรหัส...' : 'ขอรับรหัส OTP เพื่อรีเซ็ตรหัสผ่าน'}</span>
+                <span>{isLoading ? 'กำลังส่งรหัส...' : 'ขอรับรหัส OTP เพื่อรีเซ็ตรหัสผ่าน'}</span>
               </button>
             </form>
           )}
@@ -784,11 +722,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <button
                 type="submit"
-                disabled={loadingProvider !== null || forgotOtpCode.length !== 6}
+                disabled={isLoading || forgotOtpCode.length !== 6}
                 className="w-full py-2.5 px-4 rounded-xl bg-[#0075de] hover:bg-[#0062bd] text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>{loadingProvider === 'email' ? 'กำลังบันทึก...' : 'บันทึกรหัสผ่านใหม่และเข้าสู่ระบบ'}</span>
+                <span>{isLoading ? 'กำลังบันทึก...' : 'บันทึกรหัสผ่านใหม่และเข้าสู่ระบบ'}</span>
               </button>
 
               <div className="flex items-center justify-between text-xs pt-1 text-[#615d59]">
@@ -802,7 +740,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 <button
                   type="button"
-                  disabled={forgotResendCooldown > 0 || loadingProvider !== null}
+                  disabled={forgotResendCooldown > 0 || isLoading}
                   onClick={handleForgotSendOtp}
                   className="hover:text-[#0075de] disabled:opacity-40 cursor-pointer flex items-center gap-1"
                 >
@@ -811,46 +749,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </div>
             </form>
-          )}
-
-          {/* Social Sign-in Divider (Visible only on Sign In) */}
-          {authMode === 'signin' && (
-            <div className="pt-2 border-t border-[#e6e6e6] space-y-2.5">
-              <div className="relative flex py-1 items-center">
-                <div className="flex-grow border-t border-[#e6e6e6]"></div>
-                <span className="flex-shrink mx-2 text-[10px] text-[#a39e98] uppercase font-semibold">หรือเข้าสู่ระบบด้วย</span>
-                <div className="flex-grow border-t border-[#e6e6e6]"></div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  disabled={loadingProvider !== null}
-                  onClick={handleGoogleAuth}
-                  className="py-2 px-3 rounded-xl bg-white hover:bg-[#f6f5f4] text-[#000000] font-semibold text-xs border border-[#e6e6e6] flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
-                    <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z" />
-                    <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5.1 3.7-8.8z" />
-                    <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.8 0-1.2.2-2.1.4-2.8L1.9 6.3C.7 8.7 0 10.8 0 12s.7 3.3 1.9 5.7l3.7-2.9z" />
-                    <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 16.4C3.7 20.4 7.5 23 12 23z" />
-                  </svg>
-                  <span>Google</span>
-                </button>
-
-                <button
-                  type="button"
-                  disabled={loadingProvider !== null}
-                  onClick={handleFacebookAuth}
-                  className="py-2 px-3 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                >
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                  </svg>
-                  <span>Facebook</span>
-                </button>
-              </div>
-            </div>
           )}
 
           {/* Member Benefits */}
