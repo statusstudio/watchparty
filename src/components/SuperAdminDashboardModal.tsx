@@ -1082,7 +1082,7 @@ export const SuperAdminDashboardModal: React.FC<SuperAdminDashboardModalProps> =
                   <span>จัดการบัญชีผู้ดูแลระบบ (Admin Account Settings)</span>
                 </h2>
                 <p className="text-xs text-[#615d59] mt-1">
-                  แก้ไข Email หลักและรหัสผ่านสำหรับเข้าสู่ระบบหลังบ้าน (เริ่มต้น: user: admin, pass: admin888)
+                  แก้ไข Email หลักและรหัสผ่านสำหรับเข้าสู่ระบบหลังบ้าน
                 </p>
               </div>
 
@@ -1162,7 +1162,7 @@ export const SuperAdminDashboardModal: React.FC<SuperAdminDashboardModalProps> =
                       type="password"
                       value={adminCurrentPass}
                       onChange={(e) => setAdminCurrentPass(e.target.value)}
-                      placeholder="กรอกรหัสผ่านปัจจุบันของคุณ (เริ่มต้น: admin888)"
+                      placeholder="กรอกรหัสผ่านปัจจุบันของคุณ"
                       className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-amber-500 transition-all font-mono"
                       required
                     />

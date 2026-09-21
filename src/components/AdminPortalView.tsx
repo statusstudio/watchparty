@@ -62,8 +62,8 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('watchparty_superadmin') === 'true';
   });
-  const [loginUsername, setLoginUsername] = useState('admin');
-  const [loginPassword, setLoginPassword] = useState('admin888');
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -694,9 +694,6 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
             <p className="text-xs text-[#615d59] mt-1">
               เข้าสู่ระบบเฉพาะเจ้าของเว็บไซต์และผู้ดูแลระบบสูงสุด
             </p>
-            <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-mono">
-              <span>เริ่มต้น: user: <strong>admin</strong> | pass: <strong>admin888</strong></span>
-            </div>
           </div>
 
           {/* Form */}
@@ -1086,7 +1083,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                     type="password"
                     value={editCurrentPass}
                     onChange={(e) => setEditCurrentPass(e.target.value)}
-                    placeholder="กรอกรหัสผ่านปัจจุบันของคุณ (เริ่มต้นคือ admin888)"
+                    placeholder="กรอกรหัสผ่านปัจจุบันของคุณ"
                     className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-amber-500 transition-all font-mono"
                     required
                   />
