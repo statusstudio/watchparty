@@ -120,7 +120,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, [onOpenAdminLogin, onShowToast]);
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
+    const cleanUrl = `${window.location.origin}/#${roomId}`;
+    navigator.clipboard.writeText(cleanUrl);
     setCopied(true);
     onShowToast('คัดลอกลิงก์ห้องแล้ว ส่งให้เพื่อนได้เลย! 📋', 'success');
     setTimeout(() => setCopied(false), 2000);

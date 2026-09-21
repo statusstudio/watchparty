@@ -62,9 +62,18 @@ function isAdminPath(): boolean {
 }
 
 function getHashRoomId(): string | null {
-  const hash = window.location.hash;
-  const match = hash.match(/room=([a-zA-Z0-9_-]+)/);
-  return match && match[1] ? match[1] : null;
+  const hash = window.location.hash.replace(/^#/, '').trim();
+  if (!hash || hash.startsWith('admin')) {
+    return null;
+  }
+  // Check if legacy #room=xxxx format
+  const legacyMatch = hash.match(/room=([a-zA-Z0-9_-]+)/);
+  if (legacyMatch && legacyMatch[1]) {
+    return legacyMatch[1];
+  }
+  // Clean hash format: e.g. #chill or #m7x8k2
+  const cleanMatch = hash.match(/^([a-zA-Z0-9_-]+)/);
+  return cleanMatch && cleanMatch[1] ? cleanMatch[1] : null;
 }
 
 export function App() {
@@ -923,7 +932,7 @@ export function App() {
   };
 
   const handleSelectRoom = (targetRoomId: string) => {
-    window.location.hash = `#room=${targetRoomId}`;
+    window.location.hash = `#${targetRoomId}`;
     setRoomId(targetRoomId);
     setCurrentView('room');
     syncRoomState(targetRoomId);

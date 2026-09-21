@@ -100,7 +100,12 @@ async function startServer() {
       return res.status(400).json({ error: 'Missing name or user' });
     }
 
-    const roomId = 'room-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 4);
+    // Generate clean, short 6-character room ID (e.g. "m7x8k2")
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+    let roomId = '';
+    for (let i = 0; i < 6; i++) {
+      roomId += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
     roomManager.createRoom(roomId, {
       name,
       description,

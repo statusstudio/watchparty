@@ -86,9 +86,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const trimmed = quickRoomCode.trim();
     if (!trimmed) return;
 
-    // Handle full URL or room code
-    const match = trimmed.match(/room=([a-zA-Z0-9_-]+)/);
-    const targetRoomId = match ? match[1] : trimmed;
+    // Handle full URL or room code (supports #chill, #room=chill, or raw code)
+    const legacyMatch = trimmed.match(/room=([a-zA-Z0-9_-]+)/);
+    const hashMatch = trimmed.match(/#([a-zA-Z0-9_-]+)/);
+    const targetRoomId = legacyMatch
+      ? legacyMatch[1]
+      : hashMatch
+      ? hashMatch[1]
+      : trimmed.replace(/^[#/]+/, '');
     onSelectRoom(targetRoomId);
   };
 
