@@ -589,6 +589,160 @@ export class PlatformManager {
     return Array.from(this.users.values()).sort((a, b) => b.lastActiveAt - a.lastActiveAt);
   }
 
+  public createMemberAdmin(
+    email: string,
+    name: string,
+    pass: string,
+    isSuperAdmin: boolean = false
+  ): { success: boolean; user?: PlatformUser; message?: string } {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { success: false, message: 'กรุณากรอกอีเมลให้ถูกต้อง' };
+    }
+    if (!name.trim()) {
+      return { success: false, message: 'กรุณากรอกชื่อสมาชิก' };
+    }
+    if (this.userAccounts.has(cleanEmail)) {
+      return { success: false, message: 'อีเมลนี้มีอยู่ในระบบแล้ว' };
+    }
+    if (pass.trim().length < 6) {
+      return { success: false, message: 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร' };
+    }
+
+    const userId = 'usr-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6);
+    const now = Date.now();
+    const avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name.trim())}`;
+    const colors = ['#0075de', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    const passwordHash = emailService.hashPassword(pass.trim());
+
+    const account: StoredUserAccount = {
+      id: userId,
+      email: cleanEmail,
+      name: name.trim(),
+      passwordHash,
+      avatar,
+      color: randomColor,
+      createdAt: now,
+      lastLoginAt: now,
+    };
+
+    const platformUser: PlatformUser = {
+      id: userId,
+      name: account.name,
+      email: account.email,
+      avatar: account.avatar,
+      color: account.color,
+      provider: 'email',
+      isSuperAdmin: !!isSuperAdmin,
+      isSuspended: false,
+      createdAt: now,
+      lastActiveAt: now,
+    };
+
+    this.userAccounts.set(cleanEmail, account);
+    this.users.set(userId, platformUser);
+    this.scheduleSave();
+
+    return { success: true, user: platformUser, message: 'เพิ่มสมาชิกใหม่สำเร็จ' };
+  }
+
+  public updateMemberAdmin(
+    userId: string,
+    data: {
+      name?: string;
+      email?: string;
+      newPassword?: string;
+      isSuperAdmin?: boolean;
+      isSuspended?: boolean;
+    }
+  ): { success: boolean; user?: PlatformUser; message?: string } {
+    const user = this.users.get(userId);
+    if (!user) {
+      return { success: false, message: 'ไม่พบผู้ใช้ในระบบ' };
+    }
+
+    // Protect main admin account from being suspended or stripped of admin
+    if (user.id === 'admin') {
+      if (data.isSuspended) {
+        return { success: false, message: 'ไม่สามารถระงับบัญชีผู้ดูแลระบบหลักได้' };
+      }
+      if (data.isSuperAdmin === false) {
+        return { success: false, message: 'ไม่สามารถปลดสิทธิ์ผู้ดูแลระบบหลักได้' };
+      }
+    }
+
+    let account: StoredUserAccount | undefined;
+    if (user.email) {
+      account = this.userAccounts.get(user.email.toLowerCase());
+    }
+
+    // Check if email is changing
+    if (data.email && data.email.trim().toLowerCase() !== user.email?.toLowerCase()) {
+      const newEmailClean = data.email.trim().toLowerCase();
+      if (!newEmailClean.includes('@')) {
+        return { success: false, message: 'กรุณากรอกอีเมลให้ถูกต้อง' };
+      }
+      if (this.userAccounts.has(newEmailClean)) {
+        return { success: false, message: 'อีเมลนี้ถูกใช้งานโดยบัญชีอื่นแล้ว' };
+      }
+      if (account) {
+        this.userAccounts.delete(account.email.toLowerCase());
+        account.email = newEmailClean;
+        this.userAccounts.set(newEmailClean, account);
+      }
+      user.email = newEmailClean;
+    }
+
+    if (data.name && data.name.trim()) {
+      user.name = data.name.trim();
+      if (account) account.name = data.name.trim();
+    }
+
+    if (data.newPassword && data.newPassword.trim()) {
+      if (data.newPassword.trim().length < 6) {
+        return { success: false, message: 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร' };
+      }
+      const newHash = emailService.hashPassword(data.newPassword.trim());
+      if (account) {
+        account.passwordHash = newHash;
+      }
+      if (user.id === 'admin') {
+        this.adminCredentials.passwordHash = newHash;
+      }
+    }
+
+    if (data.isSuperAdmin !== undefined && user.id !== 'admin') {
+      user.isSuperAdmin = !!data.isSuperAdmin;
+    }
+
+    if (data.isSuspended !== undefined && user.id !== 'admin') {
+      user.isSuspended = !!data.isSuspended;
+    }
+
+    this.scheduleSave();
+    return { success: true, user, message: 'แก้ไขข้อมูลสมาชิกสำเร็จ' };
+  }
+
+  public deleteMemberAdmin(userId: string): { success: boolean; message?: string } {
+    if (userId === 'admin') {
+      return { success: false, message: 'ไม่สามารถลบบัญชีผู้ดูแลระบบสูงสุด (Super Admin) ได้' };
+    }
+
+    const user = this.users.get(userId);
+    if (!user) {
+      return { success: false, message: 'ไม่พบผู้ใช้ในระบบ' };
+    }
+
+    if (user.email) {
+      this.userAccounts.delete(user.email.toLowerCase());
+    }
+    this.users.delete(userId);
+    this.scheduleSave();
+
+    return { success: true, message: `ลบสมาชิก "${user.name}" ออกจากระบบเรียบร้อยแล้ว` };
+  }
+
   public createTicket(
     userId: string,
     userName: string,

@@ -399,6 +399,51 @@ async function startServer() {
     res.json(platformManager.getAllUsers());
   });
 
+  // Create New User (Admin Direct Creation)
+  app.post('/api/platform/users', (req, res) => {
+    try {
+      const { email, name, password, isSuperAdmin } = req.body;
+      const result = platformManager.createMemberAdmin(email, name, password, isSuperAdmin);
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json({ error: result.message });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: 'ไม่สามารถสร้างผู้ใช้ได้' });
+    }
+  });
+
+  // Update User Details (Admin Direct Update)
+  app.put('/api/platform/users/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = platformManager.updateMemberAdmin(id, req.body);
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json({ error: result.message });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: 'ไม่สามารถอัพเดทผู้ใช้ได้' });
+    }
+  });
+
+  // Delete User Permanently (Admin Direct Delete)
+  app.delete('/api/platform/users/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = platformManager.deleteMemberAdmin(id);
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json({ error: result.message });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: 'ไม่สามารถลบผู้ใช้ได้' });
+    }
+  });
+
   // Suspend / Unsuspend User
   app.post('/api/platform/users/:id/suspend', (req, res) => {
     const { id } = req.params;

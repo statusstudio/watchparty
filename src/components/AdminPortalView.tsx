@@ -28,6 +28,11 @@ import {
   HelpCircle,
   Eye,
   EyeOff,
+  UserPlus,
+  Edit,
+  Trash2,
+  Search,
+  X,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -103,6 +108,31 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const [users, setUsers] = useState<PlatformUser[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
+
+  // User Management State
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'admin' | 'member' | 'suspended'>('all');
+
+  // Add User Modal State
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserIsSuperAdmin, setNewUserIsSuperAdmin] = useState(false);
+  const [addingUser, setAddingUser] = useState(false);
+
+  // Edit User Modal State
+  const [editingUser, setEditingUser] = useState<PlatformUser | null>(null);
+  const [editUserName, setEditUserName] = useState('');
+  const [editUserEmail, setEditUserEmail] = useState('');
+  const [editUserNewPassword, setEditUserNewPassword] = useState('');
+  const [editUserIsSuperAdmin, setEditUserIsSuperAdmin] = useState(false);
+  const [editUserIsSuspended, setEditUserIsSuspended] = useState(false);
+  const [savingEditUser, setSavingEditUser] = useState(false);
+
+  // Delete User Confirmation State
+  const [deletingUser, setDeletingUser] = useState<PlatformUser | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   // Ad popup form state
   const [adEnabled, setAdEnabled] = useState(false);
@@ -524,6 +554,127 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       }
     } catch (err) {
       onShowToast('เกิดข้อผิดพลาดในการระงับผู้ใช้', 'warning');
+    }
+  };
+
+  // Create User Handler
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserName.trim()) {
+      onShowToast('กรุณากรอกชื่อสมาชิก', 'warning');
+      return;
+    }
+    if (!newUserEmail.trim() || !newUserEmail.includes('@')) {
+      onShowToast('กรุณากรอกอีเมลให้ถูกต้อง', 'warning');
+      return;
+    }
+    if (newUserPassword.length < 6) {
+      onShowToast('รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร', 'warning');
+      return;
+    }
+
+    setAddingUser(true);
+    try {
+      const res = await fetch('/api/platform/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newUserName.trim(),
+          email: newUserEmail.trim(),
+          password: newUserPassword.trim(),
+          isSuperAdmin: newUserIsSuperAdmin,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onShowToast(`เพิ่มสมาชิก "${newUserName}" สำเร็จ 🎉`, 'success');
+        setIsAddUserModalOpen(false);
+        setNewUserName('');
+        setNewUserEmail('');
+        setNewUserPassword('');
+        setNewUserIsSuperAdmin(false);
+        fetchUsers();
+      } else {
+        onShowToast(data.error || 'ไม่สามารถสร้างผู้ใช้ได้', 'warning');
+      }
+    } catch (err) {
+      onShowToast('เกิดข้อผิดพลาดในการสร้างผู้ใช้', 'warning');
+    } finally {
+      setAddingUser(false);
+    }
+  };
+
+  // Open Edit User Modal
+  const handleOpenEditUser = (user: PlatformUser) => {
+    setEditingUser(user);
+    setEditUserName(user.name);
+    setEditUserEmail(user.email || '');
+    setEditUserNewPassword('');
+    setEditUserIsSuperAdmin(!!user.isSuperAdmin);
+    setEditUserIsSuspended(!!user.isSuspended);
+  };
+
+  // Save Edit User
+  const handleSaveEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    if (!editUserName.trim()) {
+      onShowToast('กรุณากรอกชื่อสมาชิก', 'warning');
+      return;
+    }
+    if (editUserNewPassword && editUserNewPassword.length < 6) {
+      onShowToast('รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 6 ตัวอักษร', 'warning');
+      return;
+    }
+
+    setSavingEditUser(true);
+    try {
+      const res = await fetch(`/api/platform/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editUserName.trim(),
+          email: editUserEmail.trim() || undefined,
+          newPassword: editUserNewPassword.trim() || undefined,
+          isSuperAdmin: editUserIsSuperAdmin,
+          isSuspended: editUserIsSuspended,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onShowToast(`อัพเดทข้อมูลของ "${editUserName}" สำเร็จ ✨`, 'success');
+        setEditingUser(null);
+        fetchUsers();
+      } else {
+        onShowToast(data.error || 'ไม่สามารถแก้ไขข้อมูลได้', 'warning');
+      }
+    } catch (err) {
+      onShowToast('เกิดข้อผิดพลาดในการแก้ไขข้อมูล', 'warning');
+    } finally {
+      setSavingEditUser(false);
+    }
+  };
+
+  // Delete User Confirmation
+  const handleConfirmDeleteUser = async () => {
+    if (!deletingUser) return;
+    setIsDeletingUser(true);
+    try {
+      const res = await fetch(`/api/platform/users/${deletingUser.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onShowToast(data.message || 'ลบสมาชิกสำเร็จ', 'success');
+        setDeletingUser(null);
+        fetchUsers();
+      } else {
+        onShowToast(data.error || 'ไม่สามารถลบสมาชิกได้', 'warning');
+      }
+    } catch (err) {
+      onShowToast('เกิดข้อผิดพลาดในการลบสมาชิก', 'warning');
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -1542,74 +1693,483 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
 
         {/* TAB 5: USERS MANAGEMENT */}
         {activeTab === 'users' && (
-          <div className="bg-white border border-[#e6e6e6] rounded-2xl p-6 shadow-xs space-y-6">
-            <div className="border-b border-[#e6e6e6] pb-4 flex items-center justify-between">
+          <div className="bg-white border border-[#e6e6e6] rounded-2xl p-6 shadow-xs space-y-5">
+            {/* Header & Add User Button */}
+            <div className="border-b border-[#e6e6e6] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-bold text-[#000000] flex items-center gap-2">
                   <Users className="w-5 h-5 text-[#0075de]" />
-                  <span>จัดการสมาชิก ({users.length})</span>
+                  <span>จัดการสมาชิก ({users.length} คน)</span>
                 </h2>
-                <p className="text-xs text-[#615d59] mt-1">
-                  รายชื่อสมาชิกทั้งหมดที่ลงทะเบียนในระบบ
+                <p className="text-xs text-[#615d59] mt-0.5">
+                  เพิ่ม ลบ แก้ไขข้อมูลสมาชิก และตั้งรหัสผ่านใหม่ให้กับผู้ใช้งานในระบบ
                 </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={fetchUsers}
+                  className="p-2.5 rounded-xl border border-[#e6e6e6] hover:bg-[#f6f5f4] text-[#615d59] hover:text-[#000000] transition-colors cursor-pointer"
+                  title="รีเฟรชรายชื่อ"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAddUserModalOpen(true)}
+                  className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#0075de] to-[#005fb8] hover:from-[#0065c0] hover:to-[#004f9e] text-white font-semibold text-xs shadow-xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>เพิ่มสมาชิกใหม่</span>
+                </button>
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Search & Filter Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              {/* Search */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  placeholder="ค้นหาชื่อผู้ใช้, อีเมล หรือ ID..."
+                  className="w-full pl-9 pr-8 py-2 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all"
+                />
+                {userSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setUserSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#a39e98] hover:text-[#000000]"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Filters */}
+              <div className="flex items-center gap-1 bg-[#f6f5f4] p-1 rounded-xl border border-[#e6e6e6] overflow-x-auto text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setUserRoleFilter('all')}
+                  className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                    userRoleFilter === 'all'
+                      ? 'bg-white text-[#0075de] shadow-xs'
+                      : 'text-[#615d59] hover:text-[#000000]'
+                  }`}
+                >
+                  ทั้งหมด ({users.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserRoleFilter('member')}
+                  className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                    userRoleFilter === 'member'
+                      ? 'bg-white text-[#0075de] shadow-xs'
+                      : 'text-[#615d59] hover:text-[#000000]'
+                  }`}
+                >
+                  สมาชิก ({users.filter((u) => !u.isSuperAdmin && !u.isSuspended).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserRoleFilter('admin')}
+                  className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                    userRoleFilter === 'admin'
+                      ? 'bg-white text-amber-600 shadow-xs'
+                      : 'text-[#615d59] hover:text-[#000000]'
+                  }`}
+                >
+                  👑 แอดมิน ({users.filter((u) => u.isSuperAdmin).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserRoleFilter('suspended')}
+                  className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                    userRoleFilter === 'suspended'
+                      ? 'bg-white text-rose-600 shadow-xs'
+                      : 'text-[#615d59] hover:text-[#000000]'
+                  }`}
+                >
+                  ระงับ ({users.filter((u) => u.isSuspended).length})
+                </button>
+              </div>
+            </div>
+
+            {/* Users Table */}
+            <div className="overflow-x-auto border border-[#e6e6e6] rounded-xl">
               <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-[#e6e6e6] text-[#615d59] font-semibold">
-                    <th className="py-2.5 px-3">ผู้ใช้</th>
-                    <th className="py-2.5 px-3">อีเมล</th>
+                <thead className="bg-[#f6f5f4] border-b border-[#e6e6e6] text-[#615d59] text-[11px] font-semibold uppercase">
+                  <tr>
+                    <th className="py-2.5 px-3">ผู้ใช้งาน (User)</th>
+                    <th className="py-2.5 px-3">อีเมล (Email)</th>
+                    <th className="py-2.5 px-3">สิทธิ์ (Role)</th>
                     <th className="py-2.5 px-3">สถานะ</th>
-                    <th className="py-2.5 px-3 text-right">จัดการ</th>
+                    <th className="py-2.5 px-3 text-right">เครื่องมือจัดการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e6e6e6]">
-                  {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-[#f6f5f4]/50 transition-colors">
-                      <td className="py-3 px-3 flex items-center gap-2.5">
-                        <img src={u.avatar} alt={u.name} className="w-8 h-8 rounded-full border" />
-                        <div>
-                          <p className="font-bold text-[#000000]">{u.name}</p>
-                          <span className="text-[10px] text-gray-400 font-mono">{u.id}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-3 text-[#615d59]">{u.email || '-'}</td>
-                      <td className="py-3 px-3">
-                        {u.isSuperAdmin ? (
-                          <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 text-[10px] font-bold">
-                            👑 Super Admin
-                          </span>
-                        ) : u.isSuspended ? (
-                          <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200 text-[10px] font-bold">
-                            ระงับการใช้งาน
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-bold">
-                            ปกติ
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-3 text-right">
-                        {!u.isSuperAdmin && (
-                          <button
-                            onClick={() => handleSuspendUser(u.id, !!u.isSuspended, u.name)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
-                              u.isSuspended
-                                ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                                : 'bg-rose-50 text-rose-600 hover:bg-rose-100'
-                            }`}
-                          >
-                            {u.isSuspended ? 'ปลดระงับ' : 'ระงับบัญชี'}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {users
+                    .filter((u) => {
+                      const q = userSearchQuery.trim().toLowerCase();
+                      const matchQuery =
+                        !q ||
+                        u.name.toLowerCase().includes(q) ||
+                        (u.email && u.email.toLowerCase().includes(q)) ||
+                        u.id.toLowerCase().includes(q);
+
+                      if (!matchQuery) return false;
+                      if (userRoleFilter === 'admin') return !!u.isSuperAdmin;
+                      if (userRoleFilter === 'member') return !u.isSuperAdmin && !u.isSuspended;
+                      if (userRoleFilter === 'suspended') return !!u.isSuspended;
+                      return true;
+                    })
+                    .map((u) => (
+                      <tr key={u.id} className="hover:bg-[#f6f5f4]/50 transition-colors">
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-2.5">
+                            <img
+                              src={u.avatar}
+                              alt={u.name}
+                              className="w-8 h-8 rounded-full border border-[#e6e6e6] shrink-0 bg-white"
+                            />
+                            <div>
+                              <p className="font-bold text-[#000000] flex items-center gap-1.5">
+                                <span>{u.name}</span>
+                                {u.id === 'admin' && (
+                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-normal">
+                                    หลัก
+                                  </span>
+                                )}
+                              </p>
+                              <span className="text-[10px] text-gray-400 font-mono block">{u.id}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 font-mono text-[#615d59]">
+                          {u.email || '-'}
+                        </td>
+                        <td className="py-3 px-3">
+                          {u.isSuperAdmin ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-semibold">
+                              👑 Super Admin
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold">
+                              สมาชิกทั่วไป
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3">
+                          {u.isSuspended ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-semibold">
+                              ระงับการใช้งาน
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
+                              ใช้งานปกติ
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <div className="inline-flex items-center gap-1.5">
+                            {/* Edit Button */}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditUser(u)}
+                              className="p-1.5 rounded-lg border border-[#e6e6e6] hover:bg-[#0075de]/10 hover:border-[#0075de]/30 text-[#615d59] hover:text-[#0075de] transition-colors cursor-pointer"
+                              title="แก้ไขข้อมูล & เปลี่ยนรหัสผ่าน"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Suspend / Unsuspend */}
+                            {u.id !== 'admin' && (
+                              <button
+                                type="button"
+                                onClick={() => handleSuspendUser(u.id, !!u.isSuspended, u.name)}
+                                className={`px-2 py-1 rounded-lg text-xs font-semibold cursor-pointer border ${
+                                  u.isSuspended
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                    : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                                }`}
+                                title={u.isSuspended ? 'ปลดการระงับ' : 'ระงับบัญชี'}
+                              >
+                                {u.isSuspended ? 'ปลดระงับ' : 'ระงับ'}
+                              </button>
+                            )}
+
+                            {/* Delete User */}
+                            {u.id !== 'admin' && (
+                              <button
+                                type="button"
+                                onClick={() => setDeletingUser(u)}
+                                className="p-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition-colors cursor-pointer"
+                                title="ลบสมาชิกถาวร"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
+
+              {users.length === 0 && (
+                <div className="text-center py-10 text-gray-400 text-xs">
+                  ยังไม่มีสมาชิกในระบบ
+                </div>
+              )}
             </div>
+
+            {/* MODAL 1: ADD NEW USER */}
+            {isAddUserModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+                <div className="w-full max-w-md bg-white border border-[#e6e6e6] rounded-2xl shadow-notion-modal overflow-hidden">
+                  <div className="p-5 border-b border-[#e6e6e6] flex items-center justify-between bg-[#fcfbf9]">
+                    <div className="flex items-center gap-2">
+                      <UserPlus className="w-5 h-5 text-[#0075de]" />
+                      <h3 className="text-sm font-bold text-[#000000]">เพิ่มสมาชิกใหม่โดยแอดมิน</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddUserModalOpen(false)}
+                      className="text-[#a39e98] hover:text-[#000000] p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleCreateUser} className="p-5 space-y-4">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-[#000000]">
+                        ชื่อแสดง (Display Name) *
+                      </label>
+                      <input
+                        type="text"
+                        value={newUserName}
+                        onChange={(e) => setNewUserName(e.target.value)}
+                        placeholder="เช่น น้องเพลง หรือ DJ Max"
+                        className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de]"
+                        required
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-[#000000]">
+                        อีเมล (Email Address) *
+                      </label>
+                      <input
+                        type="email"
+                        value={newUserEmail}
+                        onChange={(e) => setNewUserEmail(e.target.value)}
+                        placeholder="เช่น member@pleng.online หรือ user@gmail.com"
+                        className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] font-mono"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-[#000000]">
+                        รหัสผ่านเริ่มต้น (Password) *
+                      </label>
+                      <input
+                        type="password"
+                        value={newUserPassword}
+                        onChange={(e) => setNewUserPassword(e.target.value)}
+                        placeholder="ความยาวอย่างน้อย 6 ตัวอักษร"
+                        className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] font-mono"
+                        required
+                      />
+                    </div>
+
+                    <div className="p-3 bg-[#f6f5f4] rounded-xl border border-[#e6e6e6] flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-bold text-[#000000] block">ตั้งเป็น Super Admin</span>
+                        <span className="text-[11px] text-[#615d59]">มอบสิทธิ์ผู้ดูแลระบบสูงสุด</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={newUserIsSuperAdmin}
+                        onChange={(e) => setNewUserIsSuperAdmin(e.target.checked)}
+                        className="w-4 h-4 rounded accent-[#0075de] cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="pt-3 border-t border-[#e6e6e6] flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddUserModalOpen(false)}
+                        className="py-2.5 px-4 rounded-xl border border-[#e6e6e6] hover:bg-[#f6f5f4] text-xs font-semibold text-[#615d59] transition-colors cursor-pointer"
+                      >
+                        ยกเลิก
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={addingUser}
+                        className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-[#0075de] to-[#005fb8] hover:from-[#0065c0] hover:to-[#004f9e] text-white font-semibold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>{addingUser ? 'กำลังสร้าง...' : 'สร้างบัญชีสมาชิก'}</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* MODAL 2: EDIT USER */}
+            {editingUser && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+                <div className="w-full max-w-md bg-white border border-[#e6e6e6] rounded-2xl shadow-notion-modal overflow-hidden">
+                  <div className="p-5 border-b border-[#e6e6e6] flex items-center justify-between bg-[#fcfbf9]">
+                    <div className="flex items-center gap-2">
+                      <Edit className="w-5 h-5 text-[#0075de]" />
+                      <h3 className="text-sm font-bold text-[#000000]">แก้ไขข้อมูลสมาชิก: {editingUser.name}</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditingUser(null)}
+                      className="text-[#a39e98] hover:text-[#000000] p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleSaveEditUser} className="p-5 space-y-4">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-[#000000]">
+                        ชื่อแสดง (Display Name) *
+                      </label>
+                      <input
+                        type="text"
+                        value={editUserName}
+                        onChange={(e) => setEditUserName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de]"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-[#000000]">
+                        อีเมล (Email Address)
+                      </label>
+                      <input
+                        type="email"
+                        value={editUserEmail}
+                        onChange={(e) => setEditUserEmail(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-[#000000] flex items-center justify-between">
+                        <span>ตั้งรหัสผ่านใหม่ (Reset Password)</span>
+                        <span className="text-[10px] text-gray-400 font-normal">เว้นว่างไว้เพื่อคงรหัสผ่านเดิม</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={editUserNewPassword}
+                        onChange={(e) => setEditUserNewPassword(e.target.value)}
+                        placeholder="กรอกรหัสผ่านใหม่หากต้องการเปลี่ยน..."
+                        className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] font-mono"
+                      />
+                    </div>
+
+                    {editingUser.id !== 'admin' && (
+                      <div className="space-y-2 pt-2 border-t border-[#e6e6e6]">
+                        <label className="flex items-center justify-between p-3 rounded-xl bg-[#f6f5f4] border border-[#e6e6e6] cursor-pointer">
+                          <div>
+                            <span className="text-xs font-bold text-[#000000] block">สิทธิ์ Super Admin</span>
+                            <span className="text-[11px] text-[#615d59]">ให้สิทธิ์จัดการระบบหลังบ้าน</span>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={editUserIsSuperAdmin}
+                            onChange={(e) => setEditUserIsSuperAdmin(e.target.checked)}
+                            className="w-4 h-4 rounded accent-[#0075de] cursor-pointer"
+                          />
+                        </label>
+
+                        <label className="flex items-center justify-between p-3 rounded-xl bg-[#f6f5f4] border border-[#e6e6e6] cursor-pointer">
+                          <div>
+                            <span className="text-xs font-bold text-[#000000] block">ระงับการใช้งานบัญชี (Suspended)</span>
+                            <span className="text-[11px] text-[#615d59]">ห้ามเข้าสู่ระบบและห้ามเข้าห้อง</span>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={editUserIsSuspended}
+                            onChange={(e) => setEditUserIsSuspended(e.target.checked)}
+                            className="w-4 h-4 rounded accent-rose-600 cursor-pointer"
+                          />
+                        </label>
+                      </div>
+                    )}
+
+                    <div className="pt-3 border-t border-[#e6e6e6] flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingUser(null)}
+                        className="py-2.5 px-4 rounded-xl border border-[#e6e6e6] hover:bg-[#f6f5f4] text-xs font-semibold text-[#615d59] transition-colors cursor-pointer"
+                      >
+                        ยกเลิก
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={savingEditUser}
+                        className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-[#0075de] to-[#005fb8] hover:from-[#0065c0] hover:to-[#004f9e] text-white font-semibold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        <span>{savingEditUser ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* MODAL 3: DELETE CONFIRMATION */}
+            {deletingUser && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+                <div className="w-full max-w-sm bg-white border border-[#e6e6e6] rounded-2xl shadow-notion-modal overflow-hidden p-6 text-center space-y-4">
+                  <div className="w-12 h-12 rounded-full bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto">
+                    <Trash2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-[#000000]">ยืนยันการลบสมาชิกถาวร</h3>
+                    <p className="text-xs text-[#615d59] mt-1">
+                      คุณต้องการลบบัญชีของ <strong>&quot;{deletingUser.name}&quot;</strong> ({deletingUser.email || deletingUser.id}) ออกจากระบบถาวรหรือไม่?
+                    </p>
+                    <p className="text-[11px] text-rose-600 mt-2">
+                      * การลบจะไม่สามารถกู้คืนได้ และอีเมลนี้จะสามารถนำมาสมัครใหม่ได้
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setDeletingUser(null)}
+                      className="py-2.5 px-4 rounded-xl border border-[#e6e6e6] hover:bg-[#f6f5f4] text-xs font-semibold text-[#615d59] transition-colors cursor-pointer"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isDeletingUser}
+                      onClick={handleConfirmDeleteUser}
+                      className="py-2.5 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{isDeletingUser ? 'กำลังลบ...' : 'ยืนยันลบสมาชิก'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
