@@ -31,6 +31,9 @@ import {
   Image as ImageIcon,
   Link as LinkIcon,
   ExternalLink,
+  Mail,
+  KeyRound,
+  Save,
 } from 'lucide-react';
 import {
   PlatformStats,
@@ -59,9 +62,20 @@ export const SuperAdminDashboardModal: React.FC<SuperAdminDashboardModalProps> =
   onShowToast,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'widgets' | 'ad_popup' | 'users' | 'rooms' | 'announcements' | 'tickets'
+    'overview' | 'widgets' | 'ad_popup' | 'users' | 'rooms' | 'announcements' | 'tickets' | 'admin_account'
   >('overview');
   const [loading, setLoading] = useState(false);
+
+  // Admin Account Credentials State
+  const [adminCreds, setAdminCreds] = useState<{ username: string; email: string }>({
+    username: 'admin',
+    email: 'admin@pleng.online',
+  });
+  const [adminEditEmail, setAdminEditEmail] = useState('');
+  const [adminCurrentPass, setAdminCurrentPass] = useState('');
+  const [adminNewPass, setAdminNewPass] = useState('');
+  const [adminConfirmPass, setAdminConfirmPass] = useState('');
+  const [savingAdminAccount, setSavingAdminAccount] = useState(false);
 
   // Ad Popup State
   const [adEnabled, setAdEnabled] = useState(false);
@@ -117,6 +131,7 @@ export const SuperAdminDashboardModal: React.FC<SuperAdminDashboardModalProps> =
     setLoading(true);
     try {
       await Promise.all([
+        fetchAdminCreds(),
         fetchStats(),
         fetchAnalytics(),
         fetchConfig(),
@@ -128,6 +143,64 @@ export const SuperAdminDashboardModal: React.FC<SuperAdminDashboardModalProps> =
       console.error('Failed to load dashboard data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAdminCreds = async () => {
+    try {
+      const res = await fetch('/api/admin/credentials');
+      if (res.ok) {
+        const data = await res.json();
+        setAdminCreds(data);
+        setAdminEditEmail(data.email || 'admin@pleng.online');
+      }
+    } catch (e) {}
+  };
+
+  const handleSaveAdminAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminCurrentPass.trim()) {
+      onShowToast('กรุณากรอกรหัสผ่านปัจจุบันเพื่อยืนยันการแก้ไข', 'warning');
+      return;
+    }
+    if (adminNewPass) {
+      if (adminNewPass.length < 6) {
+        onShowToast('รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 6 ตัวอักษร', 'warning');
+        return;
+      }
+      if (adminNewPass !== adminConfirmPass) {
+        onShowToast('รหัสผ่านใหม่และยืนยันรหัสผ่านไม่ตรงกัน', 'warning');
+        return;
+      }
+    }
+    setSavingAdminAccount(true);
+    try {
+      const res = await fetch('/api/admin/update-credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: adminCurrentPass.trim(),
+          newEmail: adminEditEmail.trim(),
+          newPassword: adminNewPass.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAdminCreds({
+          username: data.credentials?.username || adminCreds.username,
+          email: data.credentials?.email || adminEditEmail.trim(),
+        });
+        setAdminCurrentPass('');
+        setAdminNewPass('');
+        setAdminConfirmPass('');
+        onShowToast('บันทึกข้อมูลบัญชีแอดมินเรียบร้อยแล้ว 🔐', 'success');
+      } else {
+        onShowToast(data.error || 'ไม่สามารถบันทึกข้อมูลได้', 'warning');
+      }
+    } catch (err) {
+      onShowToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'warning');
+    } finally {
+      setSavingAdminAccount(false);
     }
   };
 
@@ -664,10 +737,131 @@ export const SuperAdminDashboardModal: React.FC<SuperAdminDashboardModalProps> =
               </span>
             )}
           </button>
+
+          <button
+            onClick={() => setActiveTab('admin_account')}
+            className={`py-2 px-3 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'admin_account'
+                ? 'bg-amber-500/10 text-amber-700 font-bold'
+                : 'text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4]'
+            }`}
+          >
+            <Lock className="w-3.5 h-3.5 text-amber-500" />
+            <span>🔐 บัญชีแอดมิน & รหัสผ่าน</span>
+          </button>
         </div>
 
         {/* Tab Content Area */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-white">
+          {/* TAB 0: ADMIN ACCOUNT MANAGEMENT */}
+          {activeTab === 'admin_account' && (
+            <div className="space-y-6 max-w-2xl">
+              <div className="border-b border-[#e6e6e6] pb-4">
+                <h2 className="text-base font-bold text-[#000000] flex items-center gap-2">
+                  <Crown className="w-5 h-5 text-amber-500" />
+                  <span>จัดการบัญชีผู้ดูแลระบบ (Admin Account Settings)</span>
+                </h2>
+                <p className="text-xs text-[#615d59] mt-1">
+                  แก้ไข Email หลักและรหัสผ่านสำหรับเข้าสู่ระบบหลังบ้าน (เริ่มต้น: user: admin, pass: admin888)
+                </p>
+              </div>
+
+              {/* Current Info */}
+              <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-[11px] text-[#615d59] uppercase font-semibold">ชื่อบัญชีผู้ดูแลระบบ (Username)</span>
+                  <p className="text-sm font-bold text-[#000000] mt-0.5">{adminCreds.username}</p>
+                </div>
+                <div>
+                  <span className="text-[11px] text-[#615d59] uppercase font-semibold">อีเมลหลักปัจจุบัน</span>
+                  <p className="text-sm font-bold text-amber-700 mt-0.5">{adminCreds.email}</p>
+                </div>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSaveAdminAccount} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-[#000000]">
+                    อีเมลหลักใหม่ (New Primary Email)
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      value={adminEditEmail}
+                      onChange={(e) => setAdminEditEmail(e.target.value)}
+                      placeholder="เช่น admin@pleng.online หรือ your-email@gmail.com"
+                      className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-amber-500 transition-all font-medium"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-[#e6e6e6]">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-[#000000]">
+                      รหัสผ่านใหม่ <span className="text-gray-400 font-normal">(เว้นว่างหากไม่เปลี่ยน)</span>
+                    </label>
+                    <div className="relative">
+                      <KeyRound className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="password"
+                        value={adminNewPass}
+                        onChange={(e) => setAdminNewPass(e.target.value)}
+                        placeholder="อย่างน้อย 6 ตัวอักษร"
+                        className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-amber-500 transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-[#000000]">
+                      ยืนยันรหัสผ่านใหม่
+                    </label>
+                    <div className="relative">
+                      <KeyRound className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="password"
+                        value={adminConfirmPass}
+                        onChange={(e) => setAdminConfirmPass(e.target.value)}
+                        placeholder="กรอกรหัสผ่านใหม่อีกครั้ง"
+                        className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-amber-500 transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1 pt-2 border-t border-[#e6e6e6]">
+                  <label className="block text-xs font-semibold text-[#000000] flex items-center justify-between">
+                    <span>รหัสผ่านปัจจุบัน (Current Password) *</span>
+                    <span className="text-[11px] text-amber-600 font-normal">จำเป็นต้องระบุเพื่อความปลอดภัย</span>
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      value={adminCurrentPass}
+                      onChange={(e) => setAdminCurrentPass(e.target.value)}
+                      placeholder="กรอกรหัสผ่านปัจจุบันของคุณ (เริ่มต้น: admin888)"
+                      className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-amber-500 transition-all font-mono"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={savingAdminAccount || !adminCurrentPass.trim()}
+                    className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold text-xs shadow-xs flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>{savingAdminAccount ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลงบัญชีแอดมิน'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
           {/* TAB 1: ANALYTICS & OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6">

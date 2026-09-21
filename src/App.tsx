@@ -40,6 +40,7 @@ import { PasswordGateModal } from './components/PasswordGateModal.js';
 import { AdminPanelModal } from './components/AdminPanelModal.js';
 import { SuperAdminUnlockModal } from './components/SuperAdminUnlockModal.js';
 import { SuperAdminDashboardModal } from './components/SuperAdminDashboardModal.js';
+import { AdminPortalView } from './components/AdminPortalView.js';
 import { AdPopupModal } from './components/AdPopupModal.js';
 import { SupportModal } from './components/SupportModal.js';
 import { FloatingItem } from './components/FloatingReactions.js';
@@ -53,6 +54,13 @@ import {
   checkIsFavorite,
 } from './services/supabase.js';
 
+function isAdminPath(): boolean {
+  return (
+    window.location.pathname.startsWith('/admin') ||
+    window.location.hash.startsWith('#admin')
+  );
+}
+
 function getHashRoomId(): string | null {
   const hash = window.location.hash;
   const match = hash.match(/room=([a-zA-Z0-9_-]+)/);
@@ -60,6 +68,20 @@ function getHashRoomId(): string | null {
 }
 
 export function App() {
+  const [isAdminRoute, setIsAdminRoute] = useState<boolean>(() => isAdminPath());
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setIsAdminRoute(isAdminPath());
+    };
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
+  }, []);
+
   const initialRoom = getHashRoomId();
   const [currentView, setCurrentView] = useState<'home' | 'room'>(initialRoom ? 'room' : 'home');
   const [roomId, setRoomId] = useState<string>(initialRoom || 'squad-chill');
@@ -1317,6 +1339,22 @@ export function App() {
     setReactions((prev) => prev.filter((r) => r.id !== id));
   };
 
+  if (isAdminRoute) {
+    return (
+      <>
+        <AdminPortalView
+          onNavigateHome={() => {
+            window.history.pushState({}, '', '/');
+            setIsAdminRoute(false);
+            setCurrentView('home');
+          }}
+          onShowToast={showToast}
+        />
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      </>
+    );
+  }
+
   return (
     <div className="h-[100dvh] max-h-[100dvh] bg-[#0f0f13] text-gray-100 flex flex-col overflow-hidden selection:bg-purple-500 selection:text-white">
       {/* Toast Notifications */}
@@ -1350,16 +1388,12 @@ export function App() {
         onLogout={handleLogout}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         onOpenSuperAdminDashboard={() => {
-          if (isSuperAdmin) {
-            setIsSuperAdminModalOpen(true);
-          } else {
-            setAuthModalInitialTab('admin');
-            setIsAuthModalOpen(true);
-          }
+          window.history.pushState({}, '', '/admin');
+          setIsAdminRoute(true);
         }}
         onOpenAdminLogin={() => {
-          setAuthModalInitialTab('admin');
-          setIsAuthModalOpen(true);
+          window.history.pushState({}, '', '/admin');
+          setIsAdminRoute(true);
         }}
         onOpenSupport={() => setIsSupportModalOpen(true)}
         onShowToast={showToast}

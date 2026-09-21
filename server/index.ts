@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { RoomManager } from './roomManager.js';
 import { platformManager } from './platformManager.js';
+import { emailService } from './emailService.js';
 import { searchYouTube, extractYouTubePlaylistId, fetchYouTubePlaylist } from './youtubeSearch.js';
 import { WSClientMessage } from '../src/types/index.js';
 
@@ -123,9 +124,133 @@ async function startServer() {
     res.json(roomState);
   });
 
-  // === Platform Super Admin & Support Endpoints ===
+  // === Member Authentication Endpoints (Email & 6-digit OTP) ===
 
-  // Verify Master Passcode
+  // 1. Send OTP for Member Registration
+  app.post('/api/auth/send-otp', async (req, res) => {
+    try {
+      const { email, name, password } = req.body;
+      if (!email || !email.includes('@')) {
+        return res.status(400).json({ error: 'กรุณากรอกอีเมลให้ถูกต้อง' });
+      }
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'กรุณากรอกชื่อที่ต้องการแสดง' });
+      }
+      if (!password || password.length < 6) {
+        return res.status(400).json({ error: 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร' });
+      }
+
+      if (platformManager.isEmailRegistered(email)) {
+        return res.status(400).json({ error: 'อีเมลนี้ได้ลงทะเบียนในระบบแล้ว กรุณาเข้าสู่ระบบ' });
+      }
+
+      await emailService.createRegistrationOtp(email, name, password);
+      res.json({
+        success: true,
+        message: 'ส่งรหัสยืนยัน 6 หลักไปยังอีเมลของคุณเรียบร้อยแล้ว กรุณาตรวจสอบกล่องจดหมาย',
+      });
+    } catch (err: any) {
+      console.error('Send OTP error:', err);
+      res.status(500).json({ error: 'ไม่สามารถส่งรหัสยืนยันได้ กรุณาลองใหม่อีกครั้ง' });
+    }
+  });
+
+  // 2. Verify OTP and Complete Member Registration
+  app.post('/api/auth/verify-otp', (req, res) => {
+    try {
+      const { email, code } = req.body;
+      if (!email || !code) {
+        return res.status(400).json({ error: 'กรุณากรอกอีเมลและรหัสยืนยัน OTP' });
+      }
+
+      const verifyResult = emailService.verifyOtp(email, code);
+      if (!verifyResult.success || !verifyResult.data) {
+        return res.status(400).json({ error: verifyResult.message || 'รหัสยืนยันไม่ถูกต้องหรือหมดอายุ' });
+      }
+
+      const { name, passwordHash } = verifyResult.data;
+      const regResult = platformManager.registerMember(email, name, passwordHash);
+      if (!regResult.success || !regResult.user) {
+        return res.status(400).json({ error: regResult.message || 'เกิดข้อผิดพลาดในการสร้างบัญชี' });
+      }
+
+      res.json({
+        success: true,
+        user: regResult.user,
+        message: 'ยืนยันตัวตนและสมัครสมาชิกสำเร็จ ยินดีต้อนรับสู่ pleng.online 🎉',
+      });
+    } catch (err: any) {
+      console.error('Verify OTP error:', err);
+      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการยืนยันรหัส OTP' });
+    }
+  });
+
+  // 3. Member Login with Email & Password
+  app.post('/api/auth/login', (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ error: 'กรุณากรอกอีเมลและรหัสผ่าน' });
+      }
+
+      const loginResult = platformManager.loginMember(email, password);
+      if (!loginResult.success || !loginResult.user) {
+        return res.status(401).json({ error: loginResult.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
+      }
+
+      res.json({
+        success: true,
+        user: loginResult.user,
+        message: 'เข้าสู่ระบบสำเร็จ',
+      });
+    } catch (err: any) {
+      console.error('Member login error:', err);
+      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ' });
+    }
+  });
+
+  // === Dedicated Admin Endpoints (/admin) ===
+
+  // Admin Login (supports username: 'admin' or email, password: 'admin888')
+  app.post('/api/admin/login', (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'กรุณากรอกชื่อผู้ใช้หรืออีเมล และรหัสผ่าน' });
+    }
+
+    const result = platformManager.adminLogin(username, password);
+    if (result.success && result.user) {
+      res.json({
+        success: true,
+        user: result.user,
+        message: 'เข้าสู่ระบบผู้ดูแลระบบสำเร็จ 👑',
+      });
+    } else {
+      res.status(401).json({ error: result.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
+    }
+  });
+
+  // Get Admin Account Credentials Info (Username, Email)
+  app.get('/api/admin/credentials', (req, res) => {
+    res.json(platformManager.getAdminCredentials());
+  });
+
+  // Update Admin Account (Primary Email & Password)
+  app.post('/api/admin/update-credentials', (req, res) => {
+    const { currentPassword, newEmail, newPassword } = req.body;
+    if (!currentPassword) {
+      return res.status(400).json({ error: 'กรุณาระบุรหัสผ่านปัจจุบันเพื่อยืนยันตัวตน' });
+    }
+
+    const result = platformManager.updateAdminCredentials(currentPassword, newEmail, newPassword);
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json({ error: result.message });
+    }
+  });
+
+  // Verify Master Passcode (Legacy support)
   app.post('/api/platform/auth', (req, res) => {
     const { passcode } = req.body;
     if (platformManager.verifyMasterPasscode(passcode)) {
@@ -135,28 +260,14 @@ async function startServer() {
     }
   });
 
-  // Owner / Super Admin Login Endpoint
+  // Owner / Super Admin Login Endpoint (Legacy support)
   app.post('/api/platform/admin-login', (req, res) => {
     const { username, passcode } = req.body;
-    if (platformManager.verifyMasterPasscode(passcode)) {
-      const adminName = username?.trim()
-        ? (username.includes('👑') ? username.trim() : `${username.trim()} 👑`)
-        : 'System Admin 👑';
-
-      const adminUser = platformManager.recordUser({
-        id: 'usr-admin-system',
-        name: adminName,
-        email: 'admin@watchparty.live',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
-        color: '#dd5b00',
-        provider: 'google',
-        isSuperAdmin: true,
-      });
-
-      platformManager.setSuperAdmin('usr-admin-system', true);
+    const result = platformManager.adminLogin(username || 'admin', passcode || '');
+    if (result.success && result.user) {
       res.json({
         success: true,
-        user: adminUser,
+        user: result.user,
         message: 'เข้าสู่ระบบในฐานะเจ้าของระบบสำเร็จ 👑',
       });
     } else {

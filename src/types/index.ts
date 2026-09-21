@@ -1,4 +1,4 @@
-export type AuthProvider = 'google' | 'facebook' | 'guest';
+export type AuthProvider = 'google' | 'facebook' | 'guest' | 'email';
 
 export interface UserSocialLinks {
   instagram?: string;
@@ -355,6 +355,7 @@ export interface PlatformAnalytics {
     google: number;
     facebook: number;
     guest: number;
+    email: number;
   };
   activeRooms: number;
   topTracks: TrackPlayStat[];

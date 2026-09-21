@@ -14,20 +14,48 @@ import {
   PlatformAnalytics,
 } from '../src/types/index.js';
 import type { RoomManager } from './roomManager.js';
+import { emailService } from './emailService.js';
 
 const DATA_DIR = path.resolve(process.cwd(), 'server', 'data');
 const STORE_FILE = path.join(DATA_DIR, 'platform_store.json');
 export const MASTER_PASSCODE = process.env.ADMIN_MASTER_KEY || 'admin888';
+
+export interface AdminCredentials {
+  username: string;
+  passwordHash: string;
+  email: string;
+  updatedAt: number;
+}
+
+export interface StoredUserAccount {
+  id: string;
+  email: string;
+  name: string;
+  passwordHash: string;
+  avatar: string;
+  color: string;
+  createdAt: number;
+  lastLoginAt: number;
+}
 
 interface StoreSchema {
   users: PlatformUser[];
   tickets: SupportTicket[];
   config?: PlatformConfig;
   topTracks?: TrackPlayStat[];
+  adminCredentials?: AdminCredentials;
+  userAccounts?: StoredUserAccount[];
 }
 
 export class PlatformManager {
   private users: Map<string, PlatformUser> = new Map();
+  private userAccounts: Map<string, StoredUserAccount> = new Map();
+  private adminCredentials: AdminCredentials = {
+    username: 'admin',
+    passwordHash: emailService.hashPassword('admin888'),
+    email: 'admin@pleng.online',
+    updatedAt: Date.now(),
+  };
   private tickets: Map<string, SupportTicket> = new Map();
   private config: PlatformConfig = { ...DEFAULT_PLATFORM_CONFIG };
   private topTracks: Map<string, TrackPlayStat> = new Map();
@@ -55,12 +83,46 @@ export class PlatformManager {
       try {
         const raw = fs.readFileSync(STORE_FILE, 'utf-8');
         const data: StoreSchema = JSON.parse(raw);
-        if (Array.isArray(data.users)) {
-          data.users.forEach((u) => this.users.set(u.id, u));
+
+        // Load Admin Credentials
+        if (data.adminCredentials && data.adminCredentials.username && data.adminCredentials.passwordHash) {
+          this.adminCredentials = {
+            username: data.adminCredentials.username,
+            passwordHash: data.adminCredentials.passwordHash,
+            email: data.adminCredentials.email || 'admin@pleng.online',
+            updatedAt: data.adminCredentials.updatedAt || Date.now(),
+          };
         }
+
+        // Load Registered User Accounts
+        if (Array.isArray(data.userAccounts)) {
+          data.userAccounts.forEach((acc) => {
+            this.userAccounts.set(acc.email.toLowerCase(), acc);
+          });
+        }
+
+        // Load Users
+        if (Array.isArray(data.users)) {
+          data.users.forEach((u) => {
+            // Map legacy admin if any to new admin ID
+            if (u.id === 'usr-admin-system' || u.id === 'admin') {
+              this.users.set('admin', {
+                ...u,
+                id: 'admin',
+                name: this.adminCredentials.username,
+                email: this.adminCredentials.email,
+                isSuperAdmin: true,
+              });
+            } else {
+              this.users.set(u.id, u);
+            }
+          });
+        }
+
         if (Array.isArray(data.tickets)) {
           data.tickets.forEach((t) => this.tickets.set(t.id, t));
         }
+
         if (data.config) {
           this.config = {
             ...DEFAULT_PLATFORM_CONFIG,
@@ -88,6 +150,7 @@ export class PlatformManager {
               : DEFAULT_PLATFORM_CONFIG.announcementBanner,
           };
         }
+
         if (Array.isArray(data.topTracks)) {
           data.topTracks.forEach((tr) => this.topTracks.set(tr.videoId, tr));
         }
@@ -103,6 +166,8 @@ export class PlatformManager {
       try {
         const data: StoreSchema = {
           users: Array.from(this.users.values()),
+          userAccounts: Array.from(this.userAccounts.values()),
+          adminCredentials: this.adminCredentials,
           tickets: Array.from(this.tickets.values()),
           config: this.config,
           topTracks: Array.from(this.topTracks.values()),
@@ -115,18 +180,18 @@ export class PlatformManager {
   }
 
   private seedDefaults() {
-    // Ensure System Admin exists and is Super Admin
-    if (!this.users.has('usr-admin-system')) {
-      this.users.set('usr-admin-system', {
-        id: 'usr-admin-system',
-        name: 'System Admin 👑',
-        email: 'admin@watchparty.live',
+    // Ensure Super Admin exists as user 'admin'
+    if (!this.users.has('admin')) {
+      this.users.set('admin', {
+        id: 'admin',
+        name: this.adminCredentials.username,
+        email: this.adminCredentials.email,
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
-        color: '#8b5cf6',
-        provider: 'google',
+        color: '#dd5b00',
+        provider: 'email',
         isSuperAdmin: true,
         isSuspended: false,
-        createdAt: Date.now() - 86400000 * 7,
+        createdAt: Date.now(),
         lastActiveAt: Date.now(),
       });
     }
@@ -135,9 +200,9 @@ export class PlatformManager {
     if (this.tickets.size === 0) {
       const sampleTicket: SupportTicket = {
         id: 'ticket-welcome',
-        userId: 'usr-admin-system',
-        userName: 'System Admin',
-        userEmail: 'admin@watchparty.live',
+        userId: 'admin',
+        userName: 'admin',
+        userEmail: this.adminCredentials.email,
         userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
         category: 'general',
         title: 'ยินดีต้อนรับสู่ระบบ Support & Feedback 🎉',
@@ -146,16 +211,16 @@ export class PlatformManager {
         messages: [
           {
             id: 'msg-init',
-            senderId: 'usr-admin-system',
-            senderName: 'System Admin 👑',
+            senderId: 'admin',
+            senderName: `${this.adminCredentials.username} 👑`,
             senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
             isSuperAdmin: true,
-            text: 'ยินดีต้อนรับสู่ระบบแจ้งปัญหา! ผู้ใช้สามารถส่งข้อความมาหาเจ้าของเว็บได้ตลอด 24 ชั่วโมงครับ',
-            timestamp: Date.now() - 3600000,
+            text: 'ยินดีต้อนรับสู่ระบบ pleng.online ผู้ใช้สามารถส่งข้อความมาหาเจ้าของเว็บได้ตลอด 24 ชั่วโมงครับ',
+            timestamp: Date.now(),
           },
         ],
-        createdAt: Date.now() - 3600000,
-        updatedAt: Date.now() - 3600000,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       };
       this.tickets.set(sampleTicket.id, sampleTicket);
     }
@@ -163,9 +228,195 @@ export class PlatformManager {
     this.scheduleSave();
   }
 
+  // --- Admin Authentication & Management ---
+
   public verifyMasterPasscode(code: string): boolean {
-    return String(code).trim() === MASTER_PASSCODE;
+    const trimmed = String(code).trim();
+    return trimmed === MASTER_PASSCODE || emailService.hashPassword(trimmed) === this.adminCredentials.passwordHash;
   }
+
+  public adminLogin(userOrEmail: string, pass: string): { success: boolean; user?: PlatformUser; message?: string } {
+    const identifier = userOrEmail.trim().toLowerCase();
+    const isUsernameMatch = identifier === this.adminCredentials.username.toLowerCase();
+    const isEmailMatch = identifier === this.adminCredentials.email.toLowerCase();
+
+    if (!isUsernameMatch && !isEmailMatch) {
+      return { success: false, message: 'ชื่อผู้ใช้หรืออีเมลแอดมินไม่ถูกต้อง' };
+    }
+
+    const hashed = emailService.hashPassword(pass);
+    if (hashed !== this.adminCredentials.passwordHash && pass.trim() !== MASTER_PASSCODE) {
+      return { success: false, message: 'รหัสผ่านแอดมินไม่ถูกต้อง' };
+    }
+
+    // Refresh admin in users map
+    const adminUser: PlatformUser = {
+      id: 'admin',
+      name: `${this.adminCredentials.username} 👑`,
+      email: this.adminCredentials.email,
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
+      color: '#dd5b00',
+      provider: 'email',
+      isSuperAdmin: true,
+      isSuspended: false,
+      createdAt: this.adminCredentials.updatedAt || Date.now(),
+      lastActiveAt: Date.now(),
+    };
+    this.users.set('admin', adminUser);
+    this.scheduleSave();
+
+    return { success: true, user: adminUser };
+  }
+
+  public getAdminCredentials(): { username: string; email: string; updatedAt: number } {
+    return {
+      username: this.adminCredentials.username,
+      email: this.adminCredentials.email,
+      updatedAt: this.adminCredentials.updatedAt,
+    };
+  }
+
+  public updateAdminCredentials(
+    currentPass: string,
+    newEmail?: string,
+    newPass?: string
+  ): { success: boolean; message: string; credentials?: { username: string; email: string } } {
+    const hashed = emailService.hashPassword(currentPass);
+    if (hashed !== this.adminCredentials.passwordHash && currentPass.trim() !== MASTER_PASSCODE) {
+      return { success: false, message: 'รหัสผ่านปัจจุบันไม่ถูกต้อง' };
+    }
+
+    if (newEmail && newEmail.trim()) {
+      this.adminCredentials.email = newEmail.trim().toLowerCase();
+    }
+
+    if (newPass && newPass.trim()) {
+      if (newPass.trim().length < 6) {
+        return { success: false, message: 'รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 6 ตัวอักษร' };
+      }
+      this.adminCredentials.passwordHash = emailService.hashPassword(newPass.trim());
+    }
+
+    this.adminCredentials.updatedAt = Date.now();
+
+    // Update admin user profile
+    const existingAdmin = this.users.get('admin');
+    if (existingAdmin) {
+      existingAdmin.email = this.adminCredentials.email;
+      existingAdmin.lastActiveAt = Date.now();
+    }
+
+    this.scheduleSave();
+    return {
+      success: true,
+      message: 'อัพเดทข้อมูลบัญชีแอดมินเรียบร้อยแล้ว',
+      credentials: {
+        username: this.adminCredentials.username,
+        email: this.adminCredentials.email,
+      },
+    };
+  }
+
+  // --- Member Registration & Login ---
+
+  public registerMember(
+    email: string,
+    name: string,
+    passwordHash: string
+  ): { success: boolean; user?: PlatformUser; message?: string } {
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Check if email already registered
+    if (this.userAccounts.has(cleanEmail)) {
+      return { success: false, message: 'อีเมลนี้ได้ลงทะเบียนในระบบแล้ว กรุณาเข้าสู่ระบบ' };
+    }
+
+    const userId = 'usr-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6);
+    const now = Date.now();
+    const avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name.trim())}`;
+    const colors = ['#0075de', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+    const account: StoredUserAccount = {
+      id: userId,
+      email: cleanEmail,
+      name: name.trim(),
+      passwordHash,
+      avatar,
+      color: randomColor,
+      createdAt: now,
+      lastLoginAt: now,
+    };
+
+    const platformUser: PlatformUser = {
+      id: userId,
+      name: account.name,
+      email: account.email,
+      avatar: account.avatar,
+      color: account.color,
+      provider: 'email',
+      isSuperAdmin: false,
+      isSuspended: false,
+      createdAt: now,
+      lastActiveAt: now,
+    };
+
+    this.userAccounts.set(cleanEmail, account);
+    this.users.set(userId, platformUser);
+    this.scheduleSave();
+
+    return { success: true, user: platformUser };
+  }
+
+  public loginMember(email: string, pass: string): { success: boolean; user?: PlatformUser; message?: string } {
+    const cleanEmail = email.trim().toLowerCase();
+    const account = this.userAccounts.get(cleanEmail);
+
+    if (!account) {
+      return { success: false, message: 'ไม่พบบัญชีผู้ใช้นี้ในระบบ กรุณาตรวจสอบอีเมลหรือสมัครสมาชิก' };
+    }
+
+    const hashed = emailService.hashPassword(pass);
+    if (account.passwordHash !== hashed) {
+      return { success: false, message: 'รหัสผ่านไม่ถูกต้อง' };
+    }
+
+    const user = this.users.get(account.id);
+    if (user && user.isSuspended) {
+      return { success: false, message: 'บัญชีของคุณถูกระงับการใช้งานชั่วคราว กรุณาติดต่อผู้ดูแลระบบ' };
+    }
+
+    const now = Date.now();
+    account.lastLoginAt = now;
+    if (user) {
+      user.lastActiveAt = now;
+    }
+    this.scheduleSave();
+
+    return { success: true, user: user || {
+      id: account.id,
+      name: account.name,
+      email: account.email,
+      avatar: account.avatar,
+      color: account.color,
+      provider: 'email',
+      isSuperAdmin: false,
+      isSuspended: false,
+      createdAt: account.createdAt,
+      lastActiveAt: now,
+    } };
+  }
+
+  public findUserByEmail(email: string): PlatformUser | undefined {
+    const cleanEmail = email.trim().toLowerCase();
+    return Array.from(this.users.values()).find((u) => u.email?.toLowerCase() === cleanEmail);
+  }
+
+  public isEmailRegistered(email: string): boolean {
+    return this.userAccounts.has(email.trim().toLowerCase());
+  }
+
+  // --- General User Tracking ---
 
   public recordUser(user: UserProfile, currentRoomId?: string): PlatformUser {
     const existing = this.users.get(user.id);
@@ -190,7 +441,7 @@ export class PlatformManager {
       avatar: user.avatar || '',
       color: user.color || '#8b5cf6',
       provider: user.provider || 'guest',
-      isSuperAdmin: user.id === 'usr-admin-system',
+      isSuperAdmin: user.id === 'admin',
       isSuspended: false,
       createdAt: now,
       lastActiveAt: now,
@@ -215,8 +466,7 @@ export class PlatformManager {
   public suspendUser(userId: string, isSuspended: boolean): boolean {
     const user = this.users.get(userId);
     if (!user) return false;
-    // Cannot suspend system admin
-    if (user.id === 'usr-admin-system') return false;
+    if (user.id === 'admin') return false;
 
     user.isSuspended = isSuspended;
     this.scheduleSave();
@@ -303,7 +553,6 @@ export class PlatformManager {
     ticket.messages.push(newMsg);
     ticket.updatedAt = now;
 
-    // If admin replies, update status to in_progress if it was pending
     if (isSuperAdmin && ticket.status === 'pending') {
       ticket.status = 'in_progress';
     }
@@ -393,11 +642,13 @@ export class PlatformManager {
       google: 0,
       facebook: 0,
       guest: 0,
+      email: 0,
     };
 
     for (const u of this.users.values()) {
       if (u.provider === 'google') usersByProvider.google++;
       else if (u.provider === 'facebook') usersByProvider.facebook++;
+      else if (u.provider === 'email') usersByProvider.email++;
       else usersByProvider.guest++;
     }
 
