@@ -413,7 +413,52 @@ export class PlatformManager {
   }
 
   public isEmailRegistered(email: string): boolean {
-    return this.userAccounts.has(email.trim().toLowerCase());
+    const cleanEmail = email.trim().toLowerCase();
+    return this.userAccounts.has(cleanEmail) || cleanEmail === this.adminCredentials.email.toLowerCase();
+  }
+
+  public resetMemberPassword(
+    email: string,
+    newPassword: string
+  ): { success: boolean; user?: PlatformUser; message?: string } {
+    const cleanEmail = email.trim().toLowerCase();
+    const isAdminEmail = cleanEmail === this.adminCredentials.email.toLowerCase();
+    const account = this.userAccounts.get(cleanEmail);
+
+    if (!account && !isAdminEmail) {
+      return { success: false, message: 'ไม่พบบัญชีผู้ใช้นี้ในระบบ' };
+    }
+
+    if (newPassword.trim().length < 6) {
+      return { success: false, message: 'รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 6 ตัวอักษร' };
+    }
+
+    const newHash = emailService.hashPassword(newPassword.trim());
+
+    if (account) {
+      account.passwordHash = newHash;
+      account.lastLoginAt = Date.now();
+    }
+
+    if (isAdminEmail) {
+      this.adminCredentials.passwordHash = newHash;
+      this.adminCredentials.updatedAt = Date.now();
+    }
+
+    this.scheduleSave();
+
+    let user: PlatformUser | undefined;
+    if (account) {
+      user = this.users.get(account.id);
+    } else if (isAdminEmail) {
+      user = this.users.get('admin');
+    }
+
+    return {
+      success: true,
+      user,
+      message: 'รีเซ็ตรหัสผ่านใหม่เรียบร้อยแล้ว',
+    };
   }
 
   // --- General User Tracking ---

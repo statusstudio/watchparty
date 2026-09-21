@@ -209,6 +209,62 @@ async function startServer() {
     }
   });
 
+  // 4. Send OTP for Password Reset (Forgot Password)
+  app.post('/api/auth/forgot-password/send-otp', async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email || !email.includes('@')) {
+        return res.status(400).json({ error: 'กรุณากรอกอีเมลให้ถูกต้อง' });
+      }
+
+      if (!platformManager.isEmailRegistered(email)) {
+        return res.status(404).json({ error: 'ไม่พบบัญชีที่ลงทะเบียนด้วยอีเมลนี้ในระบบ' });
+      }
+
+      await emailService.createPasswordResetOtp(email);
+      res.json({
+        success: true,
+        message: 'ส่งรหัสยืนยัน 6 หลักสำหรับรีเซ็ตรหัสผ่านไปยังอีเมลเรียบร้อยแล้ว',
+      });
+    } catch (err: any) {
+      console.error('Send forgot password OTP error:', err);
+      res.status(500).json({ error: 'ไม่สามารถส่งรหัสยืนยันได้ กรุณาลองใหม่อีกครั้ง' });
+    }
+  });
+
+  // 5. Verify OTP and Reset Password
+  app.post('/api/auth/forgot-password/reset', (req, res) => {
+    try {
+      const { email, code, newPassword } = req.body;
+      if (!email || !code || !newPassword) {
+        return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 6 ตัวอักษร' });
+      }
+
+      const verifyResult = emailService.verifyPasswordResetOtp(email, code);
+      if (!verifyResult.success) {
+        return res.status(400).json({ error: verifyResult.message || 'รหัสยืนยันไม่ถูกต้องหรือหมดอายุ' });
+      }
+
+      const resetResult = platformManager.resetMemberPassword(email, newPassword);
+      if (!resetResult.success) {
+        return res.status(400).json({ error: resetResult.message || 'เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน' });
+      }
+
+      res.json({
+        success: true,
+        user: resetResult.user,
+        message: 'รีเซ็ตรหัสผ่านสำเร็จ ยินดีต้อนรับกลับเข้าสู่ระบบ 🎉',
+      });
+    } catch (err: any) {
+      console.error('Reset password error:', err);
+      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน' });
+    }
+  });
+
   // === Dedicated Admin Endpoints (/admin) ===
 
   // Admin Login (supports username: 'admin' or email, password: 'admin888')
