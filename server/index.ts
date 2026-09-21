@@ -439,7 +439,10 @@ async function startServer() {
             roomManager.handlePlaylistPrev(ws);
             break;
           case 'SEND_CHAT':
-            roomManager.handleChat(ws, msg.text);
+            roomManager.handleChat(ws, msg.text, (msg as any).imageUrl);
+            break;
+          case 'CLOSE_ROOM':
+            roomManager.handleCloseRoom(ws);
             break;
           case 'EMOJI_REACTION':
             roomManager.handleEmojiReaction(ws, msg.emoji);

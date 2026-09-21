@@ -1,4 +1,7 @@
 import { WebSocket } from 'ws';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { platformManager } from './platformManager.js';
 import {
   RoomState,
@@ -20,6 +23,11 @@ import {
   DEFAULT_ROOM_WIDGETS,
 } from '../src/types/index.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DATA_DIR = path.resolve(__dirname, 'data');
+const PERSISTENT_ROOMS_FILE = path.join(DATA_DIR, 'persistent_rooms.json');
+
 interface ClientConnection {
   ws: WebSocket;
   user: UserProfile;
@@ -40,15 +48,25 @@ interface InternalRoomData {
   chat: ChatMessage[];
   adminIds: Set<string>;
   bannedUsers: Map<string, BannedUser>;
+  isMemberRoom?: boolean;
+  lastActiveTime?: number;
+  emptySince?: number | null;
 }
 
 export class RoomManager {
   private rooms: Map<string, InternalRoomData> = new Map();
   private clients: Map<WebSocket, ClientConnection> = new Map();
   public pendingUsers: Map<WebSocket, UserProfile> = new Map();
+  private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor() {
-    // Rooms are created dynamically on demand when users create them
+    // 1. Re-hydrate persistent member rooms from disk
+    this.loadPersistentRooms();
+
+    // 2. Set up periodic expiration & cleanup interval (runs every 60s)
+    this.cleanupInterval = setInterval(() => {
+      this.checkRoomExpirations();
+    }, 60000);
   }
 
   private createDefaultSeats(): StageSeat[] {
@@ -58,6 +76,139 @@ export class RoomManager {
       isMuted: false,
       isSpeaking: false,
     }));
+  }
+
+  private loadPersistentRooms() {
+    try {
+      if (!fs.existsSync(PERSISTENT_ROOMS_FILE)) return;
+      const raw = fs.readFileSync(PERSISTENT_ROOMS_FILE, 'utf-8');
+      const savedList = JSON.parse(raw);
+      if (Array.isArray(savedList)) {
+        const now = Date.now();
+        const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
+        for (const r of savedList) {
+          if (r.lastActiveTime && now - r.lastActiveTime > FIVE_DAYS_MS) {
+            console.log(`[RoomManager] Skipping expired member room ${r.metadata?.id}`);
+            continue;
+          }
+          const roomData: InternalRoomData = {
+            metadata: r.metadata,
+            seats: this.createDefaultSeats(),
+            video: r.video || {
+              videoId: '',
+              title: '',
+              channel: '',
+              duration: 0,
+              currentTime: 0,
+              isPlaying: false,
+              lastUpdated: Date.now(),
+            },
+            playlist: r.playlist || [],
+            loopMode: r.loopMode || 'all',
+            isShuffle: r.isShuffle || false,
+            lastVideoEndedTime: 0,
+            stageAccessMode: r.stageAccessMode || 'everyone',
+            approvedSpeakerIds: new Set<string>([r.metadata.ownerId]),
+            pendingStageRequests: new Map<string, StageRequest>(),
+            chat: [
+              {
+                id: 'msg-welcome',
+                sender: {
+                  id: 'system',
+                  name: 'WatchParty Bot 🤖',
+                  avatar:
+                    'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%238b5cf6"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2zM7.5 13a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm9 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>',
+                  color: '#8b5cf6',
+                },
+                text: `ยินดีต้อนรับกลับสู่ห้อง "${r.metadata.name}"! เพลย์ลิสต์ได้รับการบันทึกไว้เรียบร้อยแล้ว 🎵`,
+                timestamp: Date.now(),
+              },
+            ],
+            adminIds: new Set<string>(),
+            bannedUsers: new Map<string, BannedUser>(),
+            isMemberRoom: true,
+            lastActiveTime: r.lastActiveTime || Date.now(),
+            emptySince: null,
+          };
+          this.rooms.set(r.metadata.id, roomData);
+        }
+        console.log(`[RoomManager] Re-hydrated ${this.rooms.size} persistent member rooms from disk.`);
+      }
+    } catch (err) {
+      console.error('Failed to load persistent rooms:', err);
+    }
+  }
+
+  public savePersistentRooms() {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      const toSave: any[] = [];
+      for (const room of this.rooms.values()) {
+        if (room.isMemberRoom) {
+          toSave.push({
+            metadata: room.metadata,
+            video: room.video,
+            playlist: room.playlist,
+            loopMode: room.loopMode,
+            isShuffle: room.isShuffle,
+            stageAccessMode: room.stageAccessMode,
+            isMemberRoom: true,
+            lastActiveTime: room.lastActiveTime || Date.now(),
+          });
+        }
+      }
+      fs.writeFileSync(PERSISTENT_ROOMS_FILE, JSON.stringify(toSave, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Failed to save persistent rooms:', err);
+    }
+  }
+
+  private checkRoomExpirations() {
+    const now = Date.now();
+    const GUEST_EMPTY_TTL = 1 * 60 * 60 * 1000; // 1 hour empty TTL for guest rooms
+    const MEMBER_INACTIVE_TTL = 5 * 24 * 60 * 60 * 1000; // 5 days inactive TTL for member rooms
+
+    let roomsChanged = false;
+
+    for (const [roomId, room] of this.rooms.entries()) {
+      const clientCount = this.getRoomClients(roomId).length;
+
+      if (room.isMemberRoom) {
+        if (clientCount > 0) {
+          room.lastActiveTime = now;
+        } else {
+          if (room.lastActiveTime && now - room.lastActiveTime > MEMBER_INACTIVE_TTL) {
+            console.log(`[RoomManager] Member room ${roomId} inactive > 5 days. Expiring.`);
+            this.rooms.delete(roomId);
+            roomsChanged = true;
+          }
+        }
+      } else {
+        // Guest room
+        if (clientCount === 0) {
+          if (!room.emptySince) {
+            room.emptySince = now;
+          } else if (now - room.emptySince > GUEST_EMPTY_TTL) {
+            console.log(`[RoomManager] Guest room ${roomId} empty > 1 hour. Destroying.`);
+            this.rooms.delete(roomId);
+            roomsChanged = true;
+          }
+        } else {
+          room.emptySince = null;
+          room.lastActiveTime = now;
+        }
+      }
+    }
+
+    if (roomsChanged) {
+      this.savePersistentRooms();
+      this.broadcastToAll({
+        type: 'ROOMS_LIST',
+        rooms: this.getAllRoomSummaries(),
+      });
+    }
   }
 
   public createRoom(
@@ -81,6 +232,7 @@ export class RoomManager {
     const rawVideoId = settings.initialVideoId?.trim();
     const hasInitialVideo = !!rawVideoId;
     const stageAccessMode = settings.stageAccessMode || 'everyone';
+    const isMember = creator.provider === 'google' || creator.provider === 'facebook';
 
     const newRoom: InternalRoomData = {
       metadata: {
@@ -153,9 +305,15 @@ export class RoomManager {
       ],
       adminIds: new Set<string>(),
       bannedUsers: new Map<string, BannedUser>(),
+      isMemberRoom: isMember,
+      lastActiveTime: Date.now(),
+      emptySince: null,
     };
 
     this.rooms.set(roomId, newRoom);
+    if (newRoom.isMemberRoom) {
+      this.savePersistentRooms();
+    }
     return newRoom;
   }
 
@@ -605,6 +763,11 @@ export class RoomManager {
       }
     }
 
+    room.lastActiveTime = Date.now();
+    if (room.isMemberRoom) {
+      this.savePersistentRooms();
+    }
+
     this.broadcastToRoom(client.roomId, {
       type: 'ROOM_METADATA_UPDATED',
       metadata: {
@@ -647,6 +810,11 @@ export class RoomManager {
         type: 'SEATS_UPDATED',
         seats: room.seats,
       });
+    }
+
+    room.lastActiveTime = Date.now();
+    if (room.isMemberRoom) {
+      this.savePersistentRooms();
     }
 
     this.broadcastToRoom(client.roomId, {
@@ -1249,6 +1417,11 @@ export class RoomManager {
       actionType: 'change',
     });
 
+    room.lastActiveTime = Date.now();
+    if (room.isMemberRoom) {
+      this.savePersistentRooms();
+    }
+
     this.broadcastToRoom(client.roomId, {
       type: 'SYNC_TOAST',
       message: `${client.user.name} เปลี่ยนวิดีโอเป็น "${room.video.title}"`,
@@ -1314,6 +1487,11 @@ export class RoomManager {
       });
     }
 
+    room.lastActiveTime = Date.now();
+    if (room.isMemberRoom) {
+      this.savePersistentRooms();
+    }
+
     this.broadcastToRoom(targetRoomId, {
       type: 'PLAYLIST_UPDATED',
       playlist: room.playlist,
@@ -1341,6 +1519,10 @@ export class RoomManager {
     }
 
     room.playlist = room.playlist.filter((p) => p.id !== id);
+    room.lastActiveTime = Date.now();
+    if (room.isMemberRoom) {
+      this.savePersistentRooms();
+    }
 
     this.broadcastToRoom(client.roomId, {
       type: 'PLAYLIST_UPDATED',
@@ -1363,6 +1545,10 @@ export class RoomManager {
     }
 
     room.playlist = [];
+    room.lastActiveTime = Date.now();
+    if (room.isMemberRoom) {
+      this.savePersistentRooms();
+    }
 
     this.broadcastToRoom(client.roomId, {
       type: 'PLAYLIST_UPDATED',
@@ -1392,6 +1578,10 @@ export class RoomManager {
     }
 
     room.loopMode = loopMode;
+    room.lastActiveTime = Date.now();
+    if (room.isMemberRoom) {
+      this.savePersistentRooms();
+    }
 
     this.broadcastToRoom(client.roomId, {
       type: 'PLAYLIST_UPDATED',
@@ -1433,6 +1623,10 @@ export class RoomManager {
     }
 
     room.isShuffle = isShuffle;
+    room.lastActiveTime = Date.now();
+    if (room.isMemberRoom) {
+      this.savePersistentRooms();
+    }
 
     this.broadcastToRoom(client.roomId, {
       type: 'PLAYLIST_UPDATED',
@@ -1632,15 +1826,18 @@ export class RoomManager {
     this.advancePlaylist(client.roomId, 'prev', client);
   }
 
-  public handleChat(ws: WebSocket, text: string) {
+  public handleChat(ws: WebSocket, text: string, imageUrl?: string) {
     const client = this.clients.get(ws);
     if (!client) return;
 
     const room = this.getOrCreateRoom(client.roomId);
+    if (!text?.trim() && !imageUrl) return;
+
     const message: ChatMessage = {
       id: 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
       sender: client.user,
-      text: text.trim(),
+      text: (text || '').trim(),
+      imageUrl: imageUrl || undefined,
       timestamp: Date.now(),
     };
 
@@ -1652,6 +1849,48 @@ export class RoomManager {
     this.broadcastToRoom(client.roomId, {
       type: 'NEW_CHAT',
       message,
+    });
+  }
+
+  public handleCloseRoom(ws: WebSocket) {
+    const client = this.clients.get(ws);
+    if (!client) return;
+
+    const room = this.rooms.get(client.roomId);
+    if (!room) return;
+
+    // Verify ownership: only the room owner can close the room
+    if (client.user.id !== room.metadata.ownerId) {
+      this.sendToClient(ws, {
+        type: 'SYNC_TOAST',
+        message: 'เฉพาะเจ้าของห้องเท่านั้นที่สามารถปิดห้องได้',
+        toastType: 'warning',
+      });
+      return;
+    }
+
+    const roomId = client.roomId;
+    console.log(`[RoomManager] Room ${roomId} explicitly closed by owner ${client.user.name} (${client.user.id})`);
+
+    // Notify all clients in the room that room has been closed
+    this.broadcastToRoom(roomId, {
+      type: 'ROOM_FORCE_CLOSED',
+      roomId,
+      reason: `ห้องนี้ถูกปิดโดยเจ้าของห้อง (${client.user.name})`,
+    });
+
+    // Remove room from active memory
+    this.rooms.delete(roomId);
+
+    // If member room, also remove from disk persistence
+    if (room.isMemberRoom) {
+      this.savePersistentRooms();
+    }
+
+    // Broadcast updated directory to all clients
+    this.broadcastToAll({
+      type: 'ROOMS_LIST',
+      rooms: this.getAllRoomSummaries(),
     });
   }
 

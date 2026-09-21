@@ -1201,10 +1201,18 @@ export function App() {
   };
 
   // Chat message
-  const handleSendMessage = (text: string) => {
+  const handleSendMessage = (text: string, imageUrl?: string) => {
     socketService.send({
       type: 'SEND_CHAT',
       text,
+      imageUrl,
+    });
+  };
+
+  // Close Room (Owner)
+  const handleCloseRoom = () => {
+    socketService.send({
+      type: 'CLOSE_ROOM',
     });
   };
 
@@ -1720,10 +1728,14 @@ export function App() {
               <LiveChat
                 messages={chat}
                 currentUser={currentUser}
+                enableChatImages={roomMetadata.widgets?.enableChatImages !== false}
                 onSendMessage={handleSendMessage}
                 onSendReaction={handleSendReaction}
                 onSeekTo={handleVideoSeek}
-                onOpenProfile={() => setIsProfileModalOpen(true)}
+                onOpenProfile={() => {
+                  setSelectedUserForProfile(currentUser);
+                  setIsUserProfileModalOpen(true);
+                }}
                 onSelectUser={handleOpenUserCard}
                 onShowToast={showToast}
               />
@@ -1936,6 +1948,7 @@ export function App() {
         onForceLeaveStage={handleForceLeaveStage}
         onRevokeSpeakerPermission={handleRevokeSpeakPermission}
         onUpdateSettings={handleUpdateRoomSettings}
+        onCloseRoom={handleCloseRoom}
         onShowToast={showToast}
       />
 

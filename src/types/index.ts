@@ -87,6 +87,7 @@ export interface ChatMessage {
   sender: UserProfile;
   text: string;
   timestamp: number;
+  imageUrl?: string;
 }
 
 export type RoomCategory =
@@ -113,6 +114,7 @@ export interface RoomWidgetsConfig {
   enableQueue: boolean;
   enableReactions: boolean;
   enableSoundboard: boolean;
+  enableChatImages?: boolean;
 }
 
 export const DEFAULT_ROOM_WIDGETS: RoomWidgetsConfig = {
@@ -121,6 +123,7 @@ export const DEFAULT_ROOM_WIDGETS: RoomWidgetsConfig = {
   enableQueue: true,
   enableReactions: true,
   enableSoundboard: true,
+  enableChatImages: true,
 };
 
 export interface RoomMetadata {
@@ -210,7 +213,8 @@ export type WSClientMessage =
   | { type: 'PLAYLIST_PREV' }
   | { type: 'SET_LOOP_MODE'; loopMode: LoopMode }
   | { type: 'SET_SHUFFLE'; isShuffle: boolean }
-  | { type: 'SEND_CHAT'; text: string }
+  | { type: 'SEND_CHAT'; text: string; imageUrl?: string }
+  | { type: 'CLOSE_ROOM' }
   | { type: 'EMOJI_REACTION'; emoji: string }
   | { type: 'PLAY_SOUND'; soundId: string; soundName: string }
   | { type: 'SIGNAL_DATA'; targetId: string; data: any };

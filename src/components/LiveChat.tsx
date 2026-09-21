@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MessageSquare, Clock } from 'lucide-react';
+import { Send, MessageSquare, Clock, Image as ImageIcon, X, Loader2 } from 'lucide-react';
 import { ChatMessage, UserProfile } from '../types/index.js';
+import { compressChatImage } from '../services/imageCompressor.js';
 
 interface LiveChatProps {
   messages: ChatMessage[];
   currentUser: UserProfile;
-  onSendMessage: (text: string) => void;
+  enableChatImages?: boolean;
+  onSendMessage: (text: string, imageUrl?: string) => void;
   onSendReaction?: (emoji: string) => void;
   onSeekTo: (seconds: number) => void;
   onOpenProfile: () => void;
@@ -16,6 +18,7 @@ interface LiveChatProps {
 export const LiveChat: React.FC<LiveChatProps> = ({
   messages,
   currentUser,
+  enableChatImages = true,
   onSendMessage,
   onSendReaction,
   onSeekTo,
@@ -24,6 +27,10 @@ export const LiveChat: React.FC<LiveChatProps> = ({
   onShowToast,
 }) => {
   const [inputText, setInputText] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isCompressingImage, setIsCompressingImage] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -32,12 +39,29 @@ export const LiveChat: React.FC<LiveChatProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsCompressingImage(true);
+    try {
+      const dataUri = await compressChatImage(file, 800, 0.75);
+      setSelectedImage(dataUri);
+    } catch (err: any) {
+      onShowToast(err.message || 'เกิดข้อผิดพลาดในการประมวลผลรูปภาพ', 'warning');
+    } finally {
+      setIsCompressingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim()) return;
+    if (!inputText.trim() && !selectedImage) return;
 
-    onSendMessage(inputText);
+    onSendMessage(inputText.trim(), selectedImage || undefined);
     setInputText('');
+    setSelectedImage(null);
   };
 
   // Parses timestamps like "01:23", "2:45", "1:15:30" into clickable buttons
@@ -164,7 +188,17 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                     ? 'bg-[#0075de]/8 text-[#000000] border-[#0075de]/20'
                     : 'bg-white text-[#31302e] border-[#e6e6e6]'
                 }`}>
-                  {renderMessageWithTimestamps(msg.text)}
+                  {msg.imageUrl && (
+                    <div className="mb-1.5">
+                      <img
+                        src={msg.imageUrl}
+                        alt="แนบรูปภาพ"
+                        className="max-w-[200px] sm:max-w-[260px] max-h-60 rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity border border-black/10 shadow-xs"
+                        onClick={() => setLightboxImage(msg.imageUrl || null)}
+                      />
+                    </div>
+                  )}
+                  {msg.text && renderMessageWithTimestamps(msg.text)}
                 </div>
               </div>
             </div>
@@ -172,6 +206,29 @@ export const LiveChat: React.FC<LiveChatProps> = ({
         })}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Image Preview Bar before sending */}
+      {selectedImage && (
+        <div className="px-3 py-2 bg-[#f6f5f4] border-t border-[#e6e6e6] flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-11 h-11 rounded-lg overflow-hidden border border-[#e6e6e6] bg-white shrink-0 shadow-xs">
+              <img src={selectedImage} alt="Preview" className="w-full h-full object-cover" />
+            </div>
+            <div className="text-[11px] text-[#615d59]">
+              <p className="font-semibold text-[#000000]">แนบรูปภาพพร้อมส่ง</p>
+              <p>รูปภาพชั่วคราวจะถูกลบเมื่อปิดห้อง</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSelectedImage(null)}
+            className="p-1 rounded-full hover:bg-black/5 text-[#615d59] hover:text-rose-600 transition-colors cursor-pointer"
+            title="ยกเลิกรูปภาพ"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Input Area with Profile Avatar in front */}
       <form onSubmit={handleSend} className="p-2 sm:p-3 bg-white border-t border-[#e6e6e6] shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
@@ -191,18 +248,44 @@ export const LiveChat: React.FC<LiveChatProps> = ({
             />
           </button>
 
+          {/* Attach Image Button */}
+          {enableChatImages && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageFile}
+              />
+              <button
+                type="button"
+                disabled={isCompressingImage}
+                onClick={() => fileInputRef.current?.click()}
+                title="แนบรูปภาพส่งในแชท (ลบอัตโนมัติเมื่อห้องปิด)"
+                className="p-2 rounded-full text-[#615d59] hover:text-[#0075de] hover:bg-[#0075de]/10 border border-[#e6e6e6] transition-colors cursor-pointer shrink-0 disabled:opacity-50 shadow-xs"
+              >
+                {isCompressingImage ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-[#0075de]" />
+                ) : (
+                  <ImageIcon className="w-4 h-4" />
+                )}
+              </button>
+            </>
+          )}
+
           {/* Text Input */}
           <div className="relative flex-1">
             <input
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="พิมพ์ข้อความ... หรือใส่เวลา เช่น 01:23"
+              placeholder={selectedImage ? 'ใส่ข้อความบรรยายภาพ (หรือไม่ใส่ก็ได้)...' : 'พิมพ์ข้อความ... หรือใส่เวลา เช่น 01:23'}
               className="w-full pl-3.5 pr-10 py-2 bg-white border border-[#e6e6e6] focus:border-[#0075de] rounded-full text-base sm:text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none shadow-xs transition-colors"
             />
             <button
               type="submit"
-              disabled={!inputText.trim()}
+              disabled={!inputText.trim() && !selectedImage}
               className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-[#0075de] text-white hover:bg-[#005bab] disabled:opacity-30 transition-colors cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
@@ -210,6 +293,30 @@ export const LiveChat: React.FC<LiveChatProps> = ({
           </div>
         </div>
       </form>
+
+      {/* Image Lightbox Modal */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div className="relative max-w-3xl max-h-[90vh] flex flex-col items-center">
+            <button
+              type="button"
+              onClick={() => setLightboxImage(null)}
+              className="absolute -top-10 right-0 p-2 rounded-full bg-white/20 hover:bg-white/40 text-white cursor-pointer transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img
+              src={lightboxImage}
+              alt="Full view"
+              className="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl border border-white/10"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

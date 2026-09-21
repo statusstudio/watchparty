@@ -19,9 +19,12 @@ import {
   Radio,
   ExternalLink,
   LogOut,
+  Camera,
+  Upload,
 } from 'lucide-react';
 import { UserProfile, FavoriteSong } from '../types/index.js';
 import { PRESET_AVATARS, COLOR_PALETTE } from '../data/presets.js';
+import { compressProfileImage } from '../services/imageCompressor.js';
 import {
   fetchProfile,
   updateProfile,
@@ -96,9 +99,26 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [editSpotify, setEditSpotify] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarUploadError, setAvatarUploadError] = useState<string | null>(null);
 
   const displayUser = profile || targetUser || currentUser;
   const isOwnProfile = displayUser.id === currentUser.id;
+
+  const handleAvatarFile = async (file: File) => {
+    if (!file) return;
+    setAvatarUploadError(null);
+    setIsUploadingAvatar(true);
+    try {
+      const dataUri = await compressProfileImage(file, 160);
+      setEditAvatar(dataUri);
+      setActiveTab('edit');
+    } catch (err: any) {
+      setAvatarUploadError(err.message || 'เกิดข้อผิดพลาดในการประมวลผลรูปภาพ');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   // Load profile data and favorites whenever opened
   useEffect(() => {
@@ -125,8 +145,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     setEditTiktok(userToLoad.socialLinks?.tiktok || '');
     setEditSpotify(userToLoad.socialLinks?.spotify || '');
 
-    // Reset tab
-    setActiveTab('favorites');
+    // Reset tab: default to 'about' if own profile, else 'favorites'
+    setActiveTab(userToLoad.id === currentUser.id ? 'about' : 'favorites');
 
     // Fetch fresh profile from database
     fetchProfile(userToLoad.id, currentUser.id).then((fresh) => {
@@ -206,17 +226,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     const res = await updateProfile(currentUser.id, updatedData);
     setIsSaving(false);
 
-    if (res.success) {
-      const mergedUser: UserProfile = { ...currentUser, ...updatedData };
-      setProfile(mergedUser);
-      onUpdateCurrentUser(mergedUser);
-      setSaveSuccess(true);
-      setTimeout(() => {
-        setSaveSuccess(false);
-        setActiveTab('about');
-      }, 1000);
-    } else {
-      alert(res.error || 'เกิดข้อผิดพลาดในการบันทึกโปรไฟล์');
+    const mergedUser: UserProfile = { ...currentUser, ...updatedData };
+    setProfile(mergedUser);
+    onUpdateCurrentUser(mergedUser);
+    setSaveSuccess(true);
+    setTimeout(() => {
+      setSaveSuccess(false);
+      setActiveTab('about');
+    }, 1000);
+
+    if (!res.success && res.error) {
+      console.warn('Supabase remote sync notice:', res.error);
     }
   };
 
@@ -248,14 +268,32 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <div className="flex items-end gap-4 min-w-0">
               {/* Avatar */}
               <div
-                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-3 shadow-md shrink-0 bg-white relative -mb-2"
-                style={{ borderColor: displayUser.color || '#0075de' }}
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-3 shadow-md shrink-0 bg-white relative -mb-2 group"
+                style={{ borderColor: (isOwnProfile && editColor) || displayUser.color || '#0075de' }}
               >
                 <img
-                  src={displayUser.avatar}
+                  src={isOwnProfile && editAvatar ? editAvatar : displayUser.avatar}
                   alt={displayUser.name}
                   className="w-full h-full object-cover"
                 />
+                {isOwnProfile && (
+                  <label
+                    className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer text-white text-[10px] font-medium text-center p-1"
+                    title="คลิกเพื่ออัปโหลดรูปโปรไฟล์ใหม่"
+                  >
+                    <Camera className="w-5 h-5 mb-0.5" />
+                    <span>เปลี่ยนรูป</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleAvatarFile(file);
+                      }}
+                    />
+                  </label>
+                )}
               </div>
 
               {/* Name & Handle */}
@@ -710,23 +748,92 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 </div>
               </div>
 
-              {/* Avatar Preset Selector */}
-              <div>
-                <label className="block text-xs font-semibold text-[#31302e] mb-2">
-                  เลือกรูปโปรไฟล์ (Avatar Presets)
-                </label>
-                <div className="grid grid-cols-8 gap-2">
-                  {PRESET_AVATARS.map((av) => (
-                    <div
-                      key={av.id}
-                      onClick={() => setEditAvatar(av.svg)}
-                      className={`w-10 h-10 rounded-xl overflow-hidden cursor-pointer border-2 transition-all bg-white shadow-xs ${
-                        editAvatar === av.svg ? 'border-[#0075de] scale-110' : 'border-[#e6e6e6] opacity-60 hover:opacity-100'
-                      }`}
-                    >
-                      <img src={av.svg} alt={av.name} className="w-full h-full object-cover" />
-                    </div>
-                  ))}
+              {/* Profile Avatar Upload & Presets */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-[#31302e]">
+                    รูปโปรไฟล์ & สีประจำตัว (Profile Avatar & Color)
+                  </label>
+                  {isUploadingAvatar && (
+                    <span className="text-xs text-[#0075de] font-medium animate-pulse">กำลังประมวลผลรูป...</span>
+                  )}
+                </div>
+
+                {avatarUploadError && (
+                  <p className="text-xs text-rose-500 bg-rose-50 border border-rose-200 p-2 rounded-lg">
+                    {avatarUploadError}
+                  </p>
+                )}
+
+                <div className="flex flex-col sm:flex-row items-center gap-3 p-3 bg-[#f6f5f4] rounded-xl border border-[#e6e6e6]">
+                  <div
+                    className="w-14 h-14 rounded-2xl overflow-hidden border-2 bg-white shrink-0 shadow-xs"
+                    style={{ borderColor: editColor || '#0075de' }}
+                  >
+                    <img
+                      src={editAvatar || displayUser.avatar}
+                      alt="Avatar Preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 text-center sm:text-left">
+                    <p className="text-xs font-semibold text-[#000000]">อัปโหลดรูปภาพส่วนตัวจากเครื่อง</p>
+                    <p className="text-[11px] text-[#615d59]">รองรับภาพ JPG, PNG, WebP หรือถ่ายภาพจากกล้องมือถือ</p>
+                  </div>
+                  <label className="px-4 py-2 rounded-full bg-white hover:bg-[#0075de] hover:text-white text-[#0075de] border border-[#0075de] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs shrink-0">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>อัปโหลดรูปภาพ</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleAvatarFile(file);
+                      }}
+                    />
+                  </label>
+                </div>
+
+                {/* Avatar Preset Selector */}
+                <div>
+                  <label className="block text-[11px] text-[#615d59] mb-1.5">
+                    หรือเลือก Avatar การ์ตูนสำเร็จรูป:
+                  </label>
+                  <div className="grid grid-cols-8 gap-2">
+                    {PRESET_AVATARS.map((av) => (
+                      <div
+                        key={av.id}
+                        onClick={() => setEditAvatar(av.svg)}
+                        className={`w-10 h-10 rounded-xl overflow-hidden cursor-pointer border-2 transition-all bg-white shadow-xs ${
+                          editAvatar === av.svg ? 'border-[#0075de] scale-110' : 'border-[#e6e6e6] opacity-60 hover:opacity-100'
+                        }`}
+                      >
+                        <img src={av.svg} alt={av.name} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Color Palette Selector */}
+                <div>
+                  <label className="block text-[11px] text-[#615d59] mb-1.5">
+                    เลือกสีประจำตัว (Identity Color):
+                  </label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {COLOR_PALETTE.map((c) => (
+                      <button
+                        type="button"
+                        key={c}
+                        onClick={() => setEditColor(c)}
+                        className={`w-6 h-6 rounded-full transition-transform cursor-pointer ${
+                          editColor === c ? 'scale-125 ring-2 ring-offset-2 ring-[#0075de]' : 'hover:scale-110'
+                        }`}
+                        style={{ backgroundColor: c }}
+                        title={c}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
 
