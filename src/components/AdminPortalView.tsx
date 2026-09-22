@@ -41,6 +41,7 @@ import {
   Music,
   Headphones,
   AlertTriangle,
+  Database,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -102,8 +103,19 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
 
   // Backoffice State & Tabs
   const [activeTab, setActiveTab] = useState<
-    'account' | 'smtp' | 'overview' | 'widgets' | 'ad_popup' | 'users' | 'rooms' | 'announcements' | 'tickets'
+    'account' | 'smtp' | 'database' | 'overview' | 'widgets' | 'ad_popup' | 'users' | 'rooms' | 'announcements' | 'tickets'
   >('account');
+  const [supabaseStatus, setSupabaseStatus] = useState<{
+    configured: boolean;
+    connected: boolean;
+    message: string;
+  }>({
+    configured: false,
+    connected: false,
+    message: 'กำลังตรวจสอบสถานะ...',
+  });
+  const [isSyncingSupabase, setIsSyncingSupabase] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
@@ -210,6 +222,39 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     } catch (e) {}
   };
 
+  const fetchSupabaseStatus = async () => {
+    try {
+      const res = await fetch('/api/admin/supabase-status');
+      if (res.ok) {
+        setSupabaseStatus(await res.json());
+      }
+    } catch (e) {
+      setSupabaseStatus({
+        configured: false,
+        connected: false,
+        message: 'ไม่สามารถติดต่อเซิร์ฟเวอร์เพื่อตรวจสอบ Supabase ได้',
+      });
+    }
+  };
+
+  const handleTriggerSupabaseSync = async () => {
+    setIsSyncingSupabase(true);
+    try {
+      const res = await fetch('/api/admin/supabase-sync', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        onShowToast(data.message, 'success');
+        fetchSupabaseStatus();
+      } else {
+        onShowToast(data.message, 'warning');
+      }
+    } catch (e: any) {
+      onShowToast(e.message || 'เกิดข้อผิดพลาดในการซิงก์ข้อมูล', 'warning');
+    } finally {
+      setIsSyncingSupabase(false);
+    }
+  };
+
   const loadAllData = async () => {
     setLoading(true);
     try {
@@ -217,6 +262,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         fetchAdminCredentials(),
         fetchSmtpConfig(),
         fetchEmailLogs(),
+        fetchSupabaseStatus(),
         fetchStats(),
         fetchAnalytics(),
         fetchConfig(),
@@ -997,6 +1043,15 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
           statusColor: smtpConfig.enabled
             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
             : 'bg-amber-50 text-amber-700 border-amber-200',
+        },
+        {
+          id: 'database' as const,
+          label: 'ฐานข้อมูล Supabase Cloud',
+          icon: Database,
+          statusLabel: supabaseStatus.connected ? 'เชื่อมต่อแล้ว' : 'ออฟไลน์',
+          statusColor: supabaseStatus.connected
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            : 'bg-gray-100 text-gray-600 border-gray-200',
         },
       ],
     },
@@ -1781,6 +1836,166 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   </table>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 1.7: SUPABASE DATABASE PERSISTENCE */}
+        {activeTab === 'database' && (
+          <div className="space-y-6">
+            {/* Status & Intro Card */}
+            <div className="bg-white border border-[#e6e6e6] rounded-2xl p-6 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e6e6e6] pb-4">
+                <div>
+                  <h2 className="text-base font-bold text-[#000000] flex items-center gap-2">
+                    <Database className="w-5 h-5 text-[#0075de]" />
+                    <span>จัดการฐานข้อมูลคลาวด์ถาวร (Supabase Cloud Database)</span>
+                  </h2>
+                  <p className="text-xs text-[#615d59] mt-1">
+                    เชื่อมต่อฐานข้อมูล Supabase เพื่อจัดเก็บข้อมูลสมาชิก, รหัสผ่าน, ห้องปาร์ตี้ และตั๋วซัพพอร์ตไว้บน Cloud อย่างถาวร ข้อมูลจะไม่สูญหายเมื่อมีการ Deploy ใหม่
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[#615d59] font-medium">สถานะคลาวด์:</span>
+                  {supabaseStatus.connected ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      เชื่อมต่อสำเร็จ (ข้อมูลปลอดภัย 100%)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      {supabaseStatus.configured ? 'พบปัญหาการเชื่อมต่อ' : 'ยังไม่ได้เชื่อมต่อ (Local Disk)'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Status Message Box */}
+              <div className="mt-4 p-4 rounded-xl bg-[#f6f5f4] border border-[#e6e6e6] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-2.5">
+                  <Server className="w-4 h-4 text-[#0075de] shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-bold text-[#000000]">รายละเอียดการเชื่อมต่อ:</p>
+                    <p className="text-xs text-[#615d59] mt-0.5">{supabaseStatus.message}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchSupabaseStatus}
+                    className="px-3 py-2 rounded-xl border border-[#e6e6e6] hover:bg-white text-xs font-semibold text-[#615d59] hover:text-[#000000] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>ตรวจสอบใหม่</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTriggerSupabaseSync}
+                    disabled={isSyncingSupabase}
+                    className="px-4 py-2 rounded-xl bg-[#0075de] hover:bg-[#005bab] text-white font-semibold text-xs shadow-xs inline-flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{isSyncingSupabase ? 'กำลังซิงก์...' : 'ซิงก์ข้อมูลขึ้น Cloud ทันที'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Setup Guide Card */}
+            <div className="bg-white border border-[#e6e6e6] rounded-2xl p-6 shadow-xs space-y-5">
+              <div className="border-b border-[#e6e6e6] pb-3">
+                <h3 className="text-sm font-bold text-[#000000] flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-[#dd5b00]" />
+                  <span>คู่มือการเชื่อมต่อ Supabase ฟรี (2 ขั้นตอนง่ายๆ)</span>
+                </h3>
+                <p className="text-xs text-[#615d59] mt-0.5">
+                  ทำตามขั้นตอนนี้เพียงครั้งเดียว ข้อมูลสมาชิกของคุณจะถูกเก็บไว้บน Cloud ตลอดไป แม้ Render จะ Deploy หรือรีสตาร์ทใหม่
+                </p>
+              </div>
+
+              {/* Step 1: SQL Schema */}
+              <div className="p-4 rounded-xl bg-[#fcfbf9] border border-[#e6e6e6] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-[#0075de] text-white text-xs font-bold flex items-center justify-center">
+                      1
+                    </span>
+                    <span className="text-xs font-bold text-[#000000]">
+                      สร้างตาราง app_storage ใน Supabase Dashboard
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sql = `CREATE TABLE IF NOT EXISTS public.app_storage (\n  key TEXT PRIMARY KEY,\n  data JSONB NOT NULL,\n  updated_at TIMESTAMPTZ DEFAULT NOW()\n);\n\nALTER TABLE public.app_storage ENABLE ROW LEVEL SECURITY;\n\nCREATE POLICY "Allow public and service access to app_storage"\n  ON public.app_storage FOR ALL\n  USING (true)\n  WITH CHECK (true);`;
+                      navigator.clipboard.writeText(sql);
+                      setCopiedSql(true);
+                      setTimeout(() => setCopiedSql(false), 2500);
+                      onShowToast('คัดลอกคำสั่ง SQL เรียบร้อยแล้ว 📋', 'success');
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-white border border-[#e6e6e6] hover:border-[#0075de] text-xs font-semibold text-[#0075de] inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                  >
+                    {copiedSql ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedSql ? 'คัดลอกแล้ว!' : 'คัดลอก SQL'}</span>
+                  </button>
+                </div>
+
+                <p className="text-xs text-[#615d59] pl-8">
+                  ไปที่เว็บ <a href="https://supabase.com/dashboard" target="_blank" rel="noreferrer" className="text-[#0075de] font-semibold underline">Supabase Dashboard</a> &rarr; เข้าโปรเจกต์ของคุณ &rarr; เมนู <strong>SQL Editor</strong> &rarr; กด <strong>New query</strong> &rarr; วางคำสั่งด้านล่างนี้แล้วกด <strong>Run</strong>:
+                </p>
+
+                <pre className="ml-8 p-3 rounded-xl bg-[#171824] text-emerald-300 font-mono text-[11px] overflow-x-auto border border-gray-800">
+{`CREATE TABLE IF NOT EXISTS public.app_storage (
+  key TEXT PRIMARY KEY,
+  data JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.app_storage ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public and service access to app_storage"
+  ON public.app_storage FOR ALL
+  USING (true)
+  WITH CHECK (true);`}
+                </pre>
+              </div>
+
+              {/* Step 2: Environment Variables */}
+              <div className="p-4 rounded-xl bg-[#fcfbf9] border border-[#e6e6e6] space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-[#0075de] text-white text-xs font-bold flex items-center justify-center">
+                    2
+                  </span>
+                  <span className="text-xs font-bold text-[#000000]">
+                    ใส่ค่า Environment Variables ใน Render.com Dashboard
+                  </span>
+                </div>
+
+                <p className="text-xs text-[#615d59] pl-8">
+                  ไปที่ <a href="https://dashboard.render.com" target="_blank" rel="noreferrer" className="text-[#0075de] font-semibold underline">Render.com Dashboard</a> &rarr; เข้า Web Service ของคุณ &rarr; เมนู <strong>Environment</strong> &rarr; กด <strong>Add Environment Variable</strong> เพื่อเพิ่ม 2 ตัวแปรนี้:
+                </p>
+
+                <div className="ml-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3 bg-white rounded-xl border border-[#e6e6e6]">
+                    <span className="text-[10px] text-[#615d59] uppercase font-bold tracking-wider">Key ชื่อ:</span>
+                    <p className="font-mono text-xs font-bold text-[#0075de] select-all">SUPABASE_URL</p>
+                    <p className="text-[11px] text-[#a39e98] mt-1">Project URL เช่น https://xxxxxxxx.supabase.co</p>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-xl border border-[#e6e6e6]">
+                    <span className="text-[10px] text-[#615d59] uppercase font-bold tracking-wider">Key ชื่อ:</span>
+                    <p className="font-mono text-xs font-bold text-[#0075de] select-all">SUPABASE_KEY</p>
+                    <p className="text-[11px] text-[#a39e98] mt-1">anon public key หรือ service_role secret key</p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl ml-8">
+                  💡 <strong>หลังจากกด Save Changes บน Render:</strong> เซิร์ฟเวอร์จะเชื่อมต่อกับ Supabase ทันที และจะทำการบันทึกข้อมูลสมาชิกทุกคนขึ้น Cloud โดยอัตโนมัติทุกครั้งที่มีการสมัครหรือใช้งานครับ!
+                </p>
+              </div>
             </div>
           </div>
         )}

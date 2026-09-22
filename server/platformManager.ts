@@ -19,6 +19,7 @@ import {
 } from '../src/types/index.js';
 import type { RoomManager } from './roomManager.js';
 import { emailService } from './emailService.js';
+import { serverSupabaseService } from './supabaseService.js';
 
 const DATA_DIR = path.resolve(process.cwd(), 'server', 'data');
 const STORE_FILE = path.join(DATA_DIR, 'platform_store.json');
@@ -86,6 +87,7 @@ export class PlatformManager {
     this.loadStore();
     this.seedDefaults();
     emailService.setSmtpConfigGetter(() => this.getSmtpConfig());
+    this.initSupabaseSync();
   }
 
   private ensureDataDir() {
@@ -98,101 +100,152 @@ export class PlatformManager {
     }
   }
 
+  private hydrateFromStore(data: StoreSchema) {
+    if (!data) return;
+
+    // Load Admin Credentials
+    if (data.adminCredentials && data.adminCredentials.username && data.adminCredentials.passwordHash) {
+      this.adminCredentials = {
+        username: data.adminCredentials.username,
+        passwordHash: data.adminCredentials.passwordHash,
+        email: data.adminCredentials.email || 'admin@pleng.online',
+        updatedAt: data.adminCredentials.updatedAt || Date.now(),
+      };
+    }
+
+    // Load Registered User Accounts
+    if (Array.isArray(data.userAccounts)) {
+      data.userAccounts.forEach((acc) => {
+        this.userAccounts.set(acc.email.toLowerCase(), acc);
+      });
+    }
+
+    // Load Users
+    if (Array.isArray(data.users)) {
+      data.users.forEach((u) => {
+        // Map legacy admin if any to new admin ID
+        if (u.id === 'usr-admin-system' || u.id === 'admin') {
+          this.users.set('admin', {
+            ...u,
+            id: 'admin',
+            name: this.adminCredentials.username,
+            username: 'admin',
+            email: this.adminCredentials.email,
+            avatar: u.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
+            bannerUrl: u.bannerUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
+            bio: u.bio || 'ผู้ดูแลระบบสูงสุด pleng.online 👑 ยินดีต้อนรับทุกคนสู่คอมมูนิตี้คนรักเสียงเพลงครับ',
+            favoriteGenres: u.favoriteGenres || ['Lofi', 'Pop', 'Acoustic'],
+            isSuperAdmin: true,
+          });
+        } else {
+          if (!u.username) {
+            u.username = u.email ? u.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : u.id;
+          }
+          this.users.set(u.id, u);
+        }
+      });
+    }
+
+    if (Array.isArray(data.tickets)) {
+      data.tickets.forEach((t) => this.tickets.set(t.id, t));
+    }
+
+    if (data.config) {
+      this.config = {
+        ...DEFAULT_PLATFORM_CONFIG,
+        ...data.config,
+        adPopup: data.config.adPopup
+          ? {
+              enabled: !!data.config.adPopup.enabled,
+              title: String(data.config.adPopup.title || ''),
+              imageUrl: String(data.config.adPopup.imageUrl || ''),
+              linkUrl: String(data.config.adPopup.linkUrl || ''),
+              openInNewTab: data.config.adPopup.openInNewTab !== false,
+              updatedAt: data.config.adPopup.updatedAt || Date.now(),
+            }
+          : DEFAULT_PLATFORM_CONFIG.adPopup,
+        globalWidgets: {
+          ...DEFAULT_PLATFORM_CONFIG.globalWidgets,
+          ...(data.config.globalWidgets || {}),
+        },
+        announcementBanner: data.config.announcementBanner
+          ? {
+              enabled: !!data.config.announcementBanner.enabled,
+              text: String(data.config.announcementBanner.text || ''),
+              type: (data.config.announcementBanner.type as 'info' | 'warning' | 'alert') || 'info',
+            }
+          : DEFAULT_PLATFORM_CONFIG.announcementBanner,
+      };
+    }
+
+    if (Array.isArray(data.topTracks)) {
+      data.topTracks.forEach((tr) => this.topTracks.set(tr.videoId, tr));
+    }
+
+    if (data.smtpConfig) {
+      this.smtpConfig = {
+        ...DEFAULT_SMTP_CONFIG,
+        ...data.smtpConfig,
+      };
+    }
+  }
+
   private loadStore() {
     if (fs.existsSync(STORE_FILE)) {
       try {
         const raw = fs.readFileSync(STORE_FILE, 'utf-8');
         const data: StoreSchema = JSON.parse(raw);
-
-        // Load Admin Credentials
-        if (data.adminCredentials && data.adminCredentials.username && data.adminCredentials.passwordHash) {
-          this.adminCredentials = {
-            username: data.adminCredentials.username,
-            passwordHash: data.adminCredentials.passwordHash,
-            email: data.adminCredentials.email || 'admin@pleng.online',
-            updatedAt: data.adminCredentials.updatedAt || Date.now(),
-          };
-        }
-
-        // Load Registered User Accounts
-        if (Array.isArray(data.userAccounts)) {
-          data.userAccounts.forEach((acc) => {
-            this.userAccounts.set(acc.email.toLowerCase(), acc);
-          });
-        }
-
-        // Load Users
-        if (Array.isArray(data.users)) {
-          data.users.forEach((u) => {
-            // Map legacy admin if any to new admin ID
-            if (u.id === 'usr-admin-system' || u.id === 'admin') {
-              this.users.set('admin', {
-                ...u,
-                id: 'admin',
-                name: this.adminCredentials.username,
-                username: 'admin',
-                email: this.adminCredentials.email,
-                avatar: u.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
-                bannerUrl: u.bannerUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
-                bio: u.bio || 'ผู้ดูแลระบบสูงสุด pleng.online 👑 ยินดีต้อนรับทุกคนสู่คอมมูนิตี้คนรักเสียงเพลงครับ',
-                favoriteGenres: u.favoriteGenres || ['Lofi', 'Pop', 'Acoustic'],
-                isSuperAdmin: true,
-              });
-            } else {
-              if (!u.username) {
-                u.username = u.email ? u.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : u.id;
-              }
-              this.users.set(u.id, u);
-            }
-          });
-        }
-
-        if (Array.isArray(data.tickets)) {
-          data.tickets.forEach((t) => this.tickets.set(t.id, t));
-        }
-
-        if (data.config) {
-          this.config = {
-            ...DEFAULT_PLATFORM_CONFIG,
-            ...data.config,
-            adPopup: data.config.adPopup
-              ? {
-                  enabled: !!data.config.adPopup.enabled,
-                  title: String(data.config.adPopup.title || ''),
-                  imageUrl: String(data.config.adPopup.imageUrl || ''),
-                  linkUrl: String(data.config.adPopup.linkUrl || ''),
-                  openInNewTab: data.config.adPopup.openInNewTab !== false,
-                  updatedAt: data.config.adPopup.updatedAt || Date.now(),
-                }
-              : DEFAULT_PLATFORM_CONFIG.adPopup,
-            globalWidgets: {
-              ...DEFAULT_PLATFORM_CONFIG.globalWidgets,
-              ...(data.config.globalWidgets || {}),
-            },
-            announcementBanner: data.config.announcementBanner
-              ? {
-                  enabled: !!data.config.announcementBanner.enabled,
-                  text: String(data.config.announcementBanner.text || ''),
-                  type: (data.config.announcementBanner.type as 'info' | 'warning' | 'alert') || 'info',
-                }
-              : DEFAULT_PLATFORM_CONFIG.announcementBanner,
-          };
-        }
-
-        if (Array.isArray(data.topTracks)) {
-          data.topTracks.forEach((tr) => this.topTracks.set(tr.videoId, tr));
-        }
-
-        if (data.smtpConfig) {
-          this.smtpConfig = {
-            ...DEFAULT_SMTP_CONFIG,
-            ...data.smtpConfig,
-          };
-        }
+        this.hydrateFromStore(data);
       } catch (err) {
         console.error('Failed to parse platform_store.json:', err);
       }
     }
+  }
+
+  /**
+   * Hydrate initial data from Supabase Cloud if available
+   */
+  private async initSupabaseSync() {
+    if (!serverSupabaseService.isConfigured()) return;
+    try {
+      const cloudData = await serverSupabaseService.loadData<StoreSchema>('platform_store');
+      if (cloudData && (cloudData.userAccounts?.length || cloudData.users?.length)) {
+        this.hydrateFromStore(cloudData);
+        this.seedDefaults();
+        console.log(`✅ PlatformManager: Synced ${this.userAccounts.size} user accounts from Supabase Cloud!`);
+      } else {
+        // Seed initial data to Supabase if empty on cloud
+        await this.syncToSupabase();
+      }
+    } catch (err) {
+      console.error('❌ PlatformManager: Error during initial Supabase sync:', err);
+    }
+  }
+
+  /**
+   * Sync current platform state to Supabase Cloud
+   */
+  public async syncToSupabase(customData?: StoreSchema): Promise<boolean> {
+    if (!serverSupabaseService.isConfigured()) return false;
+    try {
+      const data: StoreSchema = customData || {
+        users: Array.from(this.users.values()),
+        userAccounts: Array.from(this.userAccounts.values()),
+        adminCredentials: this.adminCredentials,
+        tickets: Array.from(this.tickets.values()),
+        config: this.config,
+        topTracks: Array.from(this.topTracks.values()),
+        smtpConfig: this.smtpConfig,
+      };
+      return await serverSupabaseService.saveData('platform_store', data);
+    } catch (err) {
+      console.error('PlatformManager: syncToSupabase error:', err);
+      return false;
+    }
+  }
+
+  public async getSupabaseStatus() {
+    return await serverSupabaseService.checkStatus();
   }
 
   private scheduleSave() {
@@ -209,6 +262,10 @@ export class PlatformManager {
           smtpConfig: this.smtpConfig,
         };
         fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), 'utf-8');
+        // Asynchronously persist to Supabase Cloud
+        this.syncToSupabase(data).catch((e) => {
+          console.error('Failed to sync to Supabase in scheduleSave:', e);
+        });
       } catch (err) {
         console.error('Failed to save platform_store.json:', err);
       }

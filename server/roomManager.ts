@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { platformManager } from './platformManager.js';
+import { serverSupabaseService } from './supabaseService.js';
 import {
   RoomState,
   StageSeat,
@@ -63,6 +64,7 @@ export class RoomManager {
   constructor() {
     // 1. Re-hydrate persistent member rooms from disk
     this.loadPersistentRooms();
+    this.initSupabaseRoomsSync();
 
     // 2. Set up periodic expiration & cleanup interval (runs every 60s)
     this.cleanupInterval = setInterval(() => {
@@ -79,64 +81,80 @@ export class RoomManager {
     }));
   }
 
+  private hydratePersistentRooms(savedList: any[]) {
+    if (!Array.isArray(savedList)) return;
+    const now = Date.now();
+    const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
+    for (const r of savedList) {
+      if (r.lastActiveTime && now - r.lastActiveTime > FIVE_DAYS_MS) {
+        console.log(`[RoomManager] Skipping expired member room ${r.metadata?.id}`);
+        continue;
+      }
+      const roomData: InternalRoomData = {
+        metadata: r.metadata,
+        seats: this.createDefaultSeats(),
+        video: r.video || {
+          videoId: '',
+          title: '',
+          channel: '',
+          duration: 0,
+          currentTime: 0,
+          isPlaying: false,
+          lastUpdated: Date.now(),
+        },
+        playlist: r.playlist || [],
+        loopMode: r.loopMode || 'all',
+        isShuffle: r.isShuffle || false,
+        lastVideoEndedTime: 0,
+        stageAccessMode: r.stageAccessMode || 'everyone',
+        approvedSpeakerIds: new Set<string>([r.metadata.ownerId]),
+        pendingStageRequests: new Map<string, StageRequest>(),
+        chat: [
+          {
+            id: 'msg-welcome',
+            sender: {
+              id: 'system',
+              name: 'WatchParty Bot 🤖',
+              avatar:
+                'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%238b5cf6"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2zM7.5 13a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm9 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>',
+              color: '#8b5cf6',
+            },
+            text: `ยินดีต้อนรับกลับสู่ห้อง "${r.metadata.name}"! เพลย์ลิสต์ได้รับการบันทึกไว้เรียบร้อยแล้ว 🎵`,
+            timestamp: Date.now(),
+          },
+        ],
+        adminIds: new Set<string>(),
+        bannedUsers: new Map<string, BannedUser>(),
+        isMemberRoom: true,
+        lastActiveTime: r.lastActiveTime || Date.now(),
+        emptySince: null,
+      };
+      this.rooms.set(r.metadata.id, roomData);
+    }
+  }
+
   private loadPersistentRooms() {
     try {
       if (!fs.existsSync(PERSISTENT_ROOMS_FILE)) return;
       const raw = fs.readFileSync(PERSISTENT_ROOMS_FILE, 'utf-8');
       const savedList = JSON.parse(raw);
-      if (Array.isArray(savedList)) {
-        const now = Date.now();
-        const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
-        for (const r of savedList) {
-          if (r.lastActiveTime && now - r.lastActiveTime > FIVE_DAYS_MS) {
-            console.log(`[RoomManager] Skipping expired member room ${r.metadata?.id}`);
-            continue;
-          }
-          const roomData: InternalRoomData = {
-            metadata: r.metadata,
-            seats: this.createDefaultSeats(),
-            video: r.video || {
-              videoId: '',
-              title: '',
-              channel: '',
-              duration: 0,
-              currentTime: 0,
-              isPlaying: false,
-              lastUpdated: Date.now(),
-            },
-            playlist: r.playlist || [],
-            loopMode: r.loopMode || 'all',
-            isShuffle: r.isShuffle || false,
-            lastVideoEndedTime: 0,
-            stageAccessMode: r.stageAccessMode || 'everyone',
-            approvedSpeakerIds: new Set<string>([r.metadata.ownerId]),
-            pendingStageRequests: new Map<string, StageRequest>(),
-            chat: [
-              {
-                id: 'msg-welcome',
-                sender: {
-                  id: 'system',
-                  name: 'WatchParty Bot 🤖',
-                  avatar:
-                    'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%238b5cf6"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2zM7.5 13a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm9 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>',
-                  color: '#8b5cf6',
-                },
-                text: `ยินดีต้อนรับกลับสู่ห้อง "${r.metadata.name}"! เพลย์ลิสต์ได้รับการบันทึกไว้เรียบร้อยแล้ว 🎵`,
-                timestamp: Date.now(),
-              },
-            ],
-            adminIds: new Set<string>(),
-            bannedUsers: new Map<string, BannedUser>(),
-            isMemberRoom: true,
-            lastActiveTime: r.lastActiveTime || Date.now(),
-            emptySince: null,
-          };
-          this.rooms.set(r.metadata.id, roomData);
-        }
-        console.log(`[RoomManager] Re-hydrated ${this.rooms.size} persistent member rooms from disk.`);
-      }
+      this.hydratePersistentRooms(savedList);
+      console.log(`[RoomManager] Re-hydrated ${this.rooms.size} persistent member rooms from disk.`);
     } catch (err) {
       console.error('Failed to load persistent rooms:', err);
+    }
+  }
+
+  private async initSupabaseRoomsSync() {
+    if (!serverSupabaseService.isConfigured()) return;
+    try {
+      const cloudRooms = await serverSupabaseService.loadData<any[]>('persistent_rooms');
+      if (Array.isArray(cloudRooms) && cloudRooms.length > 0) {
+        this.hydratePersistentRooms(cloudRooms);
+        console.log(`✅ [RoomManager] Re-hydrated ${cloudRooms.length} rooms from Supabase Cloud!`);
+      }
+    } catch (e) {
+      console.error('[RoomManager] Failed to load rooms from Supabase:', e);
     }
   }
 
@@ -161,6 +179,12 @@ export class RoomManager {
         }
       }
       fs.writeFileSync(PERSISTENT_ROOMS_FILE, JSON.stringify(toSave, null, 2), 'utf-8');
+
+      if (serverSupabaseService.isConfigured()) {
+        serverSupabaseService.saveData('persistent_rooms', toSave).catch((e) => {
+          console.error('[RoomManager] Failed to sync rooms to Supabase:', e);
+        });
+      }
     } catch (err) {
       console.error('Failed to save persistent rooms:', err);
     }

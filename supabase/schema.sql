@@ -148,3 +148,24 @@ CREATE INDEX IF NOT EXISTS idx_profiles_username ON public.profiles(username);
 CREATE INDEX IF NOT EXISTS idx_follows_follower ON public.follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_follows_following ON public.follows(following_id);
 CREATE INDEX IF NOT EXISTS idx_favorites_user ON public.favorites(user_id);
+
+-- ==========================================================
+-- 6. Create APP_STORAGE table
+-- Used by backend container to persist platform members,
+-- admin credentials, and rooms across Cloud Deploys (Render.com)
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS public.app_storage (
+  key TEXT PRIMARY KEY,
+  data JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE public.app_storage ENABLE ROW LEVEL SECURITY;
+
+-- Allow public and service role access for backend server sync
+CREATE POLICY "Allow public and service access to app_storage"
+  ON public.app_storage FOR ALL
+  USING (true)
+  WITH CHECK (true);
+

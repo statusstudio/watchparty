@@ -409,6 +409,38 @@ async function startServer() {
     res.json(emailService.getEmailLogs());
   });
 
+  // Get Supabase Cloud Persistence Status
+  app.get('/api/admin/supabase-status', async (req, res) => {
+    try {
+      const status = await platformManager.getSupabaseStatus();
+      res.json(status);
+    } catch (err: any) {
+      res.status(500).json({
+        configured: false,
+        connected: false,
+        message: err.message || 'Error checking Supabase status',
+      });
+    }
+  });
+
+  // Manual Trigger: Sync data to Supabase
+  app.post('/api/admin/supabase-sync', async (req, res) => {
+    try {
+      const success = await platformManager.syncToSupabase();
+      roomManager.savePersistentRooms();
+      if (success) {
+        res.json({ success: true, message: 'ซิงก์ข้อมูลสมาชิกและห้องขึ้น Supabase Cloud สำเร็จเรียบร้อย! 🎉' });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: 'ยังไม่ได้ตั้งค่า SUPABASE_URL / SUPABASE_KEY หรือตาราง app_storage ยังไม่ถูกสร้าง',
+        });
+      }
+    } catch (err: any) {
+      res.status(500).json({ success: false, message: err.message || 'เกิดข้อผิดพลาดในการซิงก์ข้อมูล' });
+    }
+  });
+
   // Verify Master Passcode (Legacy support)
   app.post('/api/platform/auth', (req, res) => {
     const { passcode } = req.body;
