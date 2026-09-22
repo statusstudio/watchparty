@@ -1684,7 +1684,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               <div className="border-b border-[#e6e6e6] pb-3">
                 <h3 className="text-sm font-bold text-[#000000] flex items-center gap-2">
                   <Send className="w-4 h-4 text-[#0075de]" />
-                  <span>ทดสอบส่งอีเมล (Test SMTP Delivery)</span>
+                  <span>ทดสอบระบบส่งอีเมล (Test Email Delivery / SMTP)</span>
                 </h3>
                 <p className="text-xs text-[#615d59] mt-0.5">
                   ทดสอบส่งอีเมลยืนยันการเชื่อมต่อไปยังกล่องจดหมายของคุณ เพื่อตรวจสอบว่า SMTP ทำงานได้จริงก่อนเปิดให้สมาชิกใช้งาน
