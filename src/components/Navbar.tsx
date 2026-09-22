@@ -75,7 +75,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const isAdminOrOwner = myRole === 'owner' || myRole === 'admin';
-  const isMember = currentUser.provider === 'google' || currentUser.provider === 'facebook';
+  const isMember = Boolean(
+    (currentUser.provider !== 'guest' && currentUser.email) ||
+    currentUser.provider === 'email' ||
+    currentUser.provider === 'google' ||
+    currentUser.provider === 'facebook'
+  );
 
   // Stealth Admin Triggers: 5 rapid clicks on logo
   const logoClickCountRef = useRef<number>(0);
@@ -295,7 +300,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={onOpenAuth}
             className="hidden md:flex px-3.5 py-1.5 rounded-full bg-[#0075de] hover:bg-[#005bab] text-white font-medium text-xs shadow-[0_1px_2px_rgba(0,117,222,0.2)] items-center gap-1.5 transition-all cursor-pointer shrink-0"
-            title="เข้าสู่ระบบด้วย Google หรือ Facebook"
+            title="เข้าสู่ระบบสมาชิก"
           >
             <LogIn className="w-3.5 h-3.5" />
             <span>เข้าสู่ระบบ</span>
@@ -321,6 +326,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span className="text-[11px] sm:text-xs font-medium text-[#31302e] group-hover:text-[#000000] max-w-[60px] xs:max-w-[85px] sm:max-w-[120px] truncate">
             {currentUser.name}
           </span>
+          {currentUser.provider === 'email' && (
+            <span className="w-2 h-2 rounded-full bg-[#10b981] shrink-0" title="สมาชิก (Email)" />
+          )}
           {currentUser.provider === 'google' && (
             <span className="w-2 h-2 rounded-full bg-[#dd5b00] shrink-0" title="Google Account" />
           )}
@@ -512,7 +520,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className="w-full px-3 py-2 rounded-full bg-[#0075de] hover:bg-[#005bab] text-left text-xs text-white font-medium flex items-center gap-2.5 transition-all cursor-pointer shadow-xs mt-1"
                   >
                     <LogIn className="w-4 h-4" />
-                    <span>เข้าสู่ระบบ (Google / Facebook)</span>
+                    <span>เข้าสู่ระบบสมาชิก</span>
                   </button>
                 )}
 

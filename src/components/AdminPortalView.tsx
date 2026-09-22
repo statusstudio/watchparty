@@ -35,6 +35,8 @@ import {
   X,
   Sparkles,
   Clock,
+  Menu,
+  ChevronRight,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -97,6 +99,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     'account' | 'smtp' | 'overview' | 'widgets' | 'ad_popup' | 'users' | 'rooms' | 'announcements' | 'tickets'
   >('account');
   const [loading, setLoading] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   // Data
   const [stats, setStats] = useState<PlatformStats>({
@@ -858,6 +861,208 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     return true;
   });
 
+  const getTabTitle = (tab: typeof activeTab) => {
+    switch (tab) {
+      case 'overview':
+        return 'สถิติ & สุขภาพระบบ';
+      case 'users':
+        return 'จัดการสมาชิก';
+      case 'rooms':
+        return 'จัดการห้องปาร์ตี้';
+      case 'tickets':
+        return 'Support & แจ้งปัญหา';
+      case 'announcements':
+        return 'ประกาศข่าวด่วน';
+      case 'ad_popup':
+        return 'ป๊อปอัพโฆษณา';
+      case 'widgets':
+        return 'โมดูล & Widget';
+      case 'account':
+        return 'บัญชีแอดมิน & รหัสผ่าน';
+      case 'smtp':
+        return 'ตั้งค่าส่งอีเมล SMTP';
+      default:
+        return 'เมนูจัดการระบบ';
+    }
+  };
+
+  const navSections = [
+    {
+      title: 'ภาพรวมระบบ',
+      items: [
+        {
+          id: 'overview' as const,
+          label: 'สถิติ & สุขภาพระบบ',
+          icon: Activity,
+        },
+      ],
+    },
+    {
+      title: 'การจัดการข้อมูล',
+      items: [
+        {
+          id: 'users' as const,
+          label: 'จัดการสมาชิก',
+          icon: Users,
+          count: users.length,
+        },
+        {
+          id: 'rooms' as const,
+          label: 'จัดการห้องปาร์ตี้',
+          icon: Radio,
+          count: rooms.length,
+        },
+        {
+          id: 'tickets' as const,
+          label: 'แจ้งปัญหา & Support',
+          icon: MessageSquare,
+          count: tickets.length,
+          alertCount: tickets.filter((t) => t.status === 'pending').length,
+        },
+      ],
+    },
+    {
+      title: 'การสื่อสาร & การตลาด',
+      items: [
+        {
+          id: 'announcements' as const,
+          label: 'ประกาศข่าวด่วน',
+          icon: Megaphone,
+          isActive: config.announcementBanner?.enabled || announcementEnabled,
+        },
+        {
+          id: 'ad_popup' as const,
+          label: 'ป๊อปอัพโฆษณา (Ad)',
+          icon: ImageIcon,
+          isActive: config.adPopup?.enabled,
+        },
+        {
+          id: 'widgets' as const,
+          label: 'ควบคุมโมดูล & Widget',
+          icon: Sliders,
+        },
+      ],
+    },
+    {
+      title: 'ความปลอดภัย & ตั้งค่า',
+      items: [
+        {
+          id: 'account' as const,
+          label: 'บัญชีแอดมิน & รหัสผ่าน',
+          icon: Lock,
+        },
+        {
+          id: 'smtp' as const,
+          label: 'ตั้งค่าส่งอีเมล (SMTP)',
+          icon: Mail,
+          statusLabel: smtpConfig.enabled ? 'Live' : 'Console',
+          statusColor: smtpConfig.enabled
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            : 'bg-amber-50 text-amber-700 border-amber-200',
+        },
+      ],
+    },
+  ];
+
+  const renderNavContent = () => (
+    <div className="space-y-4">
+      {navSections.map((section, sIdx) => (
+        <div key={sIdx} className="space-y-1">
+          <div className="px-2.5 text-[10px] font-bold uppercase tracking-wider text-[#a39e98]">
+            {section.title}
+          </div>
+          <div className="space-y-0.5">
+            {section.items.map((item) => {
+              const Icon = item.icon;
+              const isSelected = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setIsMobileNavOpen(false);
+                    if (item.id === 'smtp') {
+                      fetchSmtpConfig();
+                      fetchEmailLogs();
+                    }
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left ${
+                    isSelected
+                      ? 'bg-[#0075de] text-white shadow-xs'
+                      : 'text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon className={`w-4 h-4 shrink-0 ${isSelected ? 'text-white' : 'text-[#615d59]'}`} />
+                    <span className="truncate">{item.label}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0 ml-1.5">
+                    {'alertCount' in item && typeof item.alertCount === 'number' && item.alertCount > 0 && (
+                      <span
+                        className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          isSelected
+                            ? 'bg-white text-rose-600'
+                            : 'bg-rose-50 text-rose-600 border border-rose-200'
+                        }`}
+                        title={`${item.alertCount} คำร้องรอดำเนินการ`}
+                      >
+                        {item.alertCount} ใหม่
+                      </span>
+                    )}
+
+                    {'count' in item && typeof item.count === 'number' && (!('alertCount' in item) || !item.alertCount) && (
+                      <span
+                        className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                          isSelected ? 'bg-white/25 text-white' : 'bg-[#e6e6e6] text-[#615d59]'
+                        }`}
+                      >
+                        {item.count}
+                      </span>
+                    )}
+
+                    {'isActive' in item && item.isActive && (
+                      <span
+                        className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : 'bg-emerald-500'}`}
+                        title="เปิดใช้งานอยู่"
+                      />
+                    )}
+
+                    {'statusLabel' in item && (
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                          isSelected
+                            ? 'bg-white/25 text-white border-white/40'
+                            : item.statusColor
+                        }`}
+                      >
+                        {item.statusLabel}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      {/* Admin Profile Footnote in Sidebar */}
+      <div className="pt-3 border-t border-[#e6e6e6] mt-2">
+        <div className="p-2.5 bg-[#f6f5f4] rounded-xl flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 border border-amber-500/20 flex items-center justify-center font-bold text-xs shrink-0">
+            👑
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold text-[#000000] truncate">{adminCredentials.username}</p>
+            <p className="text-[10px] text-[#615d59] truncate">{adminCredentials.email}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   // LOGGED IN ADMIN PORTAL DASHBOARD
   return (
     <div className="min-h-screen w-full bg-[#f6f5f4] flex flex-col text-[#31302e]">
@@ -883,6 +1088,17 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Mobile Menu Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setIsMobileNavOpen(true)}
+            className="md:hidden px-2.5 py-1.5 rounded-xl bg-[#0075de]/10 text-[#0075de] hover:bg-[#0075de]/20 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+            title="เปิดเมนูนำทาง"
+          >
+            <Menu className="w-4 h-4" />
+            <span className="max-w-[100px] truncate">{getTabTitle(activeTab)}</span>
+          </button>
+
           <button
             onClick={loadAllData}
             disabled={loading}
@@ -910,181 +1126,98 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         </div>
       </header>
 
-      {/* Main Container */}
-      <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
-        {/* Metric Overview Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-4 bg-white border border-[#e6e6e6] rounded-2xl flex items-center gap-3 shadow-xs">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-500/20">
-              <Activity className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[10px] text-[#615d59] font-medium uppercase">คนเข้าเว็บสด</p>
-              <p className="text-xl font-bold text-emerald-600">
-                {analytics ? analytics.onlineVisitors : stats.totalOnlineUsers} คน
-              </p>
-            </div>
-          </div>
+      {/* Main Workspace with Categorized Sidebar */}
+      <div className="flex-1 flex flex-col md:flex-row max-w-7xl w-full mx-auto">
+        {/* Desktop Left Sidebar */}
+        <aside className="hidden md:flex flex-col w-64 shrink-0 bg-white border-r border-[#e6e6e6] p-4 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
+          {renderNavContent()}
+        </aside>
 
-          <div className="p-4 bg-white border border-[#e6e6e6] rounded-2xl flex items-center gap-3 shadow-xs">
-            <div className="w-10 h-10 rounded-xl bg-[#0075de]/10 text-[#0075de] flex items-center justify-center shrink-0 border border-[#0075de]/20">
-              <Users className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[10px] text-[#615d59] font-medium uppercase">สมาชิกในระบบ</p>
-              <p className="text-xl font-bold text-[#000000]">
-                {users.length} คน
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4 bg-white border border-[#e6e6e6] rounded-2xl flex items-center gap-3 shadow-xs">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center shrink-0 border border-purple-500/20">
-              <Radio className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[10px] text-[#615d59] font-medium uppercase">ห้องที่กำลังเปิด</p>
-              <p className="text-xl font-bold text-[#000000]">
-                {rooms.length} ห้อง
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4 bg-white border border-[#e6e6e6] rounded-2xl flex items-center gap-3 shadow-xs">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 border border-amber-500/20">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[10px] text-[#615d59] font-medium uppercase">ผู้ดูแลระบบสูงสุด</p>
-              <p className="text-sm font-bold text-amber-600 truncate">
-                {adminCredentials.username} 👑
-              </p>
+        {/* Mobile Slide-over Drawer */}
+        {isMobileNavOpen && (
+          <div className="fixed inset-0 z-50 md:hidden flex">
+            <div
+              className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
+              onClick={() => setIsMobileNavOpen(false)}
+            />
+            <div className="relative w-4/5 max-w-xs bg-white h-full shadow-2xl flex flex-col z-10 animate-fade-in border-r border-[#e6e6e6]">
+              <div className="p-4 border-b border-[#e6e6e6] flex items-center justify-between bg-[#fcfbf9]">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-xs border border-amber-500/20">
+                    👑
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-[#000000]">เมนูจัดการระบบ</h3>
+                    <p className="text-[10px] text-[#615d59]">Admin Workspace</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileNavOpen(false)}
+                  className="p-1 rounded-lg text-[#615d59] hover:bg-[#f6f5f4]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3">
+                {renderNavContent()}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-[#e6e6e6] bg-white rounded-2xl p-1.5 shadow-xs overflow-x-auto gap-1">
-          <button
-            onClick={() => setActiveTab('account')}
-            className={`py-2 px-3.5 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'account'
-                ? 'bg-amber-500/10 text-amber-700 font-bold'
-                : 'text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4]'
-            }`}
-          >
-            <Lock className="w-3.5 h-3.5 text-amber-500" />
-            <span>🔐 บัญชีแอดมิน & รหัสผ่าน</span>
-          </button>
+        {/* Right Main Content Area */}
+        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 space-y-6">
+          {/* Metric Overview Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="p-4 bg-white border border-[#e6e6e6] rounded-2xl flex items-center gap-3 shadow-xs">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-500/20">
+                <Activity className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[10px] text-[#615d59] font-medium uppercase">คนเข้าเว็บสด</p>
+                <p className="text-xl font-bold text-emerald-600">
+                  {analytics ? analytics.onlineVisitors : stats.totalOnlineUsers} คน
+                </p>
+              </div>
+            </div>
 
-          <button
-            onClick={() => {
-              setActiveTab('smtp');
-              fetchSmtpConfig();
-              fetchEmailLogs();
-            }}
-            className={`py-2 px-3.5 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'smtp'
-                ? 'bg-[#0075de]/10 text-[#0075de] font-bold'
-                : 'text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4]'
-            }`}
-          >
-            <Mail className="w-3.5 h-3.5 text-[#0075de]" />
-            <span>📧 ตั้งค่าส่งอีเมล (SMTP)</span>
-            {smtpConfig.enabled ? (
-              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="กำลังเปิดใช้งาน" />
-            ) : (
-              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="โหมดจำลอง (Console)" />
-            )}
-          </button>
+            <div className="p-4 bg-white border border-[#e6e6e6] rounded-2xl flex items-center gap-3 shadow-xs">
+              <div className="w-10 h-10 rounded-xl bg-[#0075de]/10 text-[#0075de] flex items-center justify-center shrink-0 border border-[#0075de]/20">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[10px] text-[#615d59] font-medium uppercase">สมาชิกในระบบ</p>
+                <p className="text-xl font-bold text-[#000000]">
+                  {users.length} คน
+                </p>
+              </div>
+            </div>
 
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`py-2 px-3.5 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'overview'
-                ? 'bg-[#0075de]/10 text-[#0075de] font-bold'
-                : 'text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4]'
-            }`}
-          >
-            <Activity className="w-3.5 h-3.5" />
-            <span>สถิติ & สุขภาพระบบ</span>
-          </button>
+            <div className="p-4 bg-white border border-[#e6e6e6] rounded-2xl flex items-center gap-3 shadow-xs">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center shrink-0 border border-purple-500/20">
+                <Radio className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[10px] text-[#615d59] font-medium uppercase">ห้องที่กำลังเปิด</p>
+                <p className="text-xl font-bold text-[#000000]">
+                  {rooms.length} ห้อง
+                </p>
+              </div>
+            </div>
 
-          <button
-            onClick={() => setActiveTab('widgets')}
-            className={`py-2 px-3.5 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'widgets'
-                ? 'bg-[#0075de]/10 text-[#0075de] font-bold'
-                : 'text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4]'
-            }`}
-          >
-            <Sliders className="w-3.5 h-3.5" />
-            <span>ควบคุมโมดูล & Widget</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('ad_popup')}
-            className={`py-2 px-3.5 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'ad_popup'
-                ? 'bg-[#0075de]/10 text-[#0075de] font-bold'
-                : 'text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4]'
-            }`}
-          >
-            <ImageIcon className="w-3.5 h-3.5" />
-            <span>ป๊อปอัพโฆษณา (Ad Popup)</span>
-            {config.adPopup?.enabled && (
-              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`py-2 px-3.5 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'users'
-                ? 'bg-[#0075de]/10 text-[#0075de] font-bold'
-                : 'text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4]'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>จัดการสมาชิก ({users.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('rooms')}
-            className={`py-2 px-3.5 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'rooms'
-                ? 'bg-[#0075de]/10 text-[#0075de] font-bold'
-                : 'text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4]'
-            }`}
-          >
-            <Radio className="w-3.5 h-3.5" />
-            <span>จัดการห้อง ({rooms.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('announcements')}
-            className={`py-2 px-3.5 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'announcements'
-                ? 'bg-[#0075de]/10 text-[#0075de] font-bold'
-                : 'text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4]'
-            }`}
-          >
-            <Megaphone className="w-3.5 h-3.5" />
-            <span>ประกาศข่าวด่วน</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('tickets')}
-            className={`py-2 px-3.5 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'tickets'
-                ? 'bg-[#0075de]/10 text-[#0075de] font-bold'
-                : 'text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4]'
-            }`}
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            <span>Support ({tickets.length})</span>
-          </button>
-        </div>
+            <div className="p-4 bg-white border border-[#e6e6e6] rounded-2xl flex items-center gap-3 shadow-xs">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 border border-amber-500/20">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[10px] text-[#615d59] font-medium uppercase">ผู้ดูแลระบบสูงสุด</p>
+                <p className="text-sm font-bold text-amber-600 truncate">
+                  {adminCredentials.username} 👑
+                </p>
+              </div>
+            </div>
+          </div>
 
         {/* TAB 1: ADMIN ACCOUNT MANAGEMENT */}
         {activeTab === 'account' && (
@@ -2638,6 +2771,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
             </div>
           </div>
         )}
+        </main>
       </div>
     </div>
   );
