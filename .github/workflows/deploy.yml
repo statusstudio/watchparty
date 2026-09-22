@@ -1,0 +1,26 @@
+name: Auto Deploy to Render
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Trigger Render Deploy Hook
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Deploy Request to Render
+        run: |
+          echo "🚀 Triggering Render deployment via Deploy Hook..."
+          response=$(curl -s -w "\n%{http_code}" -X POST "https://api.render.com/deploy/srv-dan40sjm8hqs739vahhg?key=5ANTUPOhk-U")
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          echo "Render HTTP Code: $http_code"
+          echo "Response: $body"
+          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            echo "✅ Successfully triggered Render deployment!"
+          else
+            echo "❌ Failed to trigger Render deployment."
+            exit 1
+          fi
