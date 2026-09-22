@@ -143,8 +143,8 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
 
   // Backoffice State & Tabs
   const [activeTab, setActiveTab] = useState<
-    'account' | 'smtp' | 'database' | 'overview' | 'widgets' | 'ad_popup' | 'users' | 'rooms' | 'announcements' | 'tickets'
-  >('account');
+    'account' | 'smtp' | 'database' | 'deploy' | 'overview' | 'widgets' | 'ad_popup' | 'users' | 'rooms' | 'announcements' | 'tickets'
+  >('overview');
   const [supabaseStatus, setSupabaseStatus] = useState<{
     configured: boolean;
     connected: boolean;
@@ -1061,6 +1061,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         return 'บัญชีแอดมิน & รหัสผ่าน';
       case 'smtp':
         return 'ตั้งค่าส่งอีเมล SMTP';
+      case 'database':
+        return 'ฐานข้อมูล Supabase Cloud';
+      case 'deploy':
+        return 'สถานะ Deploy & อัปเดตเว็บ';
       default:
         return 'เมนูจัดการระบบ';
     }
@@ -1148,6 +1152,15 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
           statusColor: supabaseStatus.connected
             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
             : 'bg-gray-100 text-gray-600 border-gray-200',
+        },
+        {
+          id: 'deploy' as const,
+          label: 'สถานะ Deploy & อัปเดตเว็บ',
+          icon: Rocket,
+          statusLabel: deployCountdown !== null ? `กำลังบิลด์ (${deployCountdown}s)` : 'ออนไลน์',
+          statusColor: deployCountdown !== null
+            ? 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse'
+            : 'bg-blue-50 text-[#0075de] border-blue-200',
         },
       ],
     },
@@ -1254,9 +1267,9 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
 
   // LOGGED IN ADMIN PORTAL DASHBOARD
   return (
-    <div className="min-h-screen w-full bg-[#f6f5f4] flex flex-col text-[#31302e]">
+    <div className="h-screen w-full bg-[#f6f5f4] flex flex-col text-[#31302e] overflow-hidden">
       {/* Top Navbar */}
-      <header className="bg-white border-b border-[#e6e6e6] sticky top-0 z-40 px-4 sm:px-8 py-3 flex items-center justify-between shadow-xs">
+      <header className="bg-white border-b border-[#e6e6e6] z-40 px-4 sm:px-8 py-3 flex items-center justify-between shadow-xs shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 flex items-center justify-center shadow-xs">
             <Crown className="w-5 h-5" />
@@ -1269,22 +1282,27 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 text-[10px] font-bold border border-amber-500/20">
                 SUPER ADMIN
               </span>
-              <span
-                className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0075de] text-[10px] font-bold border border-blue-200 shadow-xs"
-                title={`Frontend Build: ${__APP_BUILD_TIME__} | Commit: ${__APP_COMMIT_HASH__}`}
+              <button
+                type="button"
+                onClick={() => setActiveTab('deploy')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border transition-all cursor-pointer ${
+                  deployCountdown !== null
+                    ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-300 animate-pulse'
+                    : 'bg-blue-50 hover:bg-blue-100 text-[#0075de] border-blue-200 shadow-2xs'
+                }`}
+                title="คลิกเพื่อไปที่เมนูสถานะการ Deploy & อัปเดตเว็บ"
               >
                 <Rocket className="w-3 h-3 text-[#0075de]" />
-                <span>Deploy: {formatDeployDateTime(__APP_BUILD_TIME__)}</span>
-              </span>
+                <span>
+                  {deployCountdown !== null
+                    ? `กำลังบิลด์ (${deployCountdown}s)`
+                    : `Deploy: ${formatDeployDateTime(__APP_BUILD_TIME__)}`}
+                </span>
+              </button>
             </div>
-            <div className="flex items-center gap-2 text-xs text-[#615d59]">
-              <p>
-                ผู้ดูแลระบบ: <strong>{adminCredentials.username}</strong> ({adminCredentials.email})
-              </p>
-              <span className="hidden sm:inline lg:hidden text-[10px] text-[#0075de] font-semibold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
-                🚀 {formatDeployDateTime(__APP_BUILD_TIME__)}
-              </span>
-            </div>
+            <p className="text-xs text-[#615d59]">
+              ผู้ดูแลระบบ: <strong>{adminCredentials.username}</strong> ({adminCredentials.email})
+            </p>
           </div>
         </div>
 
@@ -1328,9 +1346,9 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       </header>
 
       {/* Main Workspace with Categorized Sidebar */}
-      <div className="flex-1 flex flex-col md:flex-row max-w-7xl w-full mx-auto">
+      <div className="flex-1 flex flex-col md:flex-row max-w-7xl w-full mx-auto overflow-hidden min-h-0">
         {/* Desktop Left Sidebar */}
-        <aside className="hidden md:flex flex-col w-64 shrink-0 bg-white border-r border-[#e6e6e6] p-4 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
+        <aside className="hidden md:flex flex-col w-64 shrink-0 bg-white border-r border-[#e6e6e6] p-4 h-full overflow-y-auto">
           {renderNavContent()}
         </aside>
 
@@ -1368,7 +1386,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         )}
 
         {/* Right Main Content Area */}
-        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 space-y-6">
+        <main className="flex-1 min-w-0 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 pb-40">
           {/* Metric Overview Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="p-4 bg-white border border-[#e6e6e6] rounded-2xl flex items-center gap-3 shadow-xs">
@@ -1419,115 +1437,6 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               </div>
             </div>
           </div>
-
-          {/* Deployment & Live Version Status Banner */}
-          <div className="p-4 bg-white border border-[#e6e6e6] rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
-            <div className="flex items-start sm:items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-[#0075de]/10 text-[#0075de] flex items-center justify-center shrink-0 border border-[#0075de]/20">
-                <Rocket className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-xs font-bold text-[#000000]">สถานะการ Deploy &amp; เวอร์ชันระบบ (Live Deployment Status)</h3>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 text-[10px] font-bold border border-emerald-500/20 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    ระบบออนไลน์
-                  </span>
-                  {serverVersion && serverVersion.gitCommit && serverVersion.gitCommit !== __APP_COMMIT_HASH__ && (
-                    <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 text-[10px] font-bold border border-amber-500/30 flex items-center gap-1">
-                      ⚠️ มีเวอร์ชันใหม่พร้อมใช้งาน! กรุณากดรีเฟรชหน้าเว็บ
-                    </span>
-                  )}
-                </div>
-                <div className="text-[11px] text-[#615d59] mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span>
-                    🚀 <strong>Deploy ล่าสุด:</strong> <span className="font-semibold text-[#000000]">{formatDeployDateTime(__APP_BUILD_TIME__)}</span>
-                    {formatRelativeTime(__APP_BUILD_TIME__) && (
-                      <span className="text-[#8c8780] ml-1">({formatRelativeTime(__APP_BUILD_TIME__)})</span>
-                    )}
-                  </span>
-                  <span className="hidden sm:inline text-[#d4d1cc]">•</span>
-                  <span>
-                    🔖 <strong>Git Commit:</strong> <code className="bg-[#f6f5f4] px-1.5 py-0.5 rounded text-[#0075de] font-mono text-[10px] font-semibold border border-[#e6e6e6]">{__APP_COMMIT_HASH__}</code>
-                  </span>
-                  {serverVersion?.bootTime && (
-                    <>
-                      <span className="hidden sm:inline text-[#d4d1cc]">•</span>
-                      <span>
-                        ⚡ <strong>เซิร์ฟเวอร์เริ่มทำงาน:</strong> {formatDeployDateTime(serverVersion.bootTime)}
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto flex-wrap">
-              <button
-                type="button"
-                onClick={handleTriggerRedeploy}
-                disabled={triggeringDeploy || deployCountdown !== null}
-                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-60"
-                title="สั่งให้ Render เริ่ม Deploy โค้ดล่าสุดทันทีโดยไม่ต้องไปกดในหน้าเว็บ Render"
-              >
-                <Rocket className={`w-3.5 h-3.5 ${triggeringDeploy ? 'animate-spin' : ''}`} />
-                <span>
-                  {triggeringDeploy
-                    ? 'กำลังส่งคำสั่ง...'
-                    : deployCountdown !== null
-                    ? `กำลัง Deploy... (${deployCountdown}s)`
-                    : '🚀 สั่งอัปเดตเว็บเดี๋ยวนี้'}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  loadAllData();
-                  onShowToast('ดึงข้อมูลสถานะล่าสุดเรียบร้อย', 'info');
-                }}
-                disabled={loading}
-                className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                title="ดึงข้อมูลสถานะเวอร์ชันล่าสุด"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#0075de]' : ''}`} />
-                <span>เช็คอัปเดต</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="px-3 py-1.5 rounded-xl bg-[#0075de] hover:bg-[#0062bd] text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                title="รีโหลดหน้าเว็บเพื่อดึงไฟล์ Build ล่าสุดจาก Render"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>รีเฟรชหน้าเว็บ</span>
-              </button>
-            </div>
-          </div>
-
-          {deployCountdown !== null && (
-            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in shadow-xs">
-              <div className="flex items-center gap-2.5">
-                <RefreshCw className="w-4 h-4 text-emerald-600 animate-spin shrink-0" />
-                <div>
-                  <p className="font-bold text-emerald-800">
-                    กำลัง Deploy โค้ดล่าสุดบนเซิร์ฟเวอร์ Render...
-                  </p>
-                  <p className="text-[11px] text-emerald-700 mt-0.5">
-                    Render กำลังดึงโค้ดจาก GitHub มา Build ให้ใหม่ (เหลือเวลารอโดยประมาณ <strong>{deployCountdown} วินาที</strong>)
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shrink-0 cursor-pointer shadow-xs"
-              >
-                รีโหลดหน้าเว็บตอนนี้
-              </button>
-            </div>
-          )}
 
         {/* TAB 1: ADMIN ACCOUNT MANAGEMENT */}
         {activeTab === 'account' && (
@@ -2213,6 +2122,223 @@ CREATE POLICY "Allow public and service access to app_storage"
                 <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl ml-8">
                   💡 <strong>หลังจากกด Save Changes บน Render:</strong> เซิร์ฟเวอร์จะเชื่อมต่อกับ Supabase ทันที และจะทำการบันทึกข้อมูลสมาชิกทุกคนขึ้น Cloud โดยอัตโนมัติทุกครั้งที่มีการสมัครหรือใช้งานครับ!
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 1.8: DEPLOYMENT STATUS & RENDER UPDATE */}
+        {activeTab === 'deploy' && (
+          <div className="space-y-6">
+            {/* Header Status Card */}
+            <div className="bg-white border border-[#e6e6e6] rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e6e6e6] pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#0075de]/10 text-[#0075de] flex items-center justify-center shrink-0 border border-[#0075de]/20">
+                    <Rocket className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-[#000000] flex items-center gap-2">
+                      <span>สถานะการ Deploy &amp; อัปเดตเว็บไซต์ (Render Deployment)</span>
+                    </h2>
+                    <p className="text-xs text-[#615d59] mt-0.5">
+                      ตรวจสอบเวอร์ชัน ตรวจสอบเวลาที่บิลด์ล่าสุด และสั่งให้เซิร์ฟเวอร์ Render ทำการ Deploy โค้ดล่าสุดได้ทันทีจากที่นี่
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-[#615d59] font-medium">สถานะ:</span>
+                  {deployCountdown !== null ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-300 text-amber-700 text-xs font-semibold animate-pulse">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-600" />
+                      กำลังบิลด์บน Render ({deployCountdown}s)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      พร้อมใช้งาน (Online)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Version Mismatch Warning */}
+              {serverVersion && serverVersion.gitCommit && serverVersion.gitCommit !== __APP_COMMIT_HASH__ && (
+                <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>
+                      <strong>มีโค้ดเวอร์ชันใหม่บนเซิร์ฟเวอร์!</strong> (Server: <code className="font-mono">{serverVersion.gitCommit}</code> / Page: <code className="font-mono">{__APP_COMMIT_HASH__}</code>) กรุณากดปุ่มรีเฟรชหน้าเว็บเพื่อดึงไฟล์ล่าสุด
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shrink-0 cursor-pointer shadow-2xs"
+                  >
+                    รีเฟรชตอนนี้
+                  </button>
+                </div>
+              )}
+
+              {/* Active Deployment Progress Box */}
+              {deployCountdown !== null && (
+                <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30 text-emerald-950 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <RefreshCw className="w-5 h-5 text-emerald-600 animate-spin shrink-0" />
+                      <div>
+                        <p className="text-xs font-bold text-emerald-800">
+                          กำลังส่งคำสั่ง &amp; บิลด์ระบบใหม่บน Render.com...
+                        </p>
+                        <p className="text-[11px] text-emerald-700 mt-0.5">
+                          เซิร์ฟเวอร์กำลังดึงโค้ดล่าสุดจาก GitHub มาคอมไพล์ใหม่ (เหลือเวลารอโดยประมาณ <strong>{deployCountdown} วินาที</strong>)
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => window.location.reload()}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer shadow-xs shrink-0"
+                    >
+                      รีโหลดหน้าเว็บทันที
+                    </button>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full h-2 rounded-full bg-emerald-200 overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-600 rounded-full transition-all duration-1000 ease-linear"
+                      style={{ width: `${Math.min(100, Math.max(5, ((120 - deployCountdown) / 120) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Version & Build Metrics */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="p-3.5 rounded-xl bg-[#f6f5f4] border border-[#e6e6e6]">
+                  <span className="text-[10px] text-[#615d59] uppercase font-bold tracking-wider">วันและเวลาที่ Deploy ล่าสุด</span>
+                  <p className="text-sm font-bold text-[#000000] mt-1">
+                    {formatDeployDateTime(__APP_BUILD_TIME__)}
+                  </p>
+                  <p className="text-[11px] text-[#0075de] font-semibold mt-0.5">
+                    {formatRelativeTime(__APP_BUILD_TIME__)}
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#f6f5f4] border border-[#e6e6e6]">
+                  <span className="text-[10px] text-[#615d59] uppercase font-bold tracking-wider">รหัส Git Commit</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <code className="px-2 py-0.5 rounded-md bg-white border border-[#e6e6e6] text-[#0075de] font-mono text-xs font-bold">
+                      {__APP_COMMIT_HASH__}
+                    </code>
+                    <span className="text-[11px] text-[#615d59]">(main branch)</span>
+                  </div>
+                  <p className="text-[11px] text-[#8c8780] mt-1">
+                    ซิงก์ตรงกับ statusstudio/watchparty
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#f6f5f4] border border-[#e6e6e6]">
+                  <span className="text-[10px] text-[#615d59] uppercase font-bold tracking-wider">เซิร์ฟเวอร์เริ่มทำงาน (Boot Time)</span>
+                  <p className="text-sm font-bold text-[#000000] mt-1">
+                    {serverVersion?.bootTime ? formatDeployDateTime(serverVersion.bootTime) : 'กำลังตรวจสอบ...'}
+                  </p>
+                  <p className="text-[11px] text-[#8c8780] mt-0.5">
+                    Env: <strong className="text-[#31302e]">{serverVersion?.environment || 'production'}</strong>
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons Panel */}
+              <div className="pt-2 border-t border-[#e6e6e6] flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleTriggerRedeploy}
+                  disabled={triggeringDeploy || deployCountdown !== null}
+                  className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold text-xs shadow-xs flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                  title="สั่งให้ Render เริ่ม Deploy โค้ดล่าสุดทันที"
+                >
+                  <Rocket className={`w-4 h-4 ${triggeringDeploy ? 'animate-spin' : ''}`} />
+                  <span>
+                    {triggeringDeploy
+                      ? 'กำลังส่งคำสั่งไปยัง Render...'
+                      : deployCountdown !== null
+                      ? `กำลังดำเนินการ Deploy (${deployCountdown}s)...`
+                      : '🚀 สั่ง Deploy เว็บไซต์เดี๋ยวนี้ (Trigger Deploy)'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadAllData();
+                    onShowToast('ตรวจสอบเวอร์ชันล่าสุดเรียบร้อย', 'info');
+                  }}
+                  disabled={loading}
+                  className="py-2.5 px-4 rounded-xl bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] font-semibold text-xs shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  title="ดึงข้อมูลสถานะเวอร์ชันล่าสุด"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#0075de]' : ''}`} />
+                  <span>ตรวจสอบเวอร์ชัน</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="py-2.5 px-4 rounded-xl bg-[#0075de] hover:bg-[#0062bd] text-white font-semibold text-xs shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                  title="รีโหลดหน้าเว็บเพื่อดึงโค้ดล่าสุด"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>รีเฟรชหน้าเว็บ</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Architecture & Continuous Deployment Workflow */}
+            <div className="bg-white border border-[#e6e6e6] rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="border-b border-[#e6e6e6] pb-3">
+                <h3 className="text-sm font-bold text-[#000000] flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>การทำงานของระบบ Continuous Deployment (CI/CD)</span>
+                </h3>
+                <p className="text-xs text-[#615d59] mt-0.5">
+                  ระบบถูกตั้งค่าให้อัปเดตและป้องกันข้อมูลสูญหายอัตโนมัติ 100%
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-xl bg-[#fcfbf9] border border-[#e6e6e6] space-y-2">
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 font-bold text-xs flex items-center justify-center border border-blue-500/20">
+                    1
+                  </div>
+                  <h4 className="text-xs font-bold text-[#000000]">GitHub Push &amp; Actions</h4>
+                  <p className="text-[11px] text-[#615d59] leading-relaxed">
+                    ทุกครั้งที่มีการแก้ไขและ Push โค้ดขึ้น GitHub ระบบ GitHub Actions จะตรวจจับและยิง Render Deploy Hook ให้อัตโนมัติทันที
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-[#fcfbf9] border border-[#e6e6e6] space-y-2">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 font-bold text-xs flex items-center justify-center border border-emerald-500/20">
+                    2
+                  </div>
+                  <h4 className="text-xs font-bold text-[#000000]">Render Zero-Downtime Build</h4>
+                  <p className="text-[11px] text-[#615d59] leading-relaxed">
+                    Render จะดาวน์โหลดโค้ดมาคอมไพล์ในคอนเทนเนอร์ใหม่ (ประมาณ 2-3 นาที) โดยที่เว็บเก่ายังคงเปิดให้ผู้ใช้ฟังเพลงได้ตามปกติจนกว่าตัวใหม่จะพร้อม
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-[#fcfbf9] border border-[#e6e6e6] space-y-2">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 font-bold text-xs flex items-center justify-center border border-amber-500/20">
+                    3
+                  </div>
+                  <h4 className="text-xs font-bold text-[#000000]">Supabase Data Persistence</h4>
+                  <p className="text-[11px] text-[#615d59] leading-relaxed">
+                    ข้อมูลสมาชิก รหัสผ่าน ห้องปาร์ตี้ และตั๋วซัพพอร์ตทั้งหมดจะถูกซิงก์เก็บไว้ที่ Supabase Cloud ถาวร เมื่อคอนเทนเนอร์ใหม่เริ่มทำงานจะโหลดข้อมูลกลับมาทันที
+                  </p>
+                </div>
               </div>
             </div>
           </div>
