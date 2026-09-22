@@ -1525,6 +1525,8 @@ export function App() {
     return (
       <>
         <AdminPortalView
+          currentUser={currentUser}
+          onUpdateCurrentUser={(updated) => setCurrentUser(updated)}
           onNavigateHome={() => {
             window.history.pushState({}, '', '/');
             setIsAdminRoute(false);

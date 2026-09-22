@@ -358,39 +358,97 @@ export class PlatformManager {
 
   public adminLogin(userOrEmail: string, pass: string): { success: boolean; user?: PlatformUser; message?: string } {
     const identifier = userOrEmail.trim().toLowerCase();
-    const isUsernameMatch = identifier === this.adminCredentials.username.toLowerCase();
-    const isEmailMatch = identifier === this.adminCredentials.email.toLowerCase();
+    const isRootUsernameMatch = identifier === this.adminCredentials.username.toLowerCase();
+    const isRootEmailMatch = identifier === this.adminCredentials.email.toLowerCase();
 
-    if (!isUsernameMatch && !isEmailMatch) {
-      return { success: false, message: 'ชื่อผู้ใช้หรืออีเมลแอดมินไม่ถูกต้อง' };
+    // 1. Check Root Super Admin credentials
+    if (isRootUsernameMatch || isRootEmailMatch) {
+      const hashed = emailService.hashPassword(pass);
+      if (hashed === this.adminCredentials.passwordHash || pass.trim() === MASTER_PASSCODE) {
+        // Refresh root admin in users map
+        const adminUser: PlatformUser = {
+          id: 'admin',
+          name: `${this.adminCredentials.username} 👑`,
+          username: 'admin',
+          email: this.adminCredentials.email,
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
+          bannerUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
+          color: '#dd5b00',
+          provider: 'email',
+          bio: 'ผู้ดูแลระบบสูงสุด pleng.online 👑 ยินดีต้อนรับทุกคนสู่คอมมูนิตี้คนรักเสียงเพลงครับ',
+          favoriteGenres: ['Lofi', 'Pop', 'Acoustic'],
+          isSuperAdmin: true,
+          isSuspended: false,
+          createdAt: this.adminCredentials.updatedAt || Date.now(),
+          lastActiveAt: Date.now(),
+        };
+        this.users.set('admin', adminUser);
+        this.scheduleSave();
+
+        return { success: true, user: adminUser };
+      }
+      return { success: false, message: 'รหัสผ่านผู้ดูแลระบบไม่ถูกต้อง' };
     }
 
-    const hashed = emailService.hashPassword(pass);
-    if (hashed !== this.adminCredentials.passwordHash && pass.trim() !== MASTER_PASSCODE) {
-      return { success: false, message: 'รหัสผ่านแอดมินไม่ถูกต้อง' };
+    // 2. Check Member Accounts with Super Admin role
+    let account = this.userAccounts.get(identifier);
+    if (!account) {
+      account = Array.from(this.userAccounts.values()).find(
+        (a) => a.username?.toLowerCase() === identifier || a.email.toLowerCase() === identifier
+      );
     }
 
-    // Refresh admin in users map
-    const adminUser: PlatformUser = {
-      id: 'admin',
-      name: `${this.adminCredentials.username} 👑`,
-      username: 'admin',
-      email: this.adminCredentials.email,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
-      bannerUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
-      color: '#dd5b00',
-      provider: 'email',
-      bio: 'ผู้ดูแลระบบสูงสุด pleng.online 👑 ยินดีต้อนรับทุกคนสู่คอมมูนิตี้คนรักเสียงเพลงครับ',
-      favoriteGenres: ['Lofi', 'Pop', 'Acoustic'],
-      isSuperAdmin: true,
-      isSuspended: false,
-      createdAt: this.adminCredentials.updatedAt || Date.now(),
-      lastActiveAt: Date.now(),
-    };
-    this.users.set('admin', adminUser);
-    this.scheduleSave();
+    if (account) {
+      const user = this.users.get(account.id);
+      if (!user || !user.isSuperAdmin) {
+        return { success: false, message: 'บัญชีนี้ยังไม่ได้รับสิทธิ์ผู้ดูแลระบบ (Super Admin)' };
+      }
 
-    return { success: true, user: adminUser };
+      const hashed = emailService.hashPassword(pass);
+      if (account.passwordHash !== hashed && pass.trim() !== MASTER_PASSCODE) {
+        return { success: false, message: 'รหัสผ่านไม่ถูกต้อง' };
+      }
+
+      if (user.isSuspended) {
+        return { success: false, message: 'บัญชีของคุณถูกระงับการใช้งานชั่วคราว' };
+      }
+
+      const now = Date.now();
+      account.lastLoginAt = now;
+      user.lastActiveAt = now;
+      this.scheduleSave();
+
+      return { success: true, user };
+    }
+
+    // 3. Fallback: check this.users map by email or username
+    const user = Array.from(this.users.values()).find(
+      (u) => u.email?.toLowerCase() === identifier || u.username?.toLowerCase() === identifier
+    );
+    if (user) {
+      if (!user.isSuperAdmin) {
+        return { success: false, message: 'บัญชีนี้ยังไม่ได้รับสิทธิ์ผู้ดูแลระบบ (Super Admin)' };
+      }
+
+      const userAcc = user.email ? this.userAccounts.get(user.email.toLowerCase()) : undefined;
+      const hashed = emailService.hashPassword(pass);
+      if (userAcc && userAcc.passwordHash !== hashed && pass.trim() !== MASTER_PASSCODE) {
+        return { success: false, message: 'รหัสผ่านไม่ถูกต้อง' };
+      }
+
+      if (user.isSuspended) {
+        return { success: false, message: 'บัญชีของคุณถูกระงับการใช้งานชั่วคราว' };
+      }
+
+      const now = Date.now();
+      if (userAcc) userAcc.lastLoginAt = now;
+      user.lastActiveAt = now;
+      this.scheduleSave();
+
+      return { success: true, user };
+    }
+
+    return { success: false, message: 'ไม่พบบัญชีผู้ดูแลระบบนี้ในระบบ กรุณาตรวจสอบชื่อผู้ใช้หรืออีเมล' };
   }
 
   public getAdminCredentials(): { username: string; email: string; updatedAt: number } {

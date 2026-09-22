@@ -60,6 +60,7 @@ import {
 } from '../types/index.js';
 import { AdPopupModal } from './AdPopupModal.js';
 import { compressChatImage } from '../services/imageCompressor.js';
+import { saveUser } from '../services/auth.js';
 
 function formatDeployDateTime(isoString?: string): string {
   if (!isoString) return 'กำลังตรวจสอบ...';
@@ -104,17 +105,30 @@ interface AdminPortalViewProps {
   onNavigateHome: () => void;
   onShowToast: (message: string, type?: 'info' | 'success' | 'warning') => void;
   onJoinRoom?: (roomId: string, isStealth?: boolean) => void;
+  currentUser?: UserProfile | null;
+  onUpdateCurrentUser?: (user: UserProfile) => void;
 }
 
 export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   onNavigateHome,
   onShowToast,
   onJoinRoom,
+  currentUser,
+  onUpdateCurrentUser,
 }) => {
   // Authentication State
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
+    if (currentUser?.isSuperAdmin) return true;
     return localStorage.getItem('watchparty_superadmin') === 'true';
   });
+
+  useEffect(() => {
+    if (currentUser?.isSuperAdmin && !isAdminAuthenticated) {
+      setIsAdminAuthenticated(true);
+      localStorage.setItem('watchparty_superadmin', 'true');
+    }
+  }, [currentUser?.isSuperAdmin]);
+
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -235,6 +249,13 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const [announcementText, setAnnouncementText] = useState('');
   const [announcementType, setAnnouncementType] = useState<'info' | 'warning' | 'alert'>('info');
   const [announcementEnabled, setAnnouncementEnabled] = useState(false);
+
+  const activeAdminName = currentUser?.isSuperAdmin
+    ? (currentUser.name || currentUser.username)
+    : adminCredentials.username;
+  const activeAdminEmail = currentUser?.isSuperAdmin
+    ? (currentUser.email || adminCredentials.email)
+    : adminCredentials.email;
 
   // Fetch admin credentials on mount
   const fetchAdminCredentials = async () => {
@@ -548,7 +569,11 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       if (res.ok && data.success) {
         localStorage.setItem('watchparty_superadmin', 'true');
         setIsAdminAuthenticated(true);
-        onShowToast('เข้าสู่ระบบผู้ดูแลระบบสำเร็จ 👑', 'success');
+        if (data.user) {
+          saveUser(data.user);
+          onUpdateCurrentUser?.(data.user);
+        }
+        onShowToast(`ยินดีต้อนรับคุณ ${data.user?.name || data.user?.username || 'แอดมิน'} เข้าสู่ระบบผู้ดูแลระบบ 👑`, 'success');
       } else {
         setLoginError(data.error || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
       }
@@ -969,7 +994,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
 
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-[#000000]">
-                ชื่อผู้ใช้หรืออีเมลแอดมิน (Username / Email)
+                ชื่อผู้ใช้หรืออีเมลผู้ดูแลระบบ (Username / Email)
               </label>
               <div className="relative">
                 <Shield className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
@@ -977,7 +1002,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   type="text"
                   value={loginUsername}
                   onChange={(e) => setLoginUsername(e.target.value)}
-                  placeholder="เช่น admin หรือ admin@pleng.online"
+                  placeholder="admin หรืออีเมล/ชื่อผู้ใช้ของคุณที่มีสิทธิ์ Super Admin"
                   className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-amber-500 transition-all font-medium shadow-xs"
                   required
                   autoFocus
@@ -995,7 +1020,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   type="password"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="กรอกรหัสผ่านแอดมิน..."
+                  placeholder="กรอกรหัสผ่านของคุณ..."
                   className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-amber-500 transition-all font-mono shadow-xs"
                   required
                 />
@@ -1258,8 +1283,8 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
             👑
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-[#000000] truncate">{adminCredentials.username}</p>
-            <p className="text-[10px] text-[#615d59] truncate">{adminCredentials.email}</p>
+            <p className="text-xs font-bold text-[#000000] truncate">{activeAdminName}</p>
+            <p className="text-[10px] text-[#615d59] truncate">{activeAdminEmail}</p>
           </div>
         </div>
       </div>
@@ -1302,7 +1327,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               </button>
             </div>
             <p className="text-xs text-[#615d59]">
-              ผู้ดูแลระบบ: <strong>{adminCredentials.username}</strong> ({adminCredentials.email})
+              ผู้ดูแลระบบ: <strong>{activeAdminName}</strong> ({activeAdminEmail})
             </p>
           </div>
         </div>
@@ -1433,7 +1458,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               <div>
                 <p className="text-[10px] text-[#615d59] font-medium uppercase">ผู้ดูแลระบบสูงสุด</p>
                 <p className="text-sm font-bold text-amber-600 truncate">
-                  {adminCredentials.username} 👑
+                  {activeAdminName} 👑
                 </p>
               </div>
             </div>
