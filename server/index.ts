@@ -24,6 +24,7 @@ if (typeof (process as any).loadEnvFile === 'function') {
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const isProduction = process.env.NODE_ENV === 'production';
+const SERVER_BOOT_TIME = new Date().toISOString();
 
 async function startServer() {
   const app = express();
@@ -36,6 +37,18 @@ async function startServer() {
   // API endpoints
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: Date.now() });
+  });
+
+  app.get('/api/version', (req, res) => {
+    const gitCommit = (process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || 'latest').slice(0, 7);
+    res.json({
+      status: 'ok',
+      bootTime: SERVER_BOOT_TIME,
+      gitCommit,
+      serviceId: process.env.RENDER_SERVICE_ID || null,
+      environment: process.env.NODE_ENV || 'development',
+      now: new Date().toISOString()
+    });
   });
 
   // SEO routes

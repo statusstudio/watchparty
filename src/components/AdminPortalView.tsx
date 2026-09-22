@@ -42,6 +42,7 @@ import {
   Headphones,
   AlertTriangle,
   Database,
+  Rocket,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -58,6 +59,45 @@ import {
 } from '../types/index.js';
 import { AdPopupModal } from './AdPopupModal.js';
 import { compressChatImage } from '../services/imageCompressor.js';
+
+function formatDeployDateTime(isoString?: string): string {
+  if (!isoString) return 'กำลังตรวจสอบ...';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return isoString;
+    return d.toLocaleString('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }) + ' น.';
+  } catch {
+    return isoString;
+  }
+}
+
+function formatRelativeTime(isoString?: string): string {
+  if (!isoString) return '';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return '';
+    const diffMs = Date.now() - d.getTime();
+    if (diffMs < 0) return 'เมื่อสักครู่';
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return `${diffSec} วินาทีที่แล้ว`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin} นาทีที่แล้ว`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour} ชั่วโมงที่แล้ว`;
+    const diffDay = Math.floor(diffHour / 24);
+    return `${diffDay} วันที่แล้ว`;
+  } catch {
+    return '';
+  }
+}
 
 interface AdminPortalViewProps {
   onNavigateHome: () => void;
@@ -128,6 +168,13 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     serverUptimeSeconds: 0,
   });
   const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);
+  const [serverVersion, setServerVersion] = useState<{
+    bootTime?: string;
+    gitCommit?: string;
+    serviceId?: string | null;
+    environment?: string;
+    now?: string;
+  } | null>(null);
   const [config, setConfig] = useState<PlatformConfig>({ ...DEFAULT_PLATFORM_CONFIG });
   const [users, setUsers] = useState<PlatformUser[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
@@ -255,6 +302,15 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     }
   };
 
+  const fetchVersion = async () => {
+    try {
+      const res = await fetch('/api/version');
+      if (res.ok) {
+        setServerVersion(await res.json());
+      }
+    } catch (e) {}
+  };
+
   const loadAllData = async () => {
     setLoading(true);
     try {
@@ -263,6 +319,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         fetchSmtpConfig(),
         fetchEmailLogs(),
         fetchSupabaseStatus(),
+        fetchVersion(),
         fetchStats(),
         fetchAnalytics(),
         fetchConfig(),
@@ -1166,17 +1223,29 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
             <Crown className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-base font-bold text-[#000000] tracking-tight">
                 pleng.online Admin Portal
               </h1>
               <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 text-[10px] font-bold border border-amber-500/20">
                 SUPER ADMIN
               </span>
+              <span
+                className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0075de] text-[10px] font-bold border border-blue-200 shadow-xs"
+                title={`Frontend Build: ${__APP_BUILD_TIME__} | Commit: ${__APP_COMMIT_HASH__}`}
+              >
+                <Rocket className="w-3 h-3 text-[#0075de]" />
+                <span>Deploy: {formatDeployDateTime(__APP_BUILD_TIME__)}</span>
+              </span>
             </div>
-            <p className="text-xs text-[#615d59]">
-              ผู้ดูแลระบบ: <strong>{adminCredentials.username}</strong> ({adminCredentials.email})
-            </p>
+            <div className="flex items-center gap-2 text-xs text-[#615d59]">
+              <p>
+                ผู้ดูแลระบบ: <strong>{adminCredentials.username}</strong> ({adminCredentials.email})
+              </p>
+              <span className="hidden sm:inline lg:hidden text-[10px] text-[#0075de] font-semibold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                🚀 {formatDeployDateTime(__APP_BUILD_TIME__)}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -1309,6 +1378,74 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   {adminCredentials.username} 👑
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Deployment & Live Version Status Banner */}
+          <div className="p-4 bg-white border border-[#e6e6e6] rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-[#0075de]/10 text-[#0075de] flex items-center justify-center shrink-0 border border-[#0075de]/20">
+                <Rocket className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-xs font-bold text-[#000000]">สถานะการ Deploy &amp; เวอร์ชันระบบ (Live Deployment Status)</h3>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 text-[10px] font-bold border border-emerald-500/20 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    ระบบออนไลน์
+                  </span>
+                  {serverVersion && serverVersion.gitCommit && serverVersion.gitCommit !== __APP_COMMIT_HASH__ && (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 text-[10px] font-bold border border-amber-500/30 flex items-center gap-1">
+                      ⚠️ มีเวอร์ชันใหม่พร้อมใช้งาน! กรุณากดรีเฟรชหน้าเว็บ
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] text-[#615d59] mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span>
+                    🚀 <strong>Deploy ล่าสุด:</strong> <span className="font-semibold text-[#000000]">{formatDeployDateTime(__APP_BUILD_TIME__)}</span>
+                    {formatRelativeTime(__APP_BUILD_TIME__) && (
+                      <span className="text-[#8c8780] ml-1">({formatRelativeTime(__APP_BUILD_TIME__)})</span>
+                    )}
+                  </span>
+                  <span className="hidden sm:inline text-[#d4d1cc]">•</span>
+                  <span>
+                    🔖 <strong>Git Commit:</strong> <code className="bg-[#f6f5f4] px-1.5 py-0.5 rounded text-[#0075de] font-mono text-[10px] font-semibold border border-[#e6e6e6]">{__APP_COMMIT_HASH__}</code>
+                  </span>
+                  {serverVersion?.bootTime && (
+                    <>
+                      <span className="hidden sm:inline text-[#d4d1cc]">•</span>
+                      <span>
+                        ⚡ <strong>เซิร์ฟเวอร์เริ่มทำงาน:</strong> {formatDeployDateTime(serverVersion.bootTime)}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  loadAllData();
+                  onShowToast('ดึงข้อมูลสถานะล่าสุดเรียบร้อย', 'info');
+                }}
+                disabled={loading}
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                title="ดึงข้อมูลสถานะเวอร์ชันล่าสุด"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#0075de]' : ''}`} />
+                <span>เช็คอัปเดต</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="px-3 py-1.5 rounded-xl bg-[#0075de] hover:bg-[#0062bd] text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                title="รีโหลดหน้าเว็บเพื่อดึงไฟล์ Build ล่าสุดจาก Render"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>รีเฟรชหน้าเว็บ</span>
+              </button>
             </div>
           </div>
 
@@ -3296,6 +3433,19 @@ CREATE POLICY "Allow public and service access to app_storage"
             </div>
           </div>
         )}
+
+          {/* Admin Footer with Live Version & Deploy Info */}
+          <footer className="pt-6 pb-2 text-center text-xs text-[#8c8780] border-t border-[#e6e6e6]/60 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div>
+              <span>pleng.online Admin Portal</span> • <span>v1.0.0</span>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] flex-wrap justify-center">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+              <span>Deploy ล่าสุด: <strong>{formatDeployDateTime(__APP_BUILD_TIME__)}</strong></span>
+              <span className="text-[#a39e98]">•</span>
+              <span>Commit: <code className="font-mono text-[10px] bg-[#f6f5f4] px-1 py-0.5 rounded border border-[#e6e6e6]">{__APP_COMMIT_HASH__}</code></span>
+            </div>
+          </footer>
         </main>
       </div>
     </div>
