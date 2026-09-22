@@ -175,6 +175,8 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     environment?: string;
     now?: string;
   } | null>(null);
+  const [triggeringDeploy, setTriggeringDeploy] = useState(false);
+  const [deployCountdown, setDeployCountdown] = useState<number | null>(null);
   const [config, setConfig] = useState<PlatformConfig>({ ...DEFAULT_PLATFORM_CONFIG });
   const [users, setUsers] = useState<PlatformUser[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
@@ -337,6 +339,43 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       loadAllData();
     }
   }, [isAdminAuthenticated]);
+
+  // Deploy Countdown Timer Effect
+  useEffect(() => {
+    if (deployCountdown === null || deployCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setDeployCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(timer);
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [deployCountdown]);
+
+  const handleTriggerRedeploy = async () => {
+    if (!window.confirm('คุณต้องการสั่งให้เซิร์ฟเวอร์ Render เริ่ม Deploy เว็บไซต์ใหม่ทันทีใช่หรือไม่?\n\n(ระบบจะดึงโค้ดล่าสุดจาก GitHub และเริ่มบิลด์ใหม่ทันที ใช้เวลาประมาณ 2-3 นาที)')) {
+      return;
+    }
+
+    setTriggeringDeploy(true);
+    try {
+      const res = await fetch('/api/admin/trigger-deploy', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        onShowToast('🚀 ส่งคำสั่ง Deploy ไปยัง Render สำเร็จแล้ว! กำลัง Build...', 'success');
+        setDeployCountdown(120); // 120 seconds countdown
+      } else {
+        onShowToast(data.message || 'ไม่สามารถสั่ง Deploy ได้', 'warning');
+      }
+    } catch (e: any) {
+      onShowToast(e.message || 'เกิดข้อผิดพลาดในการสั่ง Deploy', 'warning');
+    } finally {
+      setTriggeringDeploy(false);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -1423,7 +1462,24 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto flex-wrap">
+              <button
+                type="button"
+                onClick={handleTriggerRedeploy}
+                disabled={triggeringDeploy || deployCountdown !== null}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-60"
+                title="สั่งให้ Render เริ่ม Deploy โค้ดล่าสุดทันทีโดยไม่ต้องไปกดในหน้าเว็บ Render"
+              >
+                <Rocket className={`w-3.5 h-3.5 ${triggeringDeploy ? 'animate-spin' : ''}`} />
+                <span>
+                  {triggeringDeploy
+                    ? 'กำลังส่งคำสั่ง...'
+                    : deployCountdown !== null
+                    ? `กำลัง Deploy... (${deployCountdown}s)`
+                    : '🚀 สั่งอัปเดตเว็บเดี๋ยวนี้'}
+                </span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => {
@@ -1437,6 +1493,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#0075de]' : ''}`} />
                 <span>เช็คอัปเดต</span>
               </button>
+
               <button
                 type="button"
                 onClick={() => window.location.reload()}
@@ -1448,6 +1505,29 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               </button>
             </div>
           </div>
+
+          {deployCountdown !== null && (
+            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <RefreshCw className="w-4 h-4 text-emerald-600 animate-spin shrink-0" />
+                <div>
+                  <p className="font-bold text-emerald-800">
+                    กำลัง Deploy โค้ดล่าสุดบนเซิร์ฟเวอร์ Render...
+                  </p>
+                  <p className="text-[11px] text-emerald-700 mt-0.5">
+                    Render กำลังดึงโค้ดจาก GitHub มา Build ให้ใหม่ (เหลือเวลารอโดยประมาณ <strong>{deployCountdown} วินาที</strong>)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shrink-0 cursor-pointer shadow-xs"
+              >
+                รีโหลดหน้าเว็บตอนนี้
+              </button>
+            </div>
+          )}
 
         {/* TAB 1: ADMIN ACCOUNT MANAGEMENT */}
         {activeTab === 'account' && (

@@ -454,6 +454,43 @@ async function startServer() {
     }
   });
 
+  // Trigger Redeployment on Render via Deploy Hook
+  app.post('/api/admin/trigger-deploy', async (req, res) => {
+    try {
+      const hookUrl = process.env.RENDER_DEPLOY_HOOK_URL ||
+        'https://api.render.com/deploy/srv-dan40sjm8hqs739vahhg?key=5ANTUPOhk-U';
+
+      console.log(`[Deploy] Triggering Render redeploy via Deploy Hook: ${hookUrl.replace(/key=.+/, 'key=***')}`);
+      const response = await fetch(hookUrl, { method: 'POST' });
+
+      if (response.ok) {
+        let deployData = null;
+        try {
+          deployData = await response.json();
+        } catch (e) {}
+
+        res.json({
+          success: true,
+          message: '🚀 ส่งคำสั่ง Deploy ไปยัง Render สำเร็จเรียบร้อย! ระบบกำลังดึงโค้ดล่าสุดมา Build ใหม่ (ใช้เวลาประมาณ 2-3 นาที)',
+          deployData,
+          triggeredAt: new Date().toISOString(),
+        });
+      } else {
+        const errorText = await response.text();
+        res.status(response.status).json({
+          success: false,
+          message: `Render ตอบกลับข้อผิดพลาด (${response.status}): ${errorText}`,
+        });
+      }
+    } catch (err: any) {
+      console.error('[Deploy] Trigger redeploy failed:', err);
+      res.status(500).json({
+        success: false,
+        message: err.message || 'ไม่สามารถติดต่อ Render Deploy Hook ได้',
+      });
+    }
+  });
+
   // Verify Master Passcode (Legacy support)
   app.post('/api/platform/auth', (req, res) => {
     const { passcode } = req.body;
