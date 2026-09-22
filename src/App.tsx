@@ -2171,9 +2171,9 @@ export function App() {
                 ? 'block'
                 : 'hidden'
             }`}>
-              <div className="flex items-center justify-between pb-2 border-b border-gray-800/80">
-                <span className="text-xs font-semibold text-gray-300">สมาชิกออนไลน์ทั้งหมด</span>
-                <span className="text-[11px] text-violet-400 font-mono">
+              <div className="flex items-center justify-between pb-2 border-b border-[#e6e6e6]">
+                <span className="text-xs font-bold text-[#000000]">สมาชิกออนไลน์ทั้งหมด</span>
+                <span className="text-[11px] text-[#0075de] font-semibold font-mono bg-[#0075de]/10 px-2 py-0.5 rounded-full border border-[#0075de]/20">
                   {uniqueMembers.length || onlineCount} คน
                 </span>
               </div>
@@ -2193,13 +2193,13 @@ export function App() {
                         handleOpenUserCard(m.user);
                       }
                     }}
-                    className="flex items-center justify-between p-2 rounded-xl bg-[#171824]/60 hover:bg-[#1a1c2b] border border-gray-800/60 transition-colors cursor-pointer group"
+                    className="flex items-center justify-between p-2.5 rounded-2xl bg-[#f6f5f4] hover:bg-white border border-[#e6e6e6] hover:border-[#0075de]/30 hover:shadow-xs transition-all cursor-pointer group"
                     title={`ดูโปรไฟล์ของ ${m.user.name}`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div
-                        className="w-8 h-8 rounded-full overflow-hidden shrink-0 border-2 relative"
-                        style={{ borderColor: m.user.color }}
+                        className="w-9 h-9 rounded-full overflow-hidden shrink-0 border-2 relative shadow-2xs bg-white"
+                        style={{ borderColor: m.user.color || '#0075de' }}
                       >
                         <img
                           src={m.user.avatar}
@@ -2207,36 +2207,35 @@ export function App() {
                           className="w-full h-full object-cover"
                         />
                         {isMemberSpeaking && (
-                          <div className="absolute inset-0 rounded-full border-2 border-emerald-400 animate-ping" />
+                          <div className="absolute inset-0 rounded-full border-2 border-emerald-500 animate-ping" />
                         )}
                       </div>
 
                       <div className="flex flex-col min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span
-                            className="text-xs font-semibold truncate max-w-[110px]"
-                            style={{ color: m.user.color }}
+                            className="text-xs font-bold text-[#000000] group-hover:text-[#0075de] transition-colors truncate max-w-[120px]"
                           >
                             {m.user.name}
                           </span>
                           {m.user.id === currentUser.id && (
-                            <span className="text-[10px] text-gray-500">(คุณ)</span>
+                            <span className="text-[10px] text-[#0075de] font-semibold bg-[#0075de]/10 px-1.5 py-0.2 rounded-full">(คุณ)</span>
                           )}
                         </div>
 
                         <div className="flex items-center gap-1 mt-0.5">
                           {m.role === 'owner' ? (
-                            <span className="px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300 text-[9px] font-bold border border-amber-500/20 flex items-center gap-0.5">
-                              <Crown className="w-2.5 h-2.5 text-amber-400" />
+                            <span className="px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-700 text-[9px] font-bold border border-amber-500/25 flex items-center gap-0.5">
+                              <Crown className="w-2.5 h-2.5 text-amber-600" />
                               เจ้าของ
                             </span>
                           ) : m.role === 'admin' ? (
-                            <span className="px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-300 text-[9px] font-bold border border-purple-500/20 flex items-center gap-0.5">
-                              <Shield className="w-2.5 h-2.5 text-purple-400" />
+                            <span className="px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 text-[9px] font-bold border border-purple-500/25 flex items-center gap-0.5">
+                              <Shield className="w-2.5 h-2.5 text-purple-600" />
                               แอดมิน
                             </span>
                           ) : (
-                            <span className="text-[10px] text-gray-500">สมาชิก</span>
+                            <span className="text-[10px] text-[#615d59]">สมาชิก</span>
                           )}
                         </div>
                       </div>
@@ -2245,12 +2244,12 @@ export function App() {
                     {/* Voice indicator tag */}
                     <div>
                       {isMemberInVoice ? (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-semibold flex items-center gap-1">
-                          <Mic className="w-3 h-3" />
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold flex items-center gap-1">
+                          <Mic className="w-3 h-3 text-emerald-600" />
                           <span>ในสาย</span>
                         </span>
                       ) : (
-                        <span className="text-[10px] text-gray-500">ผู้ฟัง</span>
+                        <span className="text-[10px] text-[#a39e98] group-hover:text-[#615d59] font-medium transition-colors">ผู้ฟัง</span>
                       )}
                     </div>
                   </div>
