@@ -23,7 +23,7 @@ import {
 import { getStoredUser, saveUser, clearUser } from './services/auth.js';
 import { socketService } from './services/socket.js';
 import { WebRTCVoiceEngine } from './services/webrtc.js';
-import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Plus, Radio, RefreshCw, Moon, X } from 'lucide-react';
+import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Plus, Radio, RefreshCw, Moon, X, Ghost, LogOut } from 'lucide-react';
 import { Navbar } from './components/Navbar.js';
 import { VideoPlayer } from './components/VideoPlayer.js';
 import { VoiceStage } from './components/VoiceStage.js';
@@ -117,6 +117,9 @@ export function App() {
   const initialRoom = getHashRoomId();
   const [currentView, setCurrentView] = useState<'home' | 'room'>(initialRoom ? 'room' : 'home');
   const [roomId, setRoomId] = useState<string>(initialRoom || 'squad-chill');
+  const [isStealthInspection, setIsStealthInspection] = useState<boolean>(false);
+  const isStealthInspectionRef = useRef(isStealthInspection);
+  isStealthInspectionRef.current = isStealthInspection;
   const [currentUser, setCurrentUser] = useState<UserProfile>(getStoredUser);
   const [onlineCount, setOnlineCount] = useState<number>(1);
 
@@ -517,6 +520,7 @@ export function App() {
           type: 'JOIN_ROOM',
           roomId: currentRoom,
           user: currentUser,
+          isStealth: isStealthInspectionRef.current,
         });
       }
       fetchPublicRooms();
@@ -712,6 +716,7 @@ export function App() {
           type: 'JOIN_ROOM',
           roomId: targetRoom,
           user: currentUserRef.current,
+          isStealth: isStealthInspectionRef.current,
         });
       } else {
         setCurrentView('home');
@@ -732,6 +737,7 @@ export function App() {
           type: 'JOIN_ROOM',
           roomId: activeRoom,
           user: currentUserRef.current,
+          isStealth: isStealthInspectionRef.current,
         });
         syncRoomState(activeRoom);
       } else {
@@ -949,20 +955,23 @@ export function App() {
   const handleNavigateHome = () => {
     setIsPasswordGateOpen(false);
     setPasswordGateError(null);
+    setIsStealthInspection(false);
     window.location.hash = '';
     setCurrentView('home');
     fetchPublicRooms();
   };
 
-  const handleSelectRoom = (targetRoomId: string) => {
+  const handleSelectRoom = (targetRoomId: string, isStealth: boolean = false) => {
     window.location.hash = `#${targetRoomId}`;
     setRoomId(targetRoomId);
+    setIsStealthInspection(isStealth);
     setCurrentView('room');
     syncRoomState(targetRoomId);
     socketService.send({
       type: 'JOIN_ROOM',
       roomId: targetRoomId,
       user: currentUserRef.current,
+      isStealth,
     });
   };
 
@@ -1107,6 +1116,10 @@ export function App() {
 
   // Stage speak request interactions
   const handleRequestToSpeak = (seatNumber?: number) => {
+    if (isStealthInspection) {
+      showToast('คุณอยู่ในโหมดล่องหน ไม่สามารถขอเปิดไมค์ขึ้นเวทีได้ 🔒', 'warning');
+      return;
+    }
     socketService.send({
       type: 'REQUEST_TO_SPEAK',
       seatNumber,
@@ -1131,6 +1144,10 @@ export function App() {
 
   // Stage seat interactions
   const handleTakeSeat = (seatNumber: number) => {
+    if (isStealthInspection) {
+      showToast('คุณอยู่ในโหมดล่องหน ไม่สามารถขึ้นเวทีเปิดไมค์ได้ 🔒', 'warning');
+      return;
+    }
     // Optimistic UI update: immediately seat the user locally (0ms perceived latency)
     setSeats((prev) =>
       prev.map((s) => {
@@ -1381,6 +1398,23 @@ export function App() {
             setCurrentView('home');
           }}
           onShowToast={showToast}
+          onJoinRoom={(targetRoomId, isStealth) => {
+            window.history.pushState({}, '', `#${targetRoomId}`);
+            setIsAdminRoute(false);
+            setIsStealthInspection(!!isStealth);
+            setRoomId(targetRoomId);
+            setCurrentView('room');
+            syncRoomState(targetRoomId);
+            socketService.send({
+              type: 'JOIN_ROOM',
+              roomId: targetRoomId,
+              user: currentUserRef.current,
+              isStealth: !!isStealth,
+            });
+            if (isStealth) {
+              showToast('เข้าสู่ห้องในโหมดล่องหนเรียบร้อย 👻 สมาชิกในห้องจะไม่รู้ตัว', 'success');
+            }
+          }}
         />
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       </>
@@ -1502,6 +1536,47 @@ export function App() {
         onOpenSupport={() => setIsSupportModalOpen(true)}
         onShowToast={showToast}
       />
+
+      {/* Admin Stealth Inspection HUD Banner */}
+      {isStealthInspection && currentView === 'room' && (
+        <div className="bg-gradient-to-r from-purple-950 via-indigo-950 to-purple-950 border-b border-purple-500/40 px-4 py-2.5 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs z-40 shadow-lg animate-fade-in shrink-0">
+          <div className="flex items-center gap-2.5 font-medium">
+            <span className="p-1.5 rounded-lg bg-purple-500/20 text-purple-300 ring-1 ring-purple-500/30">
+              <Ghost className="w-4 h-4 animate-pulse" />
+            </span>
+            <div>
+              <span className="text-purple-300 font-bold">โหมดล่องหน (Admin Stealth Inspection)</span>
+              <span className="text-gray-300 text-[11px] block sm:inline sm:ml-2">
+                คุณกำลังตรวจสอบห้องนี้แบบเงียบกริบ 100% (ไม่มีแจ้งเตือนในแชท / ไม่เพิ่มยอดคน / ไม่ปรากฏชื่อ)
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsAdminPanelOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-purple-200 text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 shadow-xs"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>แผงควบคุมห้อง</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                window.history.pushState({}, '', '/admin');
+                setIsStealthInspection(false);
+                setIsAdminRoute(true);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 shadow-xs"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>ออกจากโหมดล่องหน</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Pull-to-refresh floating indicator (Active on both Home and Room) */}
       {(pullDistance > 0 || isRefreshing) && (

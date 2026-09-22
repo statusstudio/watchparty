@@ -32,6 +32,7 @@ interface ClientConnection {
   ws: WebSocket;
   user: UserProfile;
   roomId: string;
+  isStealth?: boolean;
 }
 
 interface InternalRoomData {
@@ -416,7 +417,7 @@ export class RoomManager {
     return true;
   }
 
-  public getRoomState(roomId: string, requestingUserId?: string): RoomState {
+  public getRoomState(roomId: string, requestingUserId?: string, isStealth = false): RoomState {
     const room = this.getOrCreateRoom(roomId);
     const now = Date.now();
     let currentExtrapolatedTime = room.video.currentTime;
@@ -429,7 +430,7 @@ export class RoomManager {
       }
     }
 
-    const clients = this.getRoomClients(roomId);
+    const clients = this.getRoomClients(roomId, false);
     const members: RoomMember[] = clients.map((c) => {
       let role: UserRole = 'member';
       if (c.user.id === room.metadata.ownerId) {
@@ -453,10 +454,10 @@ export class RoomManager {
       }
     }
 
-    // Sanitized metadata (hide password for non-owners)
+    // Sanitized metadata (hide password for non-owners unless stealth admin)
     const sanitizedMetadata: RoomMetadata = {
       ...room.metadata,
-      password: requestingUserId === room.metadata.ownerId ? room.metadata.password : undefined,
+      password: requestingUserId === room.metadata.ownerId || isStealth ? room.metadata.password : undefined,
     };
 
     return {
@@ -479,14 +480,17 @@ export class RoomManager {
       bannedUsers: Array.from(room.bannedUsers.values()),
       onlineCount: clients.length,
       myRole,
+      isStealth,
     };
   }
 
-  public getRoomClients(roomId: string): ClientConnection[] {
+  public getRoomClients(roomId: string, includeStealth = false): ClientConnection[] {
     const list: ClientConnection[] = [];
     for (const client of this.clients.values()) {
       if (client.roomId === roomId && client.ws.readyState === WebSocket.OPEN) {
-        list.push(client);
+        if (!client.isStealth || includeStealth) {
+          list.push(client);
+        }
       }
     }
     return list;
@@ -508,6 +512,8 @@ export class RoomManager {
   }
 
   private handleLeaveOldRoom(ws: WebSocket, oldRoomId: string, user: UserProfile) {
+    const client = this.clients.get(ws);
+    const wasStealth = client?.isStealth;
     this.clients.delete(ws);
     const room = this.rooms.get(oldRoomId);
     if (room) {
@@ -520,9 +526,6 @@ export class RoomManager {
         return s;
       });
 
-      const clients = this.getRoomClients(oldRoomId);
-      const onlineCount = clients.length;
-
       if (seatChanged) {
         this.broadcastToRoom(oldRoomId, {
           type: 'SEATS_UPDATED',
@@ -530,22 +533,26 @@ export class RoomManager {
         });
       }
 
-      this.broadcastToRoom(oldRoomId, {
-        type: 'USER_LEFT',
-        userId: user.id,
-        onlineCount,
-      });
+      if (!wasStealth) {
+        const roomState = this.getRoomState(oldRoomId);
+        const onlineCount = roomState.onlineCount;
 
-      const roomState = this.getRoomState(oldRoomId);
-      this.broadcastToRoom(oldRoomId, {
-        type: 'MEMBERS_UPDATED',
-        members: roomState.members,
-        onlineCount,
-      });
+        this.broadcastToRoom(oldRoomId, {
+          type: 'USER_LEFT',
+          userId: user.id,
+          onlineCount,
+        });
+
+        this.broadcastToRoom(oldRoomId, {
+          type: 'MEMBERS_UPDATED',
+          members: roomState.members,
+          onlineCount,
+        });
+      }
     }
   }
 
-  public handleJoin(ws: WebSocket, roomId: string, user: UserProfile, password?: string) {
+  public handleJoin(ws: WebSocket, roomId: string, user: UserProfile, password?: string, isStealthRequested?: boolean) {
     const room = this.getOrCreateRoom(roomId, user);
 
     // If client was previously connected in another room on same ws, clean up from old room
@@ -563,11 +570,19 @@ export class RoomManager {
       return;
     }
 
-    // Record user activity in platform registry
-    platformManager.recordUser(user, roomId);
+    const isSuperAdmin =
+      platformManager.isSuperAdmin(user.id) ||
+      user.id === 'admin' ||
+      user.isSuperAdmin === true;
+    const isStealth = !!(isStealthRequested && isSuperAdmin);
+
+    // Record user activity in platform registry (only if not stealth)
+    if (!isStealth) {
+      platformManager.recordUser(user, roomId);
+    }
 
     // Check if banned
-    if (room.bannedUsers.has(user.id)) {
+    if (room.bannedUsers.has(user.id) && !isSuperAdmin) {
       this.sendToClient(ws, {
         type: 'YOU_WERE_BANNED',
         reason: 'คุณถูกแบนจากการเข้าใช้งานห้องปาร์ตี้นี้',
@@ -575,8 +590,8 @@ export class RoomManager {
       return;
     }
 
-    // Check password if private and user is not the owner
-    if (room.metadata.isPrivate && room.metadata.password && user.id !== room.metadata.ownerId) {
+    // Check password if private and user is not the owner and not stealth admin
+    if (!isStealth && room.metadata.isPrivate && room.metadata.password && user.id !== room.metadata.ownerId) {
       const roomPass = String(room.metadata.password).trim();
       const userPass = password ? String(password).trim() : '';
 
@@ -591,12 +606,12 @@ export class RoomManager {
       }
     }
 
-    // Password passed or public room
+    // Password passed or public room or stealth admin
     this.pendingUsers.delete(ws);
 
     // Register client
-    this.clients.set(ws, { ws, user, roomId });
-    const roomState = this.getRoomState(roomId, user.id);
+    this.clients.set(ws, { ws, user, roomId, isStealth });
+    const roomState = this.getRoomState(roomId, user.id, isStealth);
 
     // Send initial room state
     this.sendToClient(ws, {
@@ -622,19 +637,22 @@ export class RoomManager {
       });
     }
 
-    // Notify other peers in room
-    this.broadcastToRoom(roomId, {
-      type: 'USER_JOINED',
-      user,
-      onlineCount: roomState.onlineCount,
-    }, ws);
+    // If stealth, DO NOT announce join to other users in room
+    if (!isStealth) {
+      // Notify other peers in room
+      this.broadcastToRoom(roomId, {
+        type: 'USER_JOINED',
+        user,
+        onlineCount: roomState.onlineCount,
+      }, ws);
 
-    // Broadcast updated members list
-    this.broadcastToRoom(roomId, {
-      type: 'MEMBERS_UPDATED',
-      members: roomState.members,
-      onlineCount: roomState.onlineCount,
-    });
+      // Broadcast updated members list
+      this.broadcastToRoom(roomId, {
+        type: 'MEMBERS_UPDATED',
+        members: roomState.members,
+        onlineCount: roomState.onlineCount,
+      });
+    }
   }
 
   public handleVerifyPassword(ws: WebSocket, roomId: string, user: UserProfile, password: string) {
@@ -2043,7 +2061,7 @@ export class RoomManager {
     const client = this.clients.get(ws);
     if (!client) return;
 
-    const { roomId, user } = client;
+    const { roomId, user, isStealth } = client;
     this.clients.delete(ws);
 
     const room = this.rooms.get(roomId);
@@ -2057,9 +2075,6 @@ export class RoomManager {
         return s;
       });
 
-      const clients = this.getRoomClients(roomId);
-      const onlineCount = clients.length;
-
       if (seatChanged) {
         this.broadcastToRoom(roomId, {
           type: 'SEATS_UPDATED',
@@ -2067,23 +2082,29 @@ export class RoomManager {
         });
       }
 
-      this.broadcastToRoom(roomId, {
-        type: 'USER_LEFT',
-        userId: user.id,
-        onlineCount,
-      });
+      if (!isStealth) {
+        const clients = this.getRoomClients(roomId, false);
+        const onlineCount = clients.length;
 
-      const roomState = this.getRoomState(roomId);
-      this.broadcastToRoom(roomId, {
-        type: 'MEMBERS_UPDATED',
-        members: roomState.members,
-        onlineCount,
-      });
+        this.broadcastToRoom(roomId, {
+          type: 'USER_LEFT',
+          userId: user.id,
+          onlineCount,
+        });
+
+        const roomState = this.getRoomState(roomId);
+        this.broadcastToRoom(roomId, {
+          type: 'MEMBERS_UPDATED',
+          members: roomState.members,
+          onlineCount,
+        });
+      }
     }
   }
 
   public findUserActiveRoom(userId: string): { roomId: string; roomName: string; video?: VideoState } | null {
     for (const conn of this.clients.values()) {
+      if (conn.isStealth) continue; // Don't expose stealth inspection on public profile
       if (conn.user && (conn.user.id === userId || (conn.user.id === 'admin' && userId === 'admin'))) {
         const room = this.rooms.get(conn.roomId);
         if (room) {

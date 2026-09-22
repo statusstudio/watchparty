@@ -184,10 +184,11 @@ export interface RoomState {
   bannedUsers: BannedUser[];
   onlineCount: number;
   myRole: UserRole;
+  isStealth?: boolean;
 }
 
 export type WSClientMessage =
-  | { type: 'JOIN_ROOM'; roomId: string; user: UserProfile; password?: string }
+  | { type: 'JOIN_ROOM'; roomId: string; user: UserProfile; password?: string; isStealth?: boolean }
   | { type: 'GET_ROOMS' }
   | { type: 'VERIFY_ROOM_PASSWORD'; roomId: string; password: string; user?: UserProfile }
   | { type: 'UPDATE_PROFILE'; user: UserProfile }

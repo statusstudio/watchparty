@@ -37,6 +37,10 @@ import {
   Clock,
   Menu,
   ChevronRight,
+  Ghost,
+  Music,
+  Headphones,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -57,11 +61,13 @@ import { compressChatImage } from '../services/imageCompressor.js';
 interface AdminPortalViewProps {
   onNavigateHome: () => void;
   onShowToast: (message: string, type?: 'info' | 'success' | 'warning') => void;
+  onJoinRoom?: (roomId: string, isStealth?: boolean) => void;
 }
 
 export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   onNavigateHome,
   onShowToast,
+  onJoinRoom,
 }) => {
   // Authentication State
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
@@ -114,6 +120,12 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const [users, setUsers] = useState<PlatformUser[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
+
+  // Room Management State
+  const [roomSearchQuery, setRoomSearchQuery] = useState('');
+  const [closingRoom, setClosingRoom] = useState<any | null>(null);
+  const [closeRoomReason, setCloseRoomReason] = useState('');
+  const [isClosingRoom, setIsClosingRoom] = useState(false);
 
   // Tickets Management State
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
@@ -344,6 +356,32 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       onShowToast('เกิดข้อผิดพลาดในการส่งข้อความ', 'warning');
     } finally {
       setSendingReply(false);
+    }
+  };
+
+  // Force Close Room handler
+  const handleForceCloseRoom = async () => {
+    if (!closingRoom) return;
+    setIsClosingRoom(true);
+    try {
+      const res = await fetch(`/api/platform/rooms/${closingRoom.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: closeRoomReason.trim() || 'ห้องนี้ถูกสั่งปิดโดยผู้ดูแลระบบ (Super Admin)' }),
+      });
+      if (res.ok) {
+        onShowToast(`สั่งปิดห้อง "${closingRoom.name}" สำเร็จ 🛑`, 'success');
+        setClosingRoom(null);
+        setCloseRoomReason('');
+        fetchRooms();
+      } else {
+        const data = await res.json();
+        onShowToast(data.error || 'ไม่สามารถสั่งปิดห้องได้', 'warning');
+      }
+    } catch (err) {
+      onShowToast('เกิดข้อผิดพลาดในการสั่งปิดห้อง', 'warning');
+    } finally {
+      setIsClosingRoom(false);
     }
   };
 
@@ -2398,27 +2436,299 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         {/* TAB 6: ROOMS MANAGEMENT */}
         {activeTab === 'rooms' && (
           <div className="bg-white border border-[#e6e6e6] rounded-2xl p-6 shadow-xs space-y-6">
-            <div className="border-b border-[#e6e6e6] pb-4">
-              <h2 className="text-base font-bold text-[#000000] flex items-center gap-2">
-                <Radio className="w-5 h-5 text-[#0075de]" />
-                <span>จัดการห้อง ({rooms.length})</span>
-              </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e6e6e6] pb-4">
+              <div>
+                <h2 className="text-base font-bold text-[#000000] flex items-center gap-2">
+                  <Radio className="w-5 h-5 text-[#0075de]" />
+                  <span>จัดการห้องปาร์ตี้ทั้งหมด ({rooms.length} ห้อง)</span>
+                </h2>
+                <p className="text-xs text-[#615d59] mt-0.5">
+                  ตรวจสอบความเรียบร้อยของห้องปาร์ตี้ สั่งปิดห้องที่ทำผิดกฎ หรือแอบเข้าตรวจสอบในโหมดล่องหน
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={fetchRooms}
+                  className="p-2 rounded-xl border border-[#e6e6e6] hover:bg-[#f6f5f4] text-xs font-semibold text-[#615d59] transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
+                  title="รีเฟรชข้อมูลห้อง"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">รีเฟรช</span>
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {rooms.map((r) => (
-                <div key={r.id} className="p-4 rounded-xl border border-[#e6e6e6] bg-[#f6f5f4] space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-xs text-[#000000]">{r.name}</h3>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold">
-                      {r.onlineCount} คน
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#615d59]">{r.description || 'ไม่มีคำอธิบาย'}</p>
-                  <p className="text-[10px] text-gray-400 font-mono">ID: {r.id} | สร้างโดย: {r.ownerName}</p>
-                </div>
-              ))}
+            {/* Search & Filter Bar */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={roomSearchQuery}
+                  onChange={(e) => setRoomSearchQuery(e.target.value)}
+                  placeholder="ค้นหาห้องด้วยชื่อห้อง, รหัสห้อง, หรือชื่อเจ้าของห้อง..."
+                  className="w-full pl-9 pr-3.5 py-2 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all"
+                />
+              </div>
+              <span className="text-xs text-[#615d59] font-medium">
+                พบ{' '}
+                {
+                  rooms.filter((r) => {
+                    const q = roomSearchQuery.toLowerCase().trim();
+                    if (!q) return true;
+                    return (
+                      r.name?.toLowerCase().includes(q) ||
+                      r.id?.toLowerCase().includes(q) ||
+                      r.ownerName?.toLowerCase().includes(q) ||
+                      r.currentVideo?.title?.toLowerCase().includes(q)
+                    );
+                  }).length
+                }{' '}
+                ห้อง
+              </span>
             </div>
+
+            {/* Room Cards Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {rooms
+                .filter((r) => {
+                  const q = roomSearchQuery.toLowerCase().trim();
+                  if (!q) return true;
+                  return (
+                    r.name?.toLowerCase().includes(q) ||
+                    r.id?.toLowerCase().includes(q) ||
+                    r.ownerName?.toLowerCase().includes(q) ||
+                    r.currentVideo?.title?.toLowerCase().includes(q)
+                  );
+                })
+                .map((r) => (
+                  <div
+                    key={r.id}
+                    className="p-4 rounded-2xl border border-[#e6e6e6] bg-[#fcfbf9] hover:border-[#0075de]/40 transition-all space-y-3.5 shadow-xs flex flex-col justify-between"
+                  >
+                    <div className="space-y-3">
+                      {/* Top Header */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-bold text-sm text-[#000000]">{r.name}</h3>
+                            {r.isPrivate ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] font-semibold border border-amber-200">
+                                <Lock className="w-3 h-3" />
+                                <span>รหัส: {r.password || 'ล็อกรหัส'}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-semibold border border-blue-200">
+                                🌐 สาธารณะ
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-[#615d59]">
+                            เจ้าของห้อง: <span className="font-semibold text-[#000000]">{r.ownerName}</span> • รหัส:{' '}
+                            <code className="text-[10px] px-1 py-0.2 rounded bg-gray-200/70 font-mono text-gray-700">
+                              #{r.id}
+                            </code>
+                          </p>
+                        </div>
+
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold shrink-0 flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>{r.onlineCount} คนในห้อง</span>
+                        </span>
+                      </div>
+
+                      {/* Description */}
+                      {r.description && (
+                        <p className="text-xs text-[#615d59] line-clamp-2 bg-white/70 p-2 rounded-xl border border-[#e6e6e6]">
+                          {r.description}
+                        </p>
+                      )}
+
+                      {/* Current Playing Song Card */}
+                      {r.currentVideo?.title ? (
+                        <div className="p-2.5 rounded-xl bg-white border border-[#e6e6e6] flex items-center gap-3">
+                          <div className="w-14 h-10 rounded-lg bg-gray-900 overflow-hidden shrink-0 relative">
+                            <img
+                              src={`https://i.ytimg.com/vi/${r.currentVideo.videoId}/hqdefault.jpg`}
+                              alt={r.currentVideo.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as any).src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=120&q=80';
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                              <Music className="w-3.5 h-3.5 text-white drop-shadow" />
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-[10px] text-[#0075de] font-bold block uppercase tracking-wider">
+                              กำลังเล่นสด (Now Playing)
+                            </span>
+                            <p className="text-xs font-bold text-[#000000] truncate">{r.currentVideo.title}</p>
+                            {r.currentVideo.channel && (
+                              <p className="text-[10px] text-[#615d59] truncate">{r.currentVideo.channel}</p>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-2.5 rounded-xl bg-white/50 border border-dashed border-[#e6e6e6] text-[11px] text-[#a39e98] flex items-center gap-2">
+                          <Music className="w-3.5 h-3.5" />
+                          <span>ห้องนี้ยังไม่มีการเปิดเพลงในขณะนี้</span>
+                        </div>
+                      )}
+
+                      {/* Members List in room */}
+                      {r.members && r.members.length > 0 && (
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-[#615d59] font-semibold block">ผู้ใช้งานที่อยู่ในห้อง:</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {r.members.slice(0, 6).map((name: string, idx: number) => (
+                              <span
+                                key={idx}
+                                className="px-2 py-0.5 rounded-md bg-white border border-[#e6e6e6] text-[10px] text-[#31302e] font-medium"
+                              >
+                                {name}
+                              </span>
+                            ))}
+                            {r.members.length > 6 && (
+                              <span className="text-[10px] text-[#615d59] px-1 font-semibold">
+                                +{r.members.length - 6} คน
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Widgets Info */}
+                      <div className="flex items-center gap-3 text-[11px] text-[#615d59] pt-1">
+                        <span>🎙️ เวทีไมค์: {r.widgets?.enableVoiceStage !== false ? 'เปิด' : 'ปิด'}</span>
+                        <span>•</span>
+                        <span>💬 แชท: {r.widgets?.enableChat !== false ? 'เปิด' : 'ปิด'}</span>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-3 border-t border-[#e6e6e6] flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {/* Stealth Inspection Button */}
+                        <button
+                          type="button"
+                          onClick={() => onJoinRoom?.(r.id, true)}
+                          className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer group"
+                          title="แอบเข้าตรวจสอบห้องแบบล่องหน 100% สมาชิกในห้องจะไม่รู้ตัว"
+                        >
+                          <Ghost className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                          <span>แอบเข้าตรวจสอบ (ล่องหน)</span>
+                        </button>
+
+                        {/* Normal Join Button */}
+                        <button
+                          type="button"
+                          onClick={() => onJoinRoom?.(r.id, false)}
+                          className="py-1.5 px-3 rounded-xl bg-white hover:bg-[#f6f5f4] border border-[#e6e6e6] text-xs font-semibold text-[#000000] shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                          title="เข้าห้องแบบเปิดเผยตัวตนตามปกติ"
+                        >
+                          <Headphones className="w-3.5 h-3.5 text-[#0075de]" />
+                          <span>เข้าตามปกติ</span>
+                        </button>
+                      </div>
+
+                      {/* Force Close Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClosingRoom(r);
+                          setCloseRoomReason('');
+                        }}
+                        className="py-1.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 text-xs font-semibold transition-all cursor-pointer flex items-center gap-1"
+                        title="สั่งปิดห้องทันที"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>สั่งปิดห้อง</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+
+            {rooms.length === 0 && (
+              <div className="text-center py-16 text-gray-400 space-y-2">
+                <Radio className="w-10 h-10 mx-auto text-gray-300" />
+                <p className="text-xs font-semibold">ยังไม่มีห้องปาร์ตี้ที่เปิดใช้งานอยู่ในขณะนี้</p>
+              </div>
+            )}
+
+            {/* MODAL: FORCE CLOSE ROOM CONFIRMATION */}
+            {closingRoom && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+                <div className="w-full max-w-md bg-white border border-[#e6e6e6] rounded-2xl shadow-notion-modal overflow-hidden">
+                  <div className="p-5 border-b border-[#e6e6e6] flex items-center justify-between bg-rose-50/50">
+                    <div className="flex items-center gap-2 text-rose-700">
+                      <AlertTriangle className="w-5 h-5 text-rose-600" />
+                      <h3 className="text-sm font-bold">ยืนยันการสั่งปิดห้องทันที</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setClosingRoom(null)}
+                      className="text-[#a39e98] hover:text-[#000000] p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleForceCloseRoom();
+                    }}
+                    className="p-5 space-y-4"
+                  >
+                    <div className="space-y-1">
+                      <p className="text-xs text-[#31302e]">
+                        คุณกำลังจะสั่งปิดห้อง <strong>&quot;{closingRoom.name}&quot;</strong> (รหัส: #{closingRoom.id})
+                      </p>
+                      <p className="text-[11px] text-[#615d59]">
+                        * สมาชิกทุกคนในห้องจะถูกนำออกจากห้องทันที และห้องจะถูกลบออกจากสารบบ
+                      </p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-[#000000]">
+                        ระบุเหตุผลในการสั่งปิดห้อง (แสดงให้ผู้ใช้ทุกคนในห้องทราบ)
+                      </label>
+                      <textarea
+                        value={closeRoomReason}
+                        onChange={(e) => setCloseRoomReason(e.target.value)}
+                        placeholder="เช่น ห้องนี้เปิดเนื้อหาที่มีลิขสิทธิ์หรือผิดกฎชุมชน จึงถูกปิดโดยผู้ดูแลระบบ"
+                        rows={3}
+                        className="w-full p-3 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-rose-500"
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="pt-3 border-t border-[#e6e6e6] flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setClosingRoom(null)}
+                        className="py-2 px-4 rounded-xl border border-[#e6e6e6] hover:bg-[#f6f5f4] text-xs font-semibold text-[#615d59] transition-colors cursor-pointer"
+                      >
+                        ยกเลิก
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isClosingRoom}
+                        className="py-2 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>{isClosingRoom ? 'กำลังสั่งปิดห้อง...' : 'ยืนยันสั่งปิดห้องทันที'}</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

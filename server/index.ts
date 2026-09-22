@@ -727,7 +727,7 @@ async function startServer() {
             break;
           }
           case 'JOIN_ROOM':
-            roomManager.handleJoin(ws, msg.roomId, msg.user, msg.password);
+            roomManager.handleJoin(ws, msg.roomId, msg.user, msg.password, msg.isStealth);
             break;
           case 'VERIFY_ROOM_PASSWORD': {
             const user =
