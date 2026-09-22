@@ -439,14 +439,22 @@ async function startServer() {
   // Manual Trigger: Sync data to Supabase
   app.post('/api/admin/supabase-sync', async (req, res) => {
     try {
-      const success = await platformManager.syncToSupabase();
-      roomManager.savePersistentRooms();
-      if (success) {
-        res.json({ success: true, message: 'ซิงก์ข้อมูลสมาชิกและห้องขึ้น Supabase Cloud สำเร็จเรียบร้อย! 🎉' });
-      } else {
-        res.status(400).json({
+      const status = await platformManager.getSupabaseStatus();
+      if (!status.configured || !status.connected) {
+        return res.status(400).json({
           success: false,
-          message: 'ยังไม่ได้ตั้งค่า SUPABASE_URL / SUPABASE_KEY หรือตาราง app_storage ยังไม่ถูกสร้าง',
+          message: status.message,
+        });
+      }
+
+      const success = await platformManager.syncToSupabase();
+      await roomManager.savePersistentRoomsAsync();
+      if (success) {
+        res.json({ success: true, message: 'ซิงก์ข้อมูลสมาชิก ห้อง และคิวเพลงขึ้น Supabase Cloud สำเร็จเรียบร้อย! 🎉' });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูลขึ้น Supabase Cloud',
         });
       }
     } catch (err: any) {

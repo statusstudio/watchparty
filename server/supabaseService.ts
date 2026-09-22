@@ -1,13 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Read server environment variables (supports standard and Vite prefixed variables)
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-const SUPABASE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.SUPABASE_KEY ||
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  '';
-
 export class ServerSupabaseService {
   private client: SupabaseClient | null = null;
   private configured: boolean = false;
@@ -17,41 +9,92 @@ export class ServerSupabaseService {
     this.init();
   }
 
-  private init() {
-    if (SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL.startsWith('http') && SUPABASE_KEY.length > 20) {
+  public getCredentials(): { url: string; key: string; rawUrl: string } {
+    const rawUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
+    let url = rawUrl;
+
+    // Auto-fix if user pasted Dashboard URL (e.g., https://supabase.com/dashboard/project/xyz or https://supabase.com/dashboard/org/xyz)
+    if (url.includes('supabase.com/dashboard/')) {
+      const segments = url.split('?')[0].split('/').filter(Boolean);
+      const ref = segments[segments.length - 1];
+      if (ref && ref.length >= 10 && !ref.includes('.')) {
+        url = `https://${ref}.supabase.co`;
+        console.log(`[ServerSupabaseService] Auto-converted dashboard URL to: ${url}`);
+      }
+    }
+
+    const key = (
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.SUPABASE_KEY ||
+      process.env.VITE_SUPABASE_ANON_KEY ||
+      ''
+    ).trim();
+
+    return { url, key, rawUrl };
+  }
+
+  public init(): boolean {
+    const { url, key } = this.getCredentials();
+    if (url && key && url.startsWith('http') && key.length > 20) {
       try {
-        this.client = createClient(SUPABASE_URL, SUPABASE_KEY, {
+        this.client = createClient(url, key, {
           auth: {
             persistSession: false,
             autoRefreshToken: false,
           },
         });
         this.configured = true;
-        console.log('✅ ServerSupabaseService: Initialized with URL:', SUPABASE_URL);
+        console.log('✅ ServerSupabaseService: Initialized with URL:', url);
+        return true;
       } catch (err) {
         console.error('❌ ServerSupabaseService: Failed to create client:', err);
         this.client = null;
         this.configured = false;
+        return false;
       }
     } else {
-      console.log('ℹ️ ServerSupabaseService: Supabase credentials not set. Operating in local JSON storage mode.');
       this.configured = false;
+      return false;
     }
   }
 
   public isConfigured(): boolean {
+    if (!this.configured || !this.client) {
+      this.init();
+    }
     return this.configured && this.client !== null;
   }
 
   /**
    * Test connection to Supabase table `app_storage`
    */
-  public async checkStatus(): Promise<{ connected: boolean; configured: boolean; message: string }> {
-    if (!this.isConfigured() || !this.client) {
+  public async checkStatus(): Promise<{ connected: boolean; configured: boolean; message: string; details?: any }> {
+    if (!this.isConfigured()) {
+      this.init();
+    }
+
+    const { url, key, rawUrl } = this.getCredentials();
+    if (!url) {
       return {
         configured: false,
         connected: false,
-        message: 'ยังไม่ได้ตั้งค่า SUPABASE_URL และ SUPABASE_KEY ใน Environment Variables ของ Render',
+        message: 'ยังไม่ได้ตั้งค่า SUPABASE_URL ใน Environment Variables ของ Render',
+      };
+    }
+
+    if (!key) {
+      return {
+        configured: false,
+        connected: false,
+        message: 'ยังไม่ได้ตั้งค่า SUPABASE_KEY ใน Environment Variables ของ Render',
+      };
+    }
+
+    if (!this.client) {
+      return {
+        configured: false,
+        connected: false,
+        message: 'ค่า SUPABASE_URL หรือ SUPABASE_KEY ไม่ถูกต้อง (URL ต้องขึ้นต้นด้วย https:// และ KEY ต้องเป็นคีย์สมบูรณ์)',
       };
     }
 
@@ -67,20 +110,20 @@ export class ServerSupabaseService {
           return {
             configured: true,
             connected: false,
-            message: 'เชื่อมต่อ Supabase ได้ แต่ยังไม่ได้สร้างตาราง app_storage (กรุณารันคำสั่งใน supabase/schema.sql)',
+            message: 'เชื่อมต่อ Supabase ได้แล้ว แต่ยังไม่ได้สร้างตาราง app_storage (กรุณากดแท็บคำสั่ง SQL แล้วรันใน Supabase Dashboard)',
           };
         }
         return {
           configured: true,
           connected: false,
-          message: `Supabase Error: ${error.message}`,
+          message: `Supabase ตอบกลับข้อผิดพลาด: ${error.message} (กรุณาตรวจสอบว่าใส่ Project URL และ API Key ถูกต้องหรือไม่)`,
         };
       }
 
       return {
         configured: true,
         connected: true,
-        message: 'เชื่อมต่อ Supabase สำเร็จ ข้อมูลสมาชิกและห้องจะถูกบันทึกบน Cloud ถาวร 100%',
+        message: 'เชื่อมต่อ Supabase สำเร็จ ข้อมูลสมาชิก ห้อง และคิวเพลงจะถูกบันทึกบน Cloud ถาวร 100%',
       };
     } catch (err: any) {
       return {
