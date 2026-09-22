@@ -87,45 +87,68 @@ export class RoomManager {
     const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
     for (const r of savedList) {
       if (r.lastActiveTime && now - r.lastActiveTime > FIVE_DAYS_MS) {
-        console.log(`[RoomManager] Skipping expired member room ${r.metadata?.id}`);
+        console.log(`[RoomManager] Skipping expired room ${r.metadata?.id}`);
         continue;
       }
+
+      // Restore video state with elapsed playback time calculation
+      let restoredVideo = r.video || {
+        videoId: '',
+        title: '',
+        channel: '',
+        duration: 0,
+        currentTime: 0,
+        isPlaying: false,
+        lastUpdated: now,
+      };
+
+      if (restoredVideo.videoId && restoredVideo.isPlaying && restoredVideo.lastUpdated) {
+        const elapsedSec = Math.floor((now - restoredVideo.lastUpdated) / 1000);
+        if (elapsedSec > 0 && elapsedSec < 7200) { // Within 2 hours
+          const newCurrentTime = (restoredVideo.currentTime || 0) + elapsedSec;
+          if (restoredVideo.duration > 0 && newCurrentTime >= restoredVideo.duration) {
+            restoredVideo.currentTime = restoredVideo.duration;
+            restoredVideo.isPlaying = false;
+          } else {
+            restoredVideo.currentTime = newCurrentTime;
+          }
+          restoredVideo.lastUpdated = now;
+        }
+      }
+
+      // Restore chat messages (preserve up to 150 recent messages)
+      const restoredChat: ChatMessage[] = Array.isArray(r.chat) && r.chat.length > 0
+        ? r.chat
+        : [
+            {
+              id: 'msg-welcome',
+              sender: {
+                id: 'system',
+                name: 'WatchParty Bot 🤖',
+                avatar:
+                  'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%238b5cf6"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2zM7.5 13a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm9 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>',
+                color: '#8b5cf6',
+              },
+              text: `ยินดีต้อนรับกลับสู่ห้อง "${r.metadata?.name || 'ห้องปาร์ตี้'}"! เพลย์ลิสต์และประวัติแชทได้รับการกู้คืนเรียบร้อยแล้ว 🎵`,
+              timestamp: Date.now(),
+            },
+          ];
+
       const roomData: InternalRoomData = {
         metadata: r.metadata,
         seats: this.createDefaultSeats(),
-        video: r.video || {
-          videoId: '',
-          title: '',
-          channel: '',
-          duration: 0,
-          currentTime: 0,
-          isPlaying: false,
-          lastUpdated: Date.now(),
-        },
+        video: restoredVideo,
         playlist: r.playlist || [],
         loopMode: r.loopMode || 'all',
         isShuffle: r.isShuffle || false,
         lastVideoEndedTime: 0,
         stageAccessMode: r.stageAccessMode || 'everyone',
-        approvedSpeakerIds: new Set<string>([r.metadata.ownerId]),
+        approvedSpeakerIds: new Set<string>([r.metadata?.ownerId].filter(Boolean)),
         pendingStageRequests: new Map<string, StageRequest>(),
-        chat: [
-          {
-            id: 'msg-welcome',
-            sender: {
-              id: 'system',
-              name: 'WatchParty Bot 🤖',
-              avatar:
-                'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%238b5cf6"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2zM7.5 13a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm9 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>',
-              color: '#8b5cf6',
-            },
-            text: `ยินดีต้อนรับกลับสู่ห้อง "${r.metadata.name}"! เพลย์ลิสต์ได้รับการบันทึกไว้เรียบร้อยแล้ว 🎵`,
-            timestamp: Date.now(),
-          },
-        ],
+        chat: restoredChat,
         adminIds: new Set<string>(),
         bannedUsers: new Map<string, BannedUser>(),
-        isMemberRoom: true,
+        isMemberRoom: !!r.isMemberRoom,
         lastActiveTime: r.lastActiveTime || Date.now(),
         emptySince: null,
       };
@@ -139,7 +162,7 @@ export class RoomManager {
       const raw = fs.readFileSync(PERSISTENT_ROOMS_FILE, 'utf-8');
       const savedList = JSON.parse(raw);
       this.hydratePersistentRooms(savedList);
-      console.log(`[RoomManager] Re-hydrated ${this.rooms.size} persistent member rooms from disk.`);
+      console.log(`[RoomManager] Re-hydrated ${this.rooms.size} active rooms with playlists & chat from disk.`);
     } catch (err) {
       console.error('Failed to load persistent rooms:', err);
     }
@@ -151,11 +174,42 @@ export class RoomManager {
       const cloudRooms = await serverSupabaseService.loadData<any[]>('persistent_rooms');
       if (Array.isArray(cloudRooms) && cloudRooms.length > 0) {
         this.hydratePersistentRooms(cloudRooms);
-        console.log(`✅ [RoomManager] Re-hydrated ${cloudRooms.length} rooms from Supabase Cloud!`);
+        console.log(`✅ [RoomManager] Re-hydrated ${cloudRooms.length} active rooms with playlists & chat from Supabase Cloud!`);
       }
     } catch (e) {
       console.error('[RoomManager] Failed to load rooms from Supabase:', e);
     }
+  }
+
+  private getRoomsToPersist(): any[] {
+    const toSave: any[] = [];
+    const now = Date.now();
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+    for (const room of this.rooms.values()) {
+      const clientCount = this.getRoomClients(room.metadata.id).length;
+      const hasContent =
+        (room.playlist && room.playlist.length > 0) ||
+        (room.video && !!room.video.videoId) ||
+        (room.chat && room.chat.length > 1);
+      const isActiveRecently = room.lastActiveTime && now - room.lastActiveTime < ONE_DAY_MS;
+
+      // Persist any room that has content, active users, or recent activity
+      if (room.isMemberRoom || clientCount > 0 || hasContent || isActiveRecently) {
+        toSave.push({
+          metadata: room.metadata,
+          video: room.video,
+          playlist: room.playlist,
+          chat: (room.chat || []).slice(-150), // Save last 150 chat messages!
+          loopMode: room.loopMode,
+          isShuffle: room.isShuffle,
+          stageAccessMode: room.stageAccessMode,
+          isMemberRoom: !!room.isMemberRoom,
+          lastActiveTime: room.lastActiveTime || now,
+        });
+      }
+    }
+    return toSave;
   }
 
   public savePersistentRooms() {
@@ -163,21 +217,7 @@ export class RoomManager {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
       }
-      const toSave: any[] = [];
-      for (const room of this.rooms.values()) {
-        if (room.isMemberRoom) {
-          toSave.push({
-            metadata: room.metadata,
-            video: room.video,
-            playlist: room.playlist,
-            loopMode: room.loopMode,
-            isShuffle: room.isShuffle,
-            stageAccessMode: room.stageAccessMode,
-            isMemberRoom: true,
-            lastActiveTime: room.lastActiveTime || Date.now(),
-          });
-        }
-      }
+      const toSave = this.getRoomsToPersist();
       fs.writeFileSync(PERSISTENT_ROOMS_FILE, JSON.stringify(toSave, null, 2), 'utf-8');
 
       if (serverSupabaseService.isConfigured()) {
@@ -188,6 +228,31 @@ export class RoomManager {
     } catch (err) {
       console.error('Failed to save persistent rooms:', err);
     }
+  }
+
+  public async savePersistentRoomsAsync(): Promise<void> {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      const toSave = this.getRoomsToPersist();
+      fs.writeFileSync(PERSISTENT_ROOMS_FILE, JSON.stringify(toSave, null, 2), 'utf-8');
+
+      if (serverSupabaseService.isConfigured()) {
+        await serverSupabaseService.saveData('persistent_rooms', toSave);
+      }
+    } catch (err) {
+      console.error('Failed to async save persistent rooms:', err);
+    }
+  }
+
+  private saveDebounceTimer: NodeJS.Timeout | null = null;
+  public scheduleSave() {
+    if (this.saveDebounceTimer) return;
+    this.saveDebounceTimer = setTimeout(() => {
+      this.saveDebounceTimer = null;
+      this.savePersistentRooms();
+    }, 1500);
   }
 
   private checkRoomExpirations() {
@@ -336,9 +401,7 @@ export class RoomManager {
     };
 
     this.rooms.set(roomId, newRoom);
-    if (newRoom.isMemberRoom) {
-      this.savePersistentRooms();
-    }
+    this.scheduleSave();
     return newRoom;
   }
 
@@ -850,9 +913,7 @@ export class RoomManager {
     }
 
     room.lastActiveTime = Date.now();
-    if (room.isMemberRoom) {
-      this.savePersistentRooms();
-    }
+    this.scheduleSave();
 
     this.broadcastToRoom(client.roomId, {
       type: 'ROOM_METADATA_UPDATED',
@@ -899,9 +960,7 @@ export class RoomManager {
     }
 
     room.lastActiveTime = Date.now();
-    if (room.isMemberRoom) {
-      this.savePersistentRooms();
-    }
+    this.scheduleSave();
 
     this.broadcastToRoom(client.roomId, {
       type: 'ROOM_METADATA_UPDATED',
@@ -1412,6 +1471,8 @@ export class RoomManager {
       room.video.duration = duration;
     }
     room.video.lastUpdated = Date.now();
+    room.lastActiveTime = Date.now();
+    this.scheduleSave();
 
     this.broadcastToRoom(client.roomId, {
       type: 'VIDEO_SYNC',
@@ -1432,6 +1493,8 @@ export class RoomManager {
       room.video.duration = duration;
     }
     room.video.lastUpdated = Date.now();
+    room.lastActiveTime = Date.now();
+    this.scheduleSave();
 
     this.broadcastToRoom(client.roomId, {
       type: 'VIDEO_SYNC',
@@ -1451,6 +1514,8 @@ export class RoomManager {
       room.video.duration = duration;
     }
     room.video.lastUpdated = Date.now();
+    room.lastActiveTime = Date.now();
+    this.scheduleSave();
 
     this.broadcastToRoom(client.roomId, {
       type: 'VIDEO_SYNC',
@@ -1504,9 +1569,7 @@ export class RoomManager {
     });
 
     room.lastActiveTime = Date.now();
-    if (room.isMemberRoom) {
-      this.savePersistentRooms();
-    }
+    this.scheduleSave();
 
     this.broadcastToRoom(client.roomId, {
       type: 'SYNC_TOAST',
@@ -1574,9 +1637,7 @@ export class RoomManager {
     }
 
     room.lastActiveTime = Date.now();
-    if (room.isMemberRoom) {
-      this.savePersistentRooms();
-    }
+    this.scheduleSave();
 
     this.broadcastToRoom(targetRoomId, {
       type: 'PLAYLIST_UPDATED',
@@ -1643,9 +1704,7 @@ export class RoomManager {
     }
 
     room.lastActiveTime = Date.now();
-    if (room.isMemberRoom) {
-      this.savePersistentRooms();
-    }
+    this.scheduleSave();
 
     this.broadcastToRoom(targetRoomId, {
       type: 'PLAYLIST_UPDATED',
@@ -1675,9 +1734,7 @@ export class RoomManager {
 
     room.playlist = room.playlist.filter((p) => p.id !== id);
     room.lastActiveTime = Date.now();
-    if (room.isMemberRoom) {
-      this.savePersistentRooms();
-    }
+    this.scheduleSave();
 
     this.broadcastToRoom(client.roomId, {
       type: 'PLAYLIST_UPDATED',
@@ -1701,9 +1758,7 @@ export class RoomManager {
 
     room.playlist = [];
     room.lastActiveTime = Date.now();
-    if (room.isMemberRoom) {
-      this.savePersistentRooms();
-    }
+    this.scheduleSave();
 
     this.broadcastToRoom(client.roomId, {
       type: 'PLAYLIST_UPDATED',
@@ -1734,9 +1789,7 @@ export class RoomManager {
 
     room.loopMode = loopMode;
     room.lastActiveTime = Date.now();
-    if (room.isMemberRoom) {
-      this.savePersistentRooms();
-    }
+    this.scheduleSave();
 
     this.broadcastToRoom(client.roomId, {
       type: 'PLAYLIST_UPDATED',
@@ -1779,9 +1832,7 @@ export class RoomManager {
 
     room.isShuffle = isShuffle;
     room.lastActiveTime = Date.now();
-    if (room.isMemberRoom) {
-      this.savePersistentRooms();
-    }
+    this.scheduleSave();
 
     this.broadcastToRoom(client.roomId, {
       type: 'PLAYLIST_UPDATED',
@@ -1907,6 +1958,8 @@ export class RoomManager {
       isPlaying: true,
       lastUpdated: Date.now(),
     };
+    room.lastActiveTime = Date.now();
+    this.scheduleSave();
 
     this.broadcastToRoom(roomId, {
       type: 'VIDEO_SYNC',
@@ -2000,6 +2053,8 @@ export class RoomManager {
     if (room.chat.length > 200) {
       room.chat.shift();
     }
+    room.lastActiveTime = Date.now();
+    this.scheduleSave();
 
     this.broadcastToRoom(client.roomId, {
       type: 'NEW_CHAT',
@@ -2035,6 +2090,8 @@ export class RoomManager {
 
     // Remove from in-memory chat array
     room.chat.splice(targetIndex, 1);
+    room.lastActiveTime = Date.now();
+    this.scheduleSave();
 
     // Broadcast deletion to all participants in the room
     this.broadcastToRoom(client.roomId, {
@@ -2073,10 +2130,8 @@ export class RoomManager {
     // Remove room from active memory
     this.rooms.delete(roomId);
 
-    // If member room, also remove from disk persistence
-    if (room.isMemberRoom) {
-      this.savePersistentRooms();
-    }
+    // Remove from disk & cloud persistence
+    this.savePersistentRooms();
 
     // Broadcast updated directory to all clients
     this.broadcastToAll({

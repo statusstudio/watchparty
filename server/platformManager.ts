@@ -248,6 +248,30 @@ export class PlatformManager {
     return await serverSupabaseService.checkStatus();
   }
 
+  public async flushSave(): Promise<void> {
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
+    }
+    try {
+      const data: StoreSchema = {
+        users: Array.from(this.users.values()),
+        userAccounts: Array.from(this.userAccounts.values()),
+        adminCredentials: this.adminCredentials,
+        tickets: Array.from(this.tickets.values()),
+        config: this.config,
+        topTracks: Array.from(this.topTracks.values()),
+        smtpConfig: this.smtpConfig,
+      };
+      fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), 'utf-8');
+      if (serverSupabaseService.isConfigured()) {
+        await this.syncToSupabase(data);
+      }
+    } catch (err) {
+      console.error('Failed to flushSave in PlatformManager:', err);
+    }
+  }
+
   private scheduleSave() {
     if (this.saveTimeout) clearTimeout(this.saveTimeout);
     this.saveTimeout = setTimeout(() => {

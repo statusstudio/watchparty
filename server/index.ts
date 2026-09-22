@@ -1030,6 +1030,30 @@ async function startServer() {
     console.log(`🚀 YouTube WatchParty & 9-Seat Voice Stage server running on http://0.0.0.0:${PORT}`);
     console.log(`📡 WebSocket server running on ws://0.0.0.0:${PORT}/ws`);
   });
+
+  const gracefulShutdown = async (signal: string) => {
+    console.log(`[Server] Received ${signal}. Starting graceful shutdown...`);
+    try {
+      await roomManager.savePersistentRoomsAsync();
+      await platformManager.flushSave();
+      console.log('✅ [Server] Successfully saved persistent rooms & platform data.');
+    } catch (err) {
+      console.error('❌ [Server] Error during graceful shutdown persistence:', err);
+    }
+
+    server.close(() => {
+      console.log('[Server] Server closed cleanly.');
+      process.exit(0);
+    });
+
+    setTimeout(() => {
+      console.warn('[Server] Forcing shutdown after timeout.');
+      process.exit(0);
+    }, 6000).unref();
+  };
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 }
 
 startServer().catch((err) => {
