@@ -2147,7 +2147,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      const sql = `CREATE TABLE IF NOT EXISTS public.app_storage (\n  key TEXT PRIMARY KEY,\n  data JSONB NOT NULL,\n  updated_at TIMESTAMPTZ DEFAULT NOW()\n);\n\nALTER TABLE public.app_storage ENABLE ROW LEVEL SECURITY;\n\nCREATE POLICY "Allow public and service access to app_storage"\n  ON public.app_storage FOR ALL\n  USING (true)\n  WITH CHECK (true);`;
+                      const sql = `CREATE TABLE IF NOT EXISTS public.app_storage (\n  key TEXT PRIMARY KEY,\n  data JSONB NOT NULL,\n  updated_at TIMESTAMPTZ DEFAULT NOW()\n);\n\nALTER TABLE public.app_storage ENABLE ROW LEVEL SECURITY;\n\nDROP POLICY IF EXISTS "Allow public and service access to app_storage" ON public.app_storage;\nCREATE POLICY "Allow public and service access to app_storage"\n  ON public.app_storage FOR ALL\n  USING (true)\n  WITH CHECK (true);`;
                       navigator.clipboard.writeText(sql);
                       setCopiedSql(true);
                       setTimeout(() => setCopiedSql(false), 2500);
@@ -2173,6 +2173,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
 
 ALTER TABLE public.app_storage ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow public and service access to app_storage" ON public.app_storage;
 CREATE POLICY "Allow public and service access to app_storage"
   ON public.app_storage FOR ALL
   USING (true)

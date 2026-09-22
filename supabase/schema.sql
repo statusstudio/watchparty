@@ -164,6 +164,7 @@ CREATE TABLE IF NOT EXISTS public.app_storage (
 ALTER TABLE public.app_storage ENABLE ROW LEVEL SECURITY;
 
 -- Allow public and service role access for backend server sync
+DROP POLICY IF EXISTS "Allow public and service access to app_storage" ON public.app_storage;
 CREATE POLICY "Allow public and service access to app_storage"
   ON public.app_storage FOR ALL
   USING (true)
