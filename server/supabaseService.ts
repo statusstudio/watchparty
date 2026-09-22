@@ -19,16 +19,29 @@ export class ServerSupabaseService {
     const rawUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
     let url = rawUrl.replace(/^["'`]|["'`]$/g, '').trim();
 
-    // Auto-fix if user pasted Dashboard URL (e.g., https://supabase.com/dashboard/project/xyz or https://supabase.com/dashboard/org/xyz)
-    if (url.includes('supabase.com/dashboard/')) {
-      const segments = url.split('?')[0].split('/').filter(Boolean);
-      const ref = segments[segments.length - 1];
-      if (ref && ref.length >= 10 && !ref.includes('.')) {
-        url = `https://${ref}.supabase.co`;
-        console.log(`[ServerSupabaseService] Auto-converted dashboard URL to: ${url}`);
+    if (url) {
+      try {
+        const fullUrl = url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
+        const parsed = new URL(fullUrl);
+
+        if (parsed.hostname.endsWith('.supabase.co')) {
+          // Strictly origin only: https://xxx.supabase.co (NO trailing slash, NO /rest/v1)
+          url = `https://${parsed.hostname}`;
+        } else if (parsed.hostname.includes('supabase.com')) {
+          // Extract project reference from dashboard URLs even if path has /settings/api or other sub-paths
+          const match = url.match(/\/(?:project|org)\/([a-zA-Z0-9_-]{10,})/i);
+          if (match && match[1]) {
+            url = `https://${match[1]}.supabase.co`;
+            console.log(`[ServerSupabaseService] Auto-converted dashboard URL to: ${url}`);
+          } else {
+            url = `https://${parsed.hostname}`;
+          }
+        } else {
+          url = parsed.origin;
+        }
+      } catch (e) {
+        url = url.replace(/\/+$/, '');
       }
-    } else if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
-      url = `https://${url}`;
     }
 
     const rawKey = (
