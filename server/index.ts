@@ -125,7 +125,52 @@ async function startServer() {
 
   app.get('/api/room/:roomId', (req, res) => {
     const { roomId } = req.params;
-    const roomState = roomManager.getRoomState(roomId);
+    const password = (req.query.password as string) || undefined;
+    const userId = (req.query.userId as string) || undefined;
+    const isStealth = req.query.isStealth === 'true';
+
+    const room = roomManager.getRoom(roomId);
+    if (room && room.metadata.isPrivate && room.metadata.password) {
+      const isOwner = userId && userId === room.metadata.ownerId;
+      const roomPass = String(room.metadata.password).trim();
+      const userPass = password ? String(password).trim() : '';
+
+      if (!isStealth && !isOwner && (!userPass || userPass !== roomPass)) {
+        return res.json({
+          roomId,
+          requiresPassword: true,
+          metadata: {
+            id: room.metadata.id,
+            name: room.metadata.name,
+            description: room.metadata.description,
+            ownerId: room.metadata.ownerId,
+            ownerName: room.metadata.ownerName,
+            isPrivate: true,
+            hasPassword: true,
+            category: room.metadata.category,
+            coverImage: room.metadata.coverImage,
+            createdAt: room.metadata.createdAt,
+          },
+          video: {
+            videoId: '',
+            title: '',
+            thumbnail: '',
+            currentTime: 0,
+            duration: 0,
+            isPlaying: false,
+            lastUpdated: Date.now(),
+          },
+          playlist: [],
+          chat: [],
+          seats: [],
+          members: [],
+          bannedUsers: [],
+          onlineCount: 0,
+        });
+      }
+    }
+
+    const roomState = roomManager.getRoomState(roomId, userId, isStealth);
     res.json(roomState);
   });
 

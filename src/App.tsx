@@ -158,6 +158,7 @@ export function App() {
   const [isPasswordGateOpen, setIsPasswordGateOpen] = useState(false);
   const [passwordGateRoomName, setPasswordGateRoomName] = useState('');
   const [passwordGateError, setPasswordGateError] = useState<string | null>(null);
+  const [pendingPrivateRoomId, setPendingPrivateRoomId] = useState<string | null>(null);
 
   // Room Audio & Video State
   const [seats, setSeats] = useState<StageSeat[]>(
@@ -683,18 +684,53 @@ export function App() {
   currentViewRef.current = currentView;
   const currentUserRef = useRef(currentUser);
   currentUserRef.current = currentUser;
+  const roomsListRef = useRef(roomsList);
+  roomsListRef.current = roomsList;
 
   // Instant Room State Sync via REST API (Dual-Channel with WebSocket)
-  const syncRoomState = useCallback((targetRoomId: string) => {
-    fetch(`/api/room/${targetRoomId}`)
+  const syncRoomState = useCallback((targetRoomId: string, providedPassword?: string) => {
+    const queryParams = new URLSearchParams();
+    if (currentUserRef.current?.id) {
+      queryParams.set('userId', currentUserRef.current.id);
+    }
+    if (providedPassword) {
+      queryParams.set('password', providedPassword);
+    }
+    if (isStealthInspectionRef.current) {
+      queryParams.set('isStealth', 'true');
+    }
+
+    fetch(`/api/room/${targetRoomId}?${queryParams.toString()}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error ${res.status}`);
         return res.json();
       })
-      .then((state: RoomState) => {
+      .then((state: RoomState & { requiresPassword?: boolean }) => {
+        if (state.requiresPassword) {
+          setPendingPrivateRoomId(targetRoomId);
+          setPasswordGateRoomName(state.metadata?.name || 'ห้องส่วนตัว');
+          setPasswordGateError(null);
+          setIsPasswordGateOpen(true);
+          setCurrentView('home');
+          setVideo({
+            videoId: '',
+            title: '',
+            channel: '',
+            duration: 0,
+            currentTime: 0,
+            isPlaying: false,
+            lastUpdated: Date.now(),
+          });
+          setPlaylist([]);
+          setChat([]);
+          setMembers([]);
+          return;
+        }
+
         if (state && (state.roomId === targetRoomId || !state.roomId)) {
           setIsPasswordGateOpen(false);
           setPasswordGateError(null);
+          setPendingPrivateRoomId(null);
           if (state.metadata) setRoomMetadata(state.metadata);
           if (state.seats) setSeats(state.seats);
           if (state.video) setVideo(state.video);
@@ -731,6 +767,19 @@ export function App() {
     const handleHashChange = () => {
       const targetRoom = getHashRoomId();
       if (targetRoom) {
+        const roomMeta = roomsListRef.current?.find((r) => r.id === targetRoom);
+        const isPrivate = roomMeta?.isPrivate || roomMeta?.hasPassword;
+        const isMine = roomMeta?.ownerId === currentUserRef.current.id;
+
+        if (!isStealthInspectionRef.current && !isMine && isPrivate) {
+          setPendingPrivateRoomId(targetRoom);
+          setPasswordGateRoomName(roomMeta?.name || 'ห้องส่วนตัว');
+          setPasswordGateError(null);
+          setIsPasswordGateOpen(true);
+          setCurrentView('home');
+          return;
+        }
+
         setRoomId(targetRoom);
         setCurrentView('room');
         syncRoomState(targetRoom);
@@ -787,6 +836,20 @@ export function App() {
           setIsPasswordGateOpen(true);
           setPasswordGateRoomName(msg.roomName);
           setPasswordGateError(null);
+          setPendingPrivateRoomId(msg.roomId);
+          setCurrentView('home');
+          setVideo({
+            videoId: '',
+            title: '',
+            channel: '',
+            duration: 0,
+            currentTime: 0,
+            isPlaying: false,
+            lastUpdated: Date.now(),
+          });
+          setPlaylist([]);
+          setChat([]);
+          setMembers([]);
           break;
 
         case 'PASSWORD_ERROR':
@@ -833,6 +896,12 @@ export function App() {
         case 'ROOM_INIT': {
           setIsPasswordGateOpen(false);
           setPasswordGateError(null);
+          setPendingPrivateRoomId(null);
+          if (msg.state.roomId) {
+            setRoomId(msg.state.roomId);
+            window.location.hash = `#${msg.state.roomId}`;
+          }
+          setCurrentView('room');
           setRoomMetadata(msg.state.metadata);
           setSeats(msg.state.seats);
           setVideo(msg.state.video);
@@ -999,6 +1068,7 @@ export function App() {
   const handleNavigateHome = () => {
     setIsPasswordGateOpen(false);
     setPasswordGateError(null);
+    setPendingPrivateRoomId(null);
     setIsStealthInspection(false);
     socketService.send({ type: 'LEAVE_ROOM' });
     setMembers([]);
@@ -1008,6 +1078,18 @@ export function App() {
   };
 
   const handleSelectRoom = (targetRoomId: string, isStealth: boolean = false) => {
+    const targetRoomSummary = roomsListRef.current?.find((r) => r.id === targetRoomId);
+    const isPrivate = targetRoomSummary?.isPrivate || targetRoomSummary?.hasPassword;
+    const isMine = targetRoomSummary?.ownerId === currentUserRef.current.id;
+
+    if (!isStealth && !isMine && isPrivate) {
+      setPendingPrivateRoomId(targetRoomId);
+      setPasswordGateRoomName(targetRoomSummary?.name || 'ห้องส่วนตัว');
+      setPasswordGateError(null);
+      setIsPasswordGateOpen(true);
+      return;
+    }
+
     window.location.hash = `#${targetRoomId}`;
     setRoomId(targetRoomId);
     setIsStealthInspection(isStealth);
@@ -1075,12 +1157,17 @@ export function App() {
 
   // Password Gate submit
   const handlePasswordSubmit = (password: string) => {
+    const targetId = pendingPrivateRoomId || roomId;
+    if (!targetId) return;
+
     socketService.send({
       type: 'VERIFY_ROOM_PASSWORD',
-      roomId,
+      roomId: targetId,
       password,
       user: currentUser,
     });
+
+    syncRoomState(targetId, password);
   };
 
   // Moderation actions

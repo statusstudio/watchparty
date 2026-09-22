@@ -155,6 +155,7 @@ export interface RoomSummary {
   ownerId: string;
   ownerName: string;
   isPrivate: boolean;
+  hasPassword?: boolean;
   stageAccessMode?: StageAccessMode;
   category?: RoomCategory;
   coverImage?: string;
@@ -170,6 +171,7 @@ export interface RoomSummary {
 
 export interface RoomState {
   roomId: string;
+  requiresPassword?: boolean;
   metadata: RoomMetadata;
   seats: StageSeat[];
   video: VideoState;

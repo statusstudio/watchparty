@@ -331,12 +331,18 @@ export class RoomManager {
     return this.rooms.get(roomId)!;
   }
 
+  public getRoom(roomId: string): InternalRoomData | undefined {
+    return this.rooms.get(roomId);
+  }
+
   public getAllRoomSummaries(): RoomSummary[] {
     const list: RoomSummary[] = [];
     for (const [id, room] of this.rooms.entries()) {
       const clients = this.getRoomClients(id, false);
       const uniqueUserIds = new Set(clients.map((c) => c.user?.id).filter(Boolean));
       const onlineCount = uniqueUserIds.size;
+      const isLocked = !!(room.metadata.isPrivate && room.metadata.password);
+
       list.push({
         id,
         name: room.metadata.name,
@@ -344,16 +350,25 @@ export class RoomManager {
         ownerId: room.metadata.ownerId,
         ownerName: room.metadata.ownerName,
         isPrivate: room.metadata.isPrivate,
+        hasPassword: isLocked,
         stageAccessMode: room.metadata.stageAccessMode || 'everyone',
         category: room.metadata.category || 'general',
         coverImage: room.metadata.coverImage,
         widgets: room.metadata.widgets || { ...DEFAULT_ROOM_WIDGETS },
         onlineCount,
-        currentVideo: {
-          videoId: room.video.videoId,
-          title: room.video.title,
-          thumbnail: `https://i.ytimg.com/vi/${room.video.videoId}/hqdefault.jpg`,
-        },
+        currentVideo: isLocked
+          ? {
+              videoId: '',
+              title: 'ห้องล็อครหัสผ่าน 🔒',
+              thumbnail: room.metadata.coverImage || 'https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=800&auto=format&fit=crop&q=80',
+            }
+          : {
+              videoId: room.video.videoId,
+              title: room.video.title,
+              thumbnail: room.video.videoId
+                ? `https://i.ytimg.com/vi/${room.video.videoId}/hqdefault.jpg`
+                : (room.metadata.coverImage || 'https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=800&auto=format&fit=crop&q=80'),
+            },
         createdAt: room.metadata.createdAt,
       });
     }
