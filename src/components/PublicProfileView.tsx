@@ -434,13 +434,18 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
               </div>
             </div>
 
-            <button
-              onClick={() => onJoinRoom(profile.activeRoom!.roomId)}
-              className="px-5 py-2.5 rounded-xl bg-[#0075de] hover:bg-[#005bab] text-white font-semibold text-xs shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0"
+            <a
+              href={`/#${profile.activeRoom.roomId}`}
+              onClick={(e) => {
+                e.preventDefault();
+                onJoinRoom(profile.activeRoom!.roomId);
+              }}
+              className="px-5 py-2.5 rounded-xl bg-[#0075de] hover:bg-[#005bab] text-white font-semibold text-xs shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 no-underline"
+              title={`เข้าร่วมห้อง ${profile.activeRoom.roomName}`}
             >
               <Headphones className="w-4 h-4" />
               <span>เข้าร่วมห้องฟังด้วยกัน</span>
-            </button>
+            </a>
           </div>
         )}
 

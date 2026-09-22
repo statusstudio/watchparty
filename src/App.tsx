@@ -1532,18 +1532,9 @@ export function App() {
           }}
           onShowToast={showToast}
           onJoinRoom={(targetRoomId, isStealth) => {
-            window.history.pushState({}, '', `#${targetRoomId}`);
+            window.history.pushState({}, '', `/#${targetRoomId}`);
             setIsAdminRoute(false);
-            setIsStealthInspection(!!isStealth);
-            setRoomId(targetRoomId);
-            setCurrentView('room');
-            syncRoomState(targetRoomId);
-            socketService.send({
-              type: 'JOIN_ROOM',
-              roomId: targetRoomId,
-              user: currentUserRef.current,
-              isStealth: !!isStealth,
-            });
+            handleSelectRoom(targetRoomId, !!isStealth);
             if (isStealth) {
               showToast('เข้าสู่ห้องในโหมดล่องหนเรียบร้อย 👻 สมาชิกในห้องจะไม่รู้ตัว', 'success');
             }
@@ -1566,17 +1557,16 @@ export function App() {
             setCurrentView('home');
           }}
           onJoinRoom={(targetRoomId) => {
-            window.history.pushState({}, '', `#${targetRoomId}`);
+            window.history.pushState({}, '', `/#${targetRoomId}`);
             setProfileHandleRoute(null);
-            setRoomId(targetRoomId);
-            setCurrentView('room');
+            handleSelectRoom(targetRoomId);
           }}
           onOpenEditProfile={() => {
             setSelectedUserForProfile(currentUser);
             setIsUserProfileModalOpen(true);
           }}
           onPlaySong={(videoId, title, channel) => {
-            window.history.pushState({}, '', `#${roomId}`);
+            window.history.pushState({}, '', `/#${roomId}`);
             setProfileHandleRoute(null);
             setCurrentView('room');
             handleVideoChange(videoId, title, channel);
@@ -1595,7 +1585,7 @@ export function App() {
             handleSaveProfile(updated);
           }}
           onPlaySong={(videoId, title, channel) => {
-            window.history.pushState({}, '', `#${roomId}`);
+            window.history.pushState({}, '', `/#${roomId}`);
             setProfileHandleRoute(null);
             setCurrentView('room');
             handleVideoChange(videoId, title, channel);
