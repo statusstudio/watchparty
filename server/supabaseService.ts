@@ -3,15 +3,15 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 export class ServerSupabaseService {
   private client: SupabaseClient | null = null;
   private configured: boolean = false;
-  private saveDebounceTimer: NodeJS.Timeout | null = null;
+  private initError: string | null = null;
 
   constructor() {
     this.init();
   }
 
-  public getCredentials(): { url: string; key: string; rawUrl: string } {
+  public getCredentials(): { url: string; key: string; rawUrl: string; rawKey: string } {
     const rawUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
-    let url = rawUrl;
+    let url = rawUrl.replace(/^["'`]|["'`]$/g, '').trim();
 
     // Auto-fix if user pasted Dashboard URL (e.g., https://supabase.com/dashboard/project/xyz or https://supabase.com/dashboard/org/xyz)
     if (url.includes('supabase.com/dashboard/')) {
@@ -21,39 +21,46 @@ export class ServerSupabaseService {
         url = `https://${ref}.supabase.co`;
         console.log(`[ServerSupabaseService] Auto-converted dashboard URL to: ${url}`);
       }
+    } else if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+      url = `https://${url}`;
     }
 
-    const key = (
+    const rawKey = (
       process.env.SUPABASE_SERVICE_ROLE_KEY ||
       process.env.SUPABASE_KEY ||
       process.env.VITE_SUPABASE_ANON_KEY ||
       ''
     ).trim();
+    const key = rawKey.replace(/^["'`]|["'`]$/g, '').trim();
 
-    return { url, key, rawUrl };
+    return { url, key, rawUrl, rawKey };
   }
 
   public init(): boolean {
     const { url, key } = this.getCredentials();
-    if (url && key && url.startsWith('http') && key.length > 20) {
-      try {
-        this.client = createClient(url, key, {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-          },
-        });
-        this.configured = true;
-        console.log('✅ ServerSupabaseService: Initialized with URL:', url);
-        return true;
-      } catch (err) {
-        console.error('❌ ServerSupabaseService: Failed to create client:', err);
-        this.client = null;
-        this.configured = false;
-        return false;
-      }
-    } else {
+    if (!url || !key) {
       this.configured = false;
+      this.client = null;
+      this.initError = 'URL หรือ Key ว่างเปล่า';
+      return false;
+    }
+
+    try {
+      this.client = createClient(url, key, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      });
+      this.configured = true;
+      this.initError = null;
+      console.log('✅ ServerSupabaseService: Initialized with URL:', url);
+      return true;
+    } catch (err: any) {
+      console.error('❌ ServerSupabaseService: Failed to create client:', err);
+      this.client = null;
+      this.configured = false;
+      this.initError = err?.message || String(err);
       return false;
     }
   }
@@ -73,7 +80,7 @@ export class ServerSupabaseService {
       this.init();
     }
 
-    const { url, key, rawUrl } = this.getCredentials();
+    const { url, key } = this.getCredentials();
     if (!url) {
       return {
         configured: false,
@@ -90,11 +97,28 @@ export class ServerSupabaseService {
       };
     }
 
+    // Check if key contains masking dots or bullets (e.g. copied from UI without clicking Copy button)
+    if (key.includes('•') || key.includes('...') || key.includes('…')) {
+      return {
+        configured: false,
+        connected: false,
+        message: 'ตรวจพบจุดไข่ปลา (••• หรือ ...) ใน SUPABASE_KEY กรุณากดปุ่มไอคอน Copy (รูปสี่เหลี่ยมซ้อนกัน) ใน Supabase เพื่อคัดลอกคีย์ตัวเต็ม',
+      };
+    }
+
+    if (key.length < 25) {
+      return {
+        configured: false,
+        connected: false,
+        message: `SUPABASE_KEY มีความยาวสั้นเกินไป (${key.length} ตัวอักษร: "${key.slice(0, 10)}...") คีย์จริงจะมีความยาว 40 ตัวอักษรขึ้นไป กรุณากดไอคอน Copy เพื่อคัดลอกตัวเต็ม`,
+      };
+    }
+
     if (!this.client) {
       return {
         configured: false,
         connected: false,
-        message: 'ค่า SUPABASE_URL หรือ SUPABASE_KEY ไม่ถูกต้อง (URL ต้องขึ้นต้นด้วย https:// และ KEY ต้องเป็นคีย์สมบูรณ์)',
+        message: `ไม่สามารถเชื่อมต่อ Client ได้: ${this.initError || 'โปรดตรวจสอบความถูกต้องของ URL และ Key'}`,
       };
     }
 
@@ -113,10 +137,20 @@ export class ServerSupabaseService {
             message: 'เชื่อมต่อ Supabase ได้แล้ว แต่ยังไม่ได้สร้างตาราง app_storage (กรุณากดแท็บคำสั่ง SQL แล้วรันใน Supabase Dashboard)',
           };
         }
+
+        // Invalid key
+        if (error.message?.includes('Invalid API key') || error.message?.includes('JWT') || (error as any).status === 401) {
+          return {
+            configured: true,
+            connected: false,
+            message: `Supabase แจ้งว่า API Key ไม่ถูกต้อง: ให้ใช้คีย์ในกล่อง Secret keys (sb_secret_...) หรือ anon public (eyJ...) จาก Supabase API Settings`,
+          };
+        }
+
         return {
           configured: true,
           connected: false,
-          message: `Supabase ตอบกลับข้อผิดพลาด: ${error.message} (กรุณาตรวจสอบว่าใส่ Project URL และ API Key ถูกต้องหรือไม่)`,
+          message: `Supabase ตอบกลับข้อผิดพลาด: ${error.message}`,
         };
       }
 
@@ -124,6 +158,10 @@ export class ServerSupabaseService {
         configured: true,
         connected: true,
         message: 'เชื่อมต่อ Supabase สำเร็จ ข้อมูลสมาชิก ห้อง และคิวเพลงจะถูกบันทึกบน Cloud ถาวร 100%',
+        details: {
+          url,
+          keyPrefix: `${key.slice(0, 12)}... (${key.length} chars)`,
+        },
       };
     } catch (err: any) {
       return {
