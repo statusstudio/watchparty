@@ -182,18 +182,33 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
             </div>
           )}
 
-          {/* View Full Profile Button */}
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onViewFullProfile(displayUser);
-            }}
-            className="w-full py-2 rounded-full bg-white hover:bg-[#f6f5f4] border border-[#e6e6e6] text-[#000000] font-medium text-xs flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
-          >
-            <span>ดูหน้าโปรไฟล์เต็ม</span>
-            <ExternalLink className="w-3.5 h-3.5 text-[#615d59]" />
-          </button>
+          {/* View Full Profile Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                const handle = displayUser.username || displayUser.name.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                window.location.href = `/@${handle}`;
+              }}
+              className="flex-1 py-2 rounded-full bg-[#0075de]/10 hover:bg-[#0075de]/20 text-[#0075de] font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <span>ดูหน้าเพจ @{displayUser.username || 'user'}</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onViewFullProfile(displayUser);
+              }}
+              className="px-3 py-2 rounded-full bg-white hover:bg-[#f6f5f4] border border-[#e6e6e6] text-[#615d59] font-medium text-xs flex items-center justify-center gap-1 shadow-xs transition-all cursor-pointer"
+              title="เปิดดูรายละเอียด"
+            >
+              <span>การ์ด</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

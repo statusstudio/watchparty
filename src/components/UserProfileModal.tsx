@@ -224,6 +224,16 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     };
 
     const res = await updateProfile(currentUser.id, updatedData);
+
+    // Sync with backend platform store
+    try {
+      await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser.id, ...updatedData }),
+      });
+    } catch (e) {}
+
     setIsSaving(false);
 
     const mergedUser: UserProfile = { ...currentUser, ...updatedData };
@@ -533,6 +543,19 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {/* TAB 2: ABOUT */}
           {activeTab === 'about' && (
             <div className="space-y-4">
+              {/* Direct Link to Public Profile Page */}
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  const handle = displayUser.username || displayUser.name.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                  window.location.href = `/@${handle}`;
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-[#0075de]/10 hover:bg-[#0075de]/20 text-[#0075de] font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border border-[#0075de]/20 shadow-xs"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span>เปิดหน้าเพจโปรไฟล์เต็ม (https://pleng.online/@{displayUser.username || 'user'})</span>
+              </button>
               {/* Bio description */}
               <div className="p-4 rounded-xl bg-[#f6f5f4] border border-[#e6e6e6]">
                 <h4 className="text-xs font-semibold text-[#615d59] uppercase tracking-wider mb-2">
@@ -656,6 +679,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       placeholder="ton_music"
                     />
                   </div>
+                  <p className="text-[10px] text-[#a39e98] mt-1 truncate">
+                    ลิงก์เพจของคุณ: <span className="text-[#0075de] font-mono">{window.location.origin}/@{editUsername || 'username'}</span>
+                  </p>
                 </div>
               </div>
 

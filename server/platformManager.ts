@@ -14,6 +14,8 @@ import {
   PlatformAnalytics,
   SmtpConfig,
   DEFAULT_SMTP_CONFIG,
+  FavoriteSong,
+  UserSocialLinks,
 } from '../src/types/index.js';
 import type { RoomManager } from './roomManager.js';
 import { emailService } from './emailService.js';
@@ -33,9 +35,14 @@ export interface StoredUserAccount {
   id: string;
   email: string;
   name: string;
+  username?: string;
   passwordHash: string;
   avatar: string;
+  bannerUrl?: string;
   color: string;
+  bio?: string;
+  favoriteGenres?: string[];
+  socialLinks?: UserSocialLinks;
   createdAt: number;
   lastLoginAt: number;
 }
@@ -123,10 +130,18 @@ export class PlatformManager {
                 ...u,
                 id: 'admin',
                 name: this.adminCredentials.username,
+                username: 'admin',
                 email: this.adminCredentials.email,
+                avatar: u.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
+                bannerUrl: u.bannerUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
+                bio: u.bio || 'ผู้ดูแลระบบสูงสุด pleng.online 👑 ยินดีต้อนรับทุกคนสู่คอมมูนิตี้คนรักเสียงเพลงครับ',
+                favoriteGenres: u.favoriteGenres || ['Lofi', 'Pop', 'Acoustic'],
                 isSuperAdmin: true,
               });
             } else {
+              if (!u.username) {
+                u.username = u.email ? u.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : u.id;
+              }
               this.users.set(u.id, u);
             }
           });
@@ -206,10 +221,14 @@ export class PlatformManager {
       this.users.set('admin', {
         id: 'admin',
         name: this.adminCredentials.username,
+        username: 'admin',
         email: this.adminCredentials.email,
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
+        bannerUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
         color: '#dd5b00',
         provider: 'email',
+        bio: 'ผู้ดูแลระบบสูงสุด pleng.online 👑 ยินดีต้อนรับทุกคนสู่คอมมูนิตี้คนรักเสียงเพลงครับ',
+        favoriteGenres: ['Lofi', 'Pop', 'Acoustic'],
         isSuperAdmin: true,
         isSuspended: false,
         createdAt: Date.now(),
@@ -274,10 +293,14 @@ export class PlatformManager {
     const adminUser: PlatformUser = {
       id: 'admin',
       name: `${this.adminCredentials.username} 👑`,
+      username: 'admin',
       email: this.adminCredentials.email,
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
+      bannerUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
       color: '#dd5b00',
       provider: 'email',
+      bio: 'ผู้ดูแลระบบสูงสุด pleng.online 👑 ยินดีต้อนรับทุกคนสู่คอมมูนิตี้คนรักเสียงเพลงครับ',
+      favoriteGenres: ['Lofi', 'Pop', 'Acoustic'],
       isSuperAdmin: true,
       isSuspended: false,
       createdAt: this.adminCredentials.updatedAt || Date.now(),
@@ -395,10 +418,25 @@ export class PlatformManager {
     const colors = ['#0075de', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
+    let baseUsername = cleanEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (!baseUsername || baseUsername.length < 3) {
+      baseUsername = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    }
+    if (!baseUsername || baseUsername.length < 3) {
+      baseUsername = 'user';
+    }
+    let finalUsername = baseUsername;
+    let counter = 1;
+    while (this.isUsernameTaken(finalUsername, userId)) {
+      finalUsername = `${baseUsername}${counter}`;
+      counter++;
+    }
+
     const account: StoredUserAccount = {
       id: userId,
       email: cleanEmail,
       name: name.trim(),
+      username: finalUsername,
       passwordHash,
       avatar,
       color: randomColor,
@@ -409,12 +447,16 @@ export class PlatformManager {
     const platformUser: PlatformUser = {
       id: userId,
       name: account.name,
+      username: finalUsername,
       email: account.email,
       avatar: account.avatar,
+      bannerUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
       color: account.color,
       provider: 'email',
       isSuperAdmin: false,
       isSuspended: false,
+      bio: '',
+      favoriteGenres: ['Lofi', 'Pop'],
       createdAt: now,
       lastActiveAt: now,
     };
@@ -616,10 +658,25 @@ export class PlatformManager {
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
     const passwordHash = emailService.hashPassword(pass.trim());
 
+    let baseUsername = cleanEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (!baseUsername || baseUsername.length < 3) {
+      baseUsername = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    }
+    if (!baseUsername || baseUsername.length < 3) {
+      baseUsername = 'user';
+    }
+    let finalUsername = baseUsername;
+    let counter = 1;
+    while (this.isUsernameTaken(finalUsername, userId)) {
+      finalUsername = `${baseUsername}${counter}`;
+      counter++;
+    }
+
     const account: StoredUserAccount = {
       id: userId,
       email: cleanEmail,
       name: name.trim(),
+      username: finalUsername,
       passwordHash,
       avatar,
       color: randomColor,
@@ -630,12 +687,16 @@ export class PlatformManager {
     const platformUser: PlatformUser = {
       id: userId,
       name: account.name,
+      username: finalUsername,
       email: account.email,
       avatar: account.avatar,
+      bannerUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
       color: account.color,
       provider: 'email',
       isSuperAdmin: !!isSuperAdmin,
       isSuspended: false,
+      bio: '',
+      favoriteGenres: ['Lofi', 'Pop'],
       createdAt: now,
       lastActiveAt: now,
     };
@@ -741,6 +802,167 @@ export class PlatformManager {
     this.scheduleSave();
 
     return { success: true, message: `ลบสมาชิก "${user.name}" ออกจากระบบเรียบร้อยแล้ว` };
+  }
+
+  // --- Public Profile & Handle Management (@username) ---
+
+  public isUsernameTaken(username: string, excludeUserId?: string): boolean {
+    const clean = username.trim().toLowerCase();
+    if (!clean) return true;
+    if (clean === 'admin' && excludeUserId !== 'admin') return true;
+
+    for (const u of this.users.values()) {
+      if (excludeUserId && u.id === excludeUserId) continue;
+      if (u.username?.toLowerCase() === clean) return true;
+    }
+    for (const acc of this.userAccounts.values()) {
+      if (excludeUserId && acc.id === excludeUserId) continue;
+      if (acc.username?.toLowerCase() === clean) return true;
+    }
+    return false;
+  }
+
+  public getUserByHandle(handle: string): PlatformUser | undefined {
+    const clean = handle.trim().replace(/^@/, '').toLowerCase();
+    if (!clean) return undefined;
+
+    // 1. Admin check
+    if (clean === 'admin' || clean === this.adminCredentials.username.toLowerCase()) {
+      return (
+        this.users.get('admin') || {
+          id: 'admin',
+          name: this.adminCredentials.username,
+          username: 'admin',
+          email: this.adminCredentials.email,
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
+          bannerUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
+          color: '#dd5b00',
+          provider: 'email',
+          isSuperAdmin: true,
+          isSuspended: false,
+          bio: 'ผู้ดูแลระบบสูงสุด pleng.online 👑 ยินดีต้อนรับทุกคนสู่คอมมูนิตี้คนรักเสียงเพลงครับ',
+          favoriteGenres: ['Lofi', 'Pop', 'Acoustic'],
+          createdAt: this.adminCredentials.updatedAt || Date.now(),
+          lastActiveAt: Date.now(),
+        }
+      );
+    }
+
+    // 2. Match by username
+    for (const u of this.users.values()) {
+      if (u.username?.toLowerCase() === clean) {
+        return u;
+      }
+    }
+
+    // 3. Match by ID
+    const byId = this.users.get(clean);
+    if (byId) return byId;
+
+    // 4. Match by name
+    for (const u of this.users.values()) {
+      if (u.name.toLowerCase() === clean || u.name.toLowerCase().replace(/\s+/g, '_') === clean) {
+        return u;
+      }
+    }
+
+    // 5. Match by account username / id
+    for (const acc of this.userAccounts.values()) {
+      if (acc.username?.toLowerCase() === clean || acc.id === clean || acc.name.toLowerCase() === clean) {
+        const u = this.users.get(acc.id);
+        if (u) return u;
+      }
+    }
+
+    return undefined;
+  }
+
+  public updateUserProfile(
+    userId: string,
+    data: Partial<UserProfile>
+  ): { success: boolean; user?: PlatformUser; message?: string } {
+    let user = this.users.get(userId);
+
+    // If admin
+    if (userId === 'admin') {
+      if (!user) {
+        user = this.adminLogin('admin', MASTER_PASSCODE).user;
+      }
+    }
+
+    if (!user) {
+      return { success: false, message: 'ไม่พบผู้ใช้ในระบบ' };
+    }
+
+    // If username is changing
+    if (data.username !== undefined) {
+      const cleanUsername = data.username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+      if (cleanUsername.length < 3 || cleanUsername.length > 25) {
+        return {
+          success: false,
+          message: 'ชื่อผู้ใช้ (Handle) ต้องมีความยาวระหว่าง 3-25 ตัวอักษร และใช้เฉพาะตัวอักษร a-z, 0-9 และ _ เท่านั้น',
+        };
+      }
+      if (this.isUsernameTaken(cleanUsername, userId)) {
+        return { success: false, message: `ชื่อผู้ใช้ @${cleanUsername} มีผู้ใช้งานแล้ว กรุณาเลือกชื่ออื่น` };
+      }
+      user.username = cleanUsername;
+    }
+
+    if (data.name && data.name.trim()) {
+      user.name = data.name.trim();
+    }
+    if (data.avatar) user.avatar = data.avatar;
+    if (data.bannerUrl !== undefined) user.bannerUrl = data.bannerUrl;
+    if (data.color) user.color = data.color;
+    if (data.bio !== undefined) user.bio = data.bio;
+    if (data.favoriteGenres) user.favoriteGenres = data.favoriteGenres;
+    if (data.socialLinks) user.socialLinks = data.socialLinks;
+    if (data.favoriteSongs) user.favoriteSongs = data.favoriteSongs;
+
+    // Sync to StoredUserAccount if present
+    if (user.email) {
+      const acc = this.userAccounts.get(user.email.toLowerCase());
+      if (acc) {
+        acc.name = user.name;
+        if (user.username) acc.username = user.username;
+        if (user.avatar) acc.avatar = user.avatar;
+        if (user.bannerUrl) acc.bannerUrl = user.bannerUrl;
+        if (user.color) acc.color = user.color;
+        if (user.bio) acc.bio = user.bio;
+        if (user.favoriteGenres) acc.favoriteGenres = user.favoriteGenres;
+        if (user.socialLinks) acc.socialLinks = user.socialLinks;
+      }
+    }
+
+    user.lastActiveAt = Date.now();
+    this.scheduleSave();
+
+    return { success: true, user, message: 'อัพเดตโปรไฟล์เรียบร้อยแล้ว' };
+  }
+
+  public getUserFavorites(userId: string): FavoriteSong[] {
+    const user = this.users.get(userId);
+    return user?.favoriteSongs || [];
+  }
+
+  public addUserFavorite(userId: string, song: FavoriteSong): FavoriteSong[] {
+    const user = this.users.get(userId);
+    if (!user) return [];
+    if (!user.favoriteSongs) user.favoriteSongs = [];
+    if (!user.favoriteSongs.some((s) => s.videoId === song.videoId)) {
+      user.favoriteSongs.unshift(song);
+      this.scheduleSave();
+    }
+    return user.favoriteSongs;
+  }
+
+  public removeUserFavorite(userId: string, videoId: string): FavoriteSong[] {
+    const user = this.users.get(userId);
+    if (!user || !user.favoriteSongs) return [];
+    user.favoriteSongs = user.favoriteSongs.filter((s) => s.videoId !== videoId);
+    this.scheduleSave();
+    return user.favoriteSongs;
   }
 
   public createTicket(

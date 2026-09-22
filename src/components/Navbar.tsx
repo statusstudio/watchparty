@@ -16,6 +16,7 @@ import {
   X,
   HelpCircle,
   Star,
+  ExternalLink,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { UserProfile, UserRole } from '../types/index.js';
@@ -509,6 +510,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <User className="w-4 h-4 text-[#0075de]" />
                   <span>โปรไฟล์ของฉัน</span>
                 </button>
+
+                {isMember && (
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      const handle = currentUser.username || currentUser.name.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                      window.location.href = `/@${handle}`;
+                    }}
+                    className="w-full px-3 py-2 rounded-lg hover:bg-[#0075de]/10 text-left text-xs text-[#0075de] font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <ExternalLink className="w-4 h-4 text-[#0075de]" />
+                    <span>ดูหน้าเพจของฉัน (@{currentUser.username || 'user'})</span>
+                  </button>
+                )}
 
                 {/* Auth / Login for Guest - Notion Blue Pill */}
                 {!isMember && onOpenAuth && (

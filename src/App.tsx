@@ -41,6 +41,7 @@ import { AdminPanelModal } from './components/AdminPanelModal.js';
 import { SuperAdminUnlockModal } from './components/SuperAdminUnlockModal.js';
 import { SuperAdminDashboardModal } from './components/SuperAdminDashboardModal.js';
 import { AdminPortalView } from './components/AdminPortalView.js';
+import { PublicProfileView } from './components/PublicProfileView.js';
 import { AdPopupModal } from './components/AdPopupModal.js';
 import { SupportModal } from './components/SupportModal.js';
 import { FloatingItem } from './components/FloatingReactions.js';
@@ -61,9 +62,29 @@ function isAdminPath(): boolean {
   );
 }
 
+function getProfileHandleFromUrl(): string | null {
+  // 1. Path format: /@username
+  const pathMatch = window.location.pathname.match(/^\/@([a-zA-Z0-9_.-]+)/i);
+  if (pathMatch && pathMatch[1]) {
+    return decodeURIComponent(pathMatch[1]);
+  }
+  // 2. Hash format: #@username
+  const hashMatch = window.location.hash.match(/^#@([a-zA-Z0-9_.-]+)/i);
+  if (hashMatch && hashMatch[1]) {
+    return decodeURIComponent(hashMatch[1]);
+  }
+  // 3. Query param format: ?u=username or ?user=username
+  const searchParams = new URLSearchParams(window.location.search);
+  const userParam = searchParams.get('u') || searchParams.get('user');
+  if (userParam) {
+    return userParam.replace(/^@/, '');
+  }
+  return null;
+}
+
 function getHashRoomId(): string | null {
   const hash = window.location.hash.replace(/^#/, '').trim();
-  if (!hash || hash.startsWith('admin')) {
+  if (!hash || hash.startsWith('admin') || hash.startsWith('@')) {
     return null;
   }
   // Check if legacy #room=xxxx format
@@ -78,10 +99,12 @@ function getHashRoomId(): string | null {
 
 export function App() {
   const [isAdminRoute, setIsAdminRoute] = useState<boolean>(() => isAdminPath());
+  const [profileHandleRoute, setProfileHandleRoute] = useState<string | null>(() => getProfileHandleFromUrl());
 
   useEffect(() => {
     const handleLocationChange = () => {
       setIsAdminRoute(isAdminPath());
+      setProfileHandleRoute(getProfileHandleFromUrl());
     };
     window.addEventListener('popstate', handleLocationChange);
     window.addEventListener('hashchange', handleLocationChange);
@@ -1358,6 +1381,78 @@ export function App() {
             setCurrentView('home');
           }}
           onShowToast={showToast}
+        />
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      </>
+    );
+  }
+
+  if (profileHandleRoute) {
+    return (
+      <>
+        <PublicProfileView
+          handle={profileHandleRoute}
+          currentUser={currentUser}
+          onNavigateHome={() => {
+            window.history.pushState({}, '', '/');
+            setProfileHandleRoute(null);
+            setCurrentView('home');
+          }}
+          onJoinRoom={(targetRoomId) => {
+            window.history.pushState({}, '', `#${targetRoomId}`);
+            setProfileHandleRoute(null);
+            setRoomId(targetRoomId);
+            setCurrentView('room');
+          }}
+          onOpenEditProfile={() => {
+            setSelectedUserForProfile(currentUser);
+            setIsUserProfileModalOpen(true);
+          }}
+          onPlaySong={(videoId, title, channel) => {
+            window.history.pushState({}, '', `#${roomId}`);
+            setProfileHandleRoute(null);
+            setCurrentView('room');
+            handleVideoChange(videoId, title, channel);
+            showToast(`กำลังเล่น: ${title || videoId} 🎵`, 'success');
+          }}
+          onShowToast={showToast}
+        />
+        <UserProfileModal
+          isOpen={isUserProfileModalOpen}
+          onClose={() => setIsUserProfileModalOpen(false)}
+          targetUser={selectedUserForProfile}
+          currentUser={currentUser}
+          onUpdateCurrentUser={(updated) => {
+            setCurrentUser(updated);
+            saveUser(updated);
+            handleSaveProfile(updated);
+          }}
+          onPlaySong={(videoId, title, channel) => {
+            window.history.pushState({}, '', `#${roomId}`);
+            setProfileHandleRoute(null);
+            setCurrentView('room');
+            handleVideoChange(videoId, title, channel);
+            setIsUserProfileModalOpen(false);
+            showToast(`เปิดเพลง: ${title} 🎵`, 'success');
+          }}
+          onOpenAuth={() => {
+            setIsUserProfileModalOpen(false);
+            setIsAuthModalOpen(true);
+          }}
+          onLogout={handleLogout}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          currentUser={currentUser}
+          initialTab={authModalInitialTab}
+          onLoginSuccess={handleLoginSuccess}
+          onAdminLoginSuccess={() => {
+            setIsSuperAdmin(true);
+            setIsSuperAdminModalOpen(true);
+            showToast('ยินดีต้อนรับท่านเจ้าของระบบ เข้าสู่ระบบหลังบ้านสำเร็จ 👑', 'success');
+          }}
+          onLogout={handleLogout}
         />
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       </>

@@ -2081,4 +2081,20 @@ export class RoomManager {
       });
     }
   }
+
+  public findUserActiveRoom(userId: string): { roomId: string; roomName: string; video?: VideoState } | null {
+    for (const conn of this.clients.values()) {
+      if (conn.user && (conn.user.id === userId || (conn.user.id === 'admin' && userId === 'admin'))) {
+        const room = this.rooms.get(conn.roomId);
+        if (room) {
+          return {
+            roomId: room.metadata.id,
+            roomName: room.metadata.name,
+            video: room.video,
+          };
+        }
+      }
+    }
+    return null;
+  }
 }

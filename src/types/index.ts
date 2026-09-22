@@ -28,6 +28,7 @@ export interface UserProfile {
   xp?: number;
   level?: number;
   favoriteRoomIds?: string[];
+  favoriteSongs?: FavoriteSong[];
   createdAt?: number;
 }
 
@@ -255,12 +256,18 @@ export type WSServerMessage =
 export interface PlatformUser {
   id: string;
   name: string;
+  username?: string;
   email?: string;
   avatar: string;
+  bannerUrl?: string;
   color: string;
   provider: AuthProvider;
   isSuperAdmin: boolean;
   isSuspended: boolean;
+  bio?: string;
+  favoriteGenres?: string[];
+  socialLinks?: UserSocialLinks;
+  favoriteSongs?: FavoriteSong[];
   createdAt: number;
   lastActiveAt: number;
   currentRoomId?: string;

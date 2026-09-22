@@ -468,6 +468,90 @@ async function startServer() {
     }
   });
 
+  // Public Profile lookup by handle (@username) or ID
+  app.get('/api/users/profile/:handleOrId', (req, res) => {
+    try {
+      const handleOrId = req.params.handleOrId;
+      const user = platformManager.getUserByHandle(handleOrId);
+      if (!user) {
+        return res.status(404).json({ error: 'ไม่พบโปรไฟล์ผู้ใช้นี้ในระบบ' });
+      }
+
+      // Check if user is currently online in a room
+      const activeRoom = roomManager.findUserActiveRoom(user.id);
+
+      // Return sanitized public profile
+      const publicProfile = {
+        id: user.id,
+        name: user.name,
+        username: user.username || user.id,
+        avatar: user.avatar,
+        bannerUrl: user.bannerUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
+        color: user.color,
+        provider: user.provider,
+        isSuperAdmin: !!user.isSuperAdmin,
+        bio: user.bio || '',
+        favoriteGenres: user.favoriteGenres || ['Lofi', 'Pop'],
+        socialLinks: user.socialLinks || {},
+        favoriteSongs: user.favoriteSongs || [],
+        createdAt: user.createdAt,
+        lastActiveAt: user.lastActiveAt,
+        activeRoom: activeRoom || null,
+      };
+
+      res.json(publicProfile);
+    } catch (err: any) {
+      console.error('Error fetching user profile:', err);
+      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลโปรไฟล์' });
+    }
+  });
+
+  // Update user profile (Name, Username, Bio, Avatar, Banner, Genres, Social Links)
+  app.put('/api/users/profile', (req, res) => {
+    try {
+      const { userId, ...profileData } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: 'Missing userId' });
+      }
+
+      const result = platformManager.updateUserProfile(userId, profileData);
+      if (result.success && result.user) {
+        res.json({
+          success: true,
+          user: result.user,
+          message: result.message || 'บันทึกข้อมูลโปรไฟล์เรียบร้อยแล้ว',
+        });
+      } else {
+        res.status(400).json({ error: result.message || 'ไม่สามารถอัพเดตโปรไฟล์ได้' });
+      }
+    } catch (err: any) {
+      console.error('Error updating profile:', err);
+      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการบันทึกโปรไฟล์' });
+    }
+  });
+
+  // User Favorites Endpoints
+  app.get('/api/users/:userId/favorites', (req, res) => {
+    const { userId } = req.params;
+    res.json(platformManager.getUserFavorites(userId));
+  });
+
+  app.post('/api/users/:userId/favorites', (req, res) => {
+    const { userId } = req.params;
+    const { song } = req.body;
+    if (!song || !song.videoId) {
+      return res.status(400).json({ error: 'Missing song data' });
+    }
+    const updated = platformManager.addUserFavorite(userId, song);
+    res.json({ success: true, favorites: updated });
+  });
+
+  app.delete('/api/users/:userId/favorites/:videoId', (req, res) => {
+    const { userId, videoId } = req.params;
+    const updated = platformManager.removeUserFavorite(userId, videoId);
+    res.json({ success: true, favorites: updated });
+  });
+
   // Get All Rooms Detailed (for Super Admin)
   app.get('/api/platform/rooms', (req, res) => {
     res.json(roomManager.getAllRoomsAdmin());
