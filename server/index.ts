@@ -729,6 +729,9 @@ async function startServer() {
           case 'JOIN_ROOM':
             roomManager.handleJoin(ws, msg.roomId, msg.user, msg.password, msg.isStealth);
             break;
+          case 'LEAVE_ROOM':
+            roomManager.handleLeaveRoom(ws);
+            break;
           case 'VERIFY_ROOM_PASSWORD': {
             const user =
               msg.user ||

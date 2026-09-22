@@ -189,6 +189,7 @@ export interface RoomState {
 
 export type WSClientMessage =
   | { type: 'JOIN_ROOM'; roomId: string; user: UserProfile; password?: string; isStealth?: boolean }
+  | { type: 'LEAVE_ROOM' }
   | { type: 'GET_ROOMS' }
   | { type: 'VERIFY_ROOM_PASSWORD'; roomId: string; password: string; user?: UserProfile }
   | { type: 'UPDATE_PROFILE'; user: UserProfile }

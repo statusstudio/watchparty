@@ -334,7 +334,9 @@ export class RoomManager {
   public getAllRoomSummaries(): RoomSummary[] {
     const list: RoomSummary[] = [];
     for (const [id, room] of this.rooms.entries()) {
-      const onlineCount = this.getRoomClients(id).length;
+      const clients = this.getRoomClients(id, false);
+      const uniqueUserIds = new Set(clients.map((c) => c.user?.id).filter(Boolean));
+      const onlineCount = uniqueUserIds.size;
       list.push({
         id,
         name: room.metadata.name,
@@ -376,7 +378,11 @@ export class RoomManager {
   public getAllRoomsAdmin(): any[] {
     const list: any[] = [];
     for (const [id, room] of this.rooms.entries()) {
-      const clients = this.getRoomClients(id);
+      const clients = this.getRoomClients(id, false);
+      const uniqueUsers = new Map<string, string>();
+      clients.forEach((c) => {
+        if (c.user?.id) uniqueUsers.set(c.user.id, c.user.name);
+      });
       list.push({
         id,
         name: room.metadata.name,
@@ -389,8 +395,8 @@ export class RoomManager {
         category: room.metadata.category || 'general',
         coverImage: room.metadata.coverImage,
         widgets: room.metadata.widgets || { ...DEFAULT_ROOM_WIDGETS },
-        onlineCount: clients.length,
-        members: clients.map((c) => c.user.name),
+        onlineCount: uniqueUsers.size,
+        members: Array.from(uniqueUsers.values()),
         currentVideo: room.video,
         createdAt: room.metadata.createdAt,
       });
@@ -431,19 +437,25 @@ export class RoomManager {
     }
 
     const clients = this.getRoomClients(roomId, false);
-    const members: RoomMember[] = clients.map((c) => {
-      let role: UserRole = 'member';
-      if (c.user.id === room.metadata.ownerId) {
-        role = 'owner';
-      } else if (room.adminIds.has(c.user.id)) {
-        role = 'admin';
+    const uniqueMembersMap = new Map<string, RoomMember>();
+    for (const c of clients) {
+      if (!c.user?.id) continue;
+      if (!uniqueMembersMap.has(c.user.id)) {
+        let role: UserRole = 'member';
+        if (c.user.id === room.metadata.ownerId) {
+          role = 'owner';
+        } else if (room.adminIds.has(c.user.id)) {
+          role = 'admin';
+        }
+        uniqueMembersMap.set(c.user.id, {
+          user: c.user,
+          role,
+          joinedAt: Date.now(),
+        });
       }
-      return {
-        user: c.user,
-        role,
-        joinedAt: Date.now(),
-      };
-    });
+    }
+    const members = Array.from(uniqueMembersMap.values());
+    const onlineCount = members.length;
 
     let myRole: UserRole = 'member';
     if (requestingUserId) {
@@ -478,7 +490,7 @@ export class RoomManager {
       chat: room.chat,
       members,
       bannedUsers: Array.from(room.bannedUsers.values()),
-      onlineCount: clients.length,
+      onlineCount,
       myRole,
       isStealth,
     };
@@ -552,8 +564,25 @@ export class RoomManager {
     }
   }
 
+  public handleLeaveRoom(ws: WebSocket) {
+    const client = this.clients.get(ws);
+    if (!client) return;
+    const { roomId, user } = client;
+    this.handleLeaveOldRoom(ws, roomId, user);
+  }
+
   public handleJoin(ws: WebSocket, roomId: string, user: UserProfile, password?: string, isStealthRequested?: boolean) {
     const room = this.getOrCreateRoom(roomId, user);
+
+    // Clean up any stale or lingering connection for the exact same user ID
+    for (const [existingWs, existingConn] of this.clients.entries()) {
+      if (existingWs !== ws && existingConn.user?.id === user.id) {
+        this.clients.delete(existingWs);
+        try {
+          existingWs.terminate();
+        } catch (e) {}
+      }
+    }
 
     // If client was previously connected in another room on same ws, clean up from old room
     const existingClient = this.clients.get(ws);

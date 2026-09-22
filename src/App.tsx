@@ -140,6 +140,17 @@ export function App() {
     createdAt: Date.now(),
   });
   const [members, setMembers] = useState<RoomMember[]>([]);
+  const uniqueMembers = React.useMemo(() => {
+    const seen = new Set<string>();
+    const list: RoomMember[] = [];
+    for (const m of members) {
+      if (m.user?.id && !seen.has(m.user.id)) {
+        seen.add(m.user.id);
+        list.push(m);
+      }
+    }
+    return list;
+  }, [members]);
   const [bannedUsers, setBannedUsers] = useState<BannedUser[]>([]);
   const [myRole, setMyRole] = useState<UserRole>('member');
 
@@ -691,9 +702,20 @@ export function App() {
           if (state.loopMode) setLoopMode(state.loopMode);
           if (state.isShuffle !== undefined) setIsShuffle(state.isShuffle);
           if (state.chat) setChat(state.chat);
-          if (state.members) setMembers(state.members);
+          if (state.members) {
+            const rawMembers = state.members || [];
+            const dedupedMembers: RoomMember[] = [];
+            const seenMemberIds = new Set<string>();
+            for (const m of rawMembers) {
+              if (m.user?.id && !seenMemberIds.has(m.user.id)) {
+                seenMemberIds.add(m.user.id);
+                dedupedMembers.push(m);
+              }
+            }
+            setMembers(dedupedMembers);
+            setOnlineCount(state.onlineCount || dedupedMembers.length);
+          }
           if (state.bannedUsers) setBannedUsers(state.bannedUsers);
-          if (state.onlineCount) setOnlineCount(state.onlineCount);
           if (state.myRole) setMyRole(state.myRole);
           if (state.approvedSpeakerIds) setApprovedSpeakerIds(state.approvedSpeakerIds);
           if (state.pendingStageRequests) setPendingStageRequests(state.pendingStageRequests);
@@ -719,6 +741,8 @@ export function App() {
           isStealth: isStealthInspectionRef.current,
         });
       } else {
+        socketService.send({ type: 'LEAVE_ROOM' });
+        setMembers([]);
         setCurrentView('home');
         fetchPublicRooms();
       }
@@ -806,7 +830,7 @@ export function App() {
           fetchPublicRooms();
           break;
 
-        case 'ROOM_INIT':
+        case 'ROOM_INIT': {
           setIsPasswordGateOpen(false);
           setPasswordGateError(null);
           setRoomMetadata(msg.state.metadata);
@@ -816,9 +840,18 @@ export function App() {
           setLoopMode(msg.state.loopMode);
           setIsShuffle(msg.state.isShuffle ?? false);
           setChat(msg.state.chat);
-          setMembers(msg.state.members);
+          const rawMembers = msg.state.members || [];
+          const dedupedMembers: RoomMember[] = [];
+          const seenMemberIds = new Set<string>();
+          for (const m of rawMembers) {
+            if (m.user?.id && !seenMemberIds.has(m.user.id)) {
+              seenMemberIds.add(m.user.id);
+              dedupedMembers.push(m);
+            }
+          }
+          setMembers(dedupedMembers);
+          setOnlineCount(msg.state.onlineCount || dedupedMembers.length);
           setBannedUsers(msg.state.bannedUsers);
-          setOnlineCount(msg.state.onlineCount);
           setMyRole(msg.state.myRole);
           setUnreadChatCount(0);
           if (msg.state.approvedSpeakerIds) {
@@ -828,6 +861,7 @@ export function App() {
             setPendingStageRequests(msg.state.pendingStageRequests);
           }
           break;
+        }
 
         case 'STAGE_REQUESTS_UPDATED': {
           const nextMode = msg.stageAccessMode;
@@ -843,15 +877,25 @@ export function App() {
           setRoomMetadata(msg.metadata);
           break;
 
-        case 'MEMBERS_UPDATED':
-          setMembers(msg.members);
-          setOnlineCount(msg.onlineCount);
+        case 'MEMBERS_UPDATED': {
+          const rawMembers = msg.members || [];
+          const dedupedMembers: RoomMember[] = [];
+          const seenMemberIds = new Set<string>();
+          for (const m of rawMembers) {
+            if (m.user?.id && !seenMemberIds.has(m.user.id)) {
+              seenMemberIds.add(m.user.id);
+              dedupedMembers.push(m);
+            }
+          }
+          setMembers(dedupedMembers);
+          setOnlineCount(msg.onlineCount || dedupedMembers.length);
           // Re-evaluate my role
-          const me = msg.members.find((m) => m.user.id === currentUser.id);
+          const me = dedupedMembers.find((m) => m.user.id === currentUser.id);
           if (me) {
             setMyRole(me.role);
           }
           break;
+        }
 
         case 'USER_JOINED':
           setOnlineCount(msg.onlineCount);
@@ -956,6 +1000,8 @@ export function App() {
     setIsPasswordGateOpen(false);
     setPasswordGateError(null);
     setIsStealthInspection(false);
+    socketService.send({ type: 'LEAVE_ROOM' });
+    setMembers([]);
     window.location.hash = '';
     setCurrentView('home');
     fetchPublicRooms();
@@ -2049,11 +2095,11 @@ export function App() {
               <div className="flex items-center justify-between pb-2 border-b border-gray-800/80">
                 <span className="text-xs font-semibold text-gray-300">สมาชิกออนไลน์ทั้งหมด</span>
                 <span className="text-[11px] text-violet-400 font-mono">
-                  {members.length || onlineCount} คน
+                  {uniqueMembers.length || onlineCount} คน
                 </span>
               </div>
 
-              {members.map((m) => {
+              {uniqueMembers.map((m) => {
                 const isMemberInVoice = seats.some((s) => s.user?.id === m.user.id);
                 const isMemberSpeaking = seats.some(
                   (s) => s.user?.id === m.user.id && s.isSpeaking && !s.isMuted
