@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, Radio, VolumeOff, Headphones, Music, Heart } from 'lucide-react';
+import { Play, Pause, Volume1, Volume2, VolumeX, Maximize, Radio, VolumeOff, Headphones, Music, Heart } from 'lucide-react';
 import { VideoState } from '../types/index.js';
 import { FloatingReactions, FloatingItem } from './FloatingReactions.js';
 
@@ -53,6 +53,27 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [musicVolume, setMusicVolume] = useState<number>(() => {
     const saved = localStorage.getItem('watchparty_music_volume');
     return saved ? parseInt(saved, 10) : 70; // Default 70% for balanced listening
+  });
+
+  // Touch & Drag Gesture Volume Control State
+  const [showVolumeHud, setShowVolumeHud] = useState(false);
+  const [isGestureActive, setIsGestureActive] = useState(false);
+  const [tapRipple, setTapRipple] = useState<'play' | 'pause' | null>(null);
+  const volumeHudTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tapRippleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const gestureStateRef = useRef<{
+    isDown: boolean;
+    startY: number;
+    startVol: number;
+    hasMoved: boolean;
+    startTime: number;
+  }>({
+    isDown: false,
+    startY: 0,
+    startVol: 70,
+    hasMoved: false,
+    startTime: 0,
   });
 
   // Keep latest props in refs to avoid stale closures
@@ -509,6 +530,107 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
+  const triggerVolumeHud = useCallback(() => {
+    setShowVolumeHud(true);
+    if (volumeHudTimeoutRef.current) {
+      clearTimeout(volumeHudTimeoutRef.current);
+    }
+    volumeHudTimeoutRef.current = setTimeout(() => {
+      setShowVolumeHud(false);
+    }, 1200);
+  }, []);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+
+    gestureStateRef.current = {
+      isDown: true,
+      startY: e.clientY,
+      startVol: isMuted ? 0 : musicVolume,
+      hasMoved: false,
+      startTime: Date.now(),
+    };
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const state = gestureStateRef.current;
+    if (!state.isDown) return;
+
+    const deltaY = state.startY - e.clientY;
+
+    if (!state.hasMoved && Math.abs(deltaY) > 6) {
+      state.hasMoved = true;
+      setIsGestureActive(true);
+    }
+
+    if (state.hasMoved) {
+      // 180px slide spans 0% to 100% volume
+      const deltaPercent = Math.round((deltaY / 180) * 100);
+      const newVol = Math.max(0, Math.min(100, state.startVol + deltaPercent));
+      handleMusicVolumeChange(newVol);
+      setShowVolumeHud(true);
+      if (volumeHudTimeoutRef.current) {
+        clearTimeout(volumeHudTimeoutRef.current);
+      }
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const state = gestureStateRef.current;
+    if (!state.isDown) return;
+    state.isDown = false;
+    setIsGestureActive(false);
+
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+
+    if (state.hasMoved) {
+      triggerVolumeHud();
+    } else {
+      // Quick single tap
+      const duration = Date.now() - state.startTime;
+      if (duration < 350) {
+        if (isMuted) {
+          handleUnmute();
+        } else if (playerRef.current) {
+          try {
+            const playerState = playerRef.current.getPlayerState?.();
+            if (playerState === window.YT?.PlayerState?.PLAYING) {
+              playerRef.current.pauseVideo();
+              onPause(calculateTargetTime(videoRef.current));
+              setTapRipple('pause');
+            } else {
+              playerRef.current.playVideo();
+              onPlay(calculateTargetTime(videoRef.current));
+              setTapRipple('play');
+            }
+            if (tapRippleTimeoutRef.current) clearTimeout(tapRippleTimeoutRef.current);
+            tapRippleTimeoutRef.current = setTimeout(() => setTapRipple(null), 600);
+          } catch (err) {}
+        }
+      }
+    }
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    gestureStateRef.current.isDown = false;
+    setIsGestureActive(false);
+    triggerVolumeHud();
+  };
+
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const step = 5;
+    const current = isMuted ? 0 : musicVolume;
+    const newVol = e.deltaY < 0 ? Math.min(100, current + step) : Math.max(0, current - step);
+    handleMusicVolumeChange(newVol);
+    triggerVolumeHud();
+  };
+
   const handleFullscreen = () => {
     if (containerRef.current) {
       if (!document.fullscreenElement) {
@@ -537,6 +659,68 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <p className="text-xs text-white/80 leading-relaxed">
               ยังไม่มีเพลงกำลังเล่นในห้องนี้ — ค้นหาเพลงหรือวางลิงก์ YouTube ที่แถบคิวเพลงเพื่อเริ่มฟังพร้อมกันได้เลย!
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Gesture Control Touch/Drag Overlay over video */}
+      {video.videoId && (
+        <div
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
+          onWheel={handleWheel}
+          className="absolute inset-0 z-10 touch-none select-none cursor-ns-resize"
+          title="แตะค้างแล้วเลื่อนขึ้นเพื่อเพิ่มเสียง / เลื่อนลงเพื่อลดเสียง"
+        />
+      )}
+
+      {/* Sleek Floating Volume HUD Indicator */}
+      {showVolumeHud && (
+        <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center animate-fade-in">
+          <div className="px-6 py-4 rounded-3xl bg-black/85 backdrop-blur-md border border-white/20 text-white shadow-2xl flex flex-col items-center gap-2.5 animate-scale-up min-w-[200px]">
+            <div className="p-3 rounded-2xl bg-white/10 text-white flex items-center justify-center">
+              {isMuted || musicVolume === 0 ? (
+                <VolumeX className="w-8 h-8 text-rose-400" />
+              ) : musicVolume <= 40 ? (
+                <Volume1 className="w-8 h-8 text-sky-400" />
+              ) : (
+                <Volume2 className="w-8 h-8 text-amber-400" />
+              )}
+            </div>
+
+            <div className="flex items-baseline gap-1">
+              <span className="text-3xl font-extrabold font-mono tracking-tight text-white">
+                {isMuted ? '0' : musicVolume}
+              </span>
+              <span className="text-sm font-bold text-white/70 font-mono">%</span>
+            </div>
+
+            {/* Horizontal Progress Bar */}
+            <div className="w-36 h-2.5 bg-white/20 rounded-full overflow-hidden p-0.5">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-300 transition-all duration-75"
+                style={{ width: `${isMuted ? 0 : musicVolume}%` }}
+              />
+            </div>
+
+            <span className="text-[11px] text-white/80 font-medium">
+              {isGestureActive ? 'กำลังปรับระดับเสียง...' : 'ระดับเสียงเพลง'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Tap Feedback Ripple */}
+      {tapRipple && (
+        <div className="absolute inset-0 z-25 pointer-events-none flex items-center justify-center animate-fade-in">
+          <div className="w-20 h-20 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white flex items-center justify-center animate-ping-once shadow-2xl">
+            {tapRipple === 'play' ? (
+              <Play className="w-10 h-10 text-white fill-current translate-x-0.5" />
+            ) : (
+              <Pause className="w-10 h-10 text-white fill-current" />
+            )}
           </div>
         </div>
       )}
