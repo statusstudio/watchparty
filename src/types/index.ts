@@ -384,6 +384,8 @@ export interface PlatformStats {
 
 export interface SmtpConfig {
   enabled: boolean;
+  provider?: 'smtp' | 'resend';
+  resendApiKey?: string;
   host: string;
   port: number;
   secure: boolean;
@@ -395,9 +397,11 @@ export interface SmtpConfig {
 
 export const DEFAULT_SMTP_CONFIG: SmtpConfig = {
   enabled: false,
+  provider: 'smtp',
+  resendApiKey: '',
   host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
+  port: 587,
+  secure: false,
   user: '',
   pass: '',
   fromName: 'pleng.online 🎧',

@@ -43,6 +43,7 @@ import {
   AlertTriangle,
   Database,
   Rocket,
+  Zap,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -1654,143 +1655,249 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   </label>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* Left Column: Server Credentials */}
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-[#000000]">
-                        SMTP Host / Server
-                      </label>
-                      <div className="relative">
-                        <Server className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          value={smtpConfig.host}
-                          onChange={(e) => setSmtpConfig({ ...smtpConfig, host: e.target.value })}
-                          placeholder="เช่น smtp.gmail.com หรือ smtp-relay.brevo.com"
-                          className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
-                          required
-                        />
+                {/* Gateway Provider Selector */}
+                <div className="p-3.5 bg-[#fcfbf9] rounded-xl border border-[#e6e6e6] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#000000]">ช่องทางการส่งอีเมล (Email Gateway)</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-[#0075de] font-semibold">
+                      {smtpConfig.provider === 'resend' ? '⚡ HTTP API Gateway' : '📬 SMTP Gateway'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setSmtpConfig({ ...smtpConfig, provider: 'resend' })}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
+                        smtpConfig.provider === 'resend'
+                          ? 'bg-blue-50/70 border-[#0075de] ring-1 ring-[#0075de]'
+                          : 'bg-white border-[#e6e6e6] hover:bg-[#f6f5f4]'
+                      }`}
+                    >
+                      <Zap className={`w-4 h-4 shrink-0 mt-0.5 ${smtpConfig.provider === 'resend' ? 'text-[#0075de]' : 'text-[#a39e98]'}`} />
+                      <div>
+                        <div className="text-xs font-bold text-[#000000] flex items-center gap-1.5">
+                          <span>Resend API</span>
+                          <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.2 rounded font-bold">แนะนำมากที่สุด</span>
+                        </div>
+                        <p className="text-[11px] text-[#615d59] mt-0.5 leading-snug">
+                          ส่งผ่าน HTTPS พอร์ต 443 <strong>ไม่ถูกบล็อกพอร์ตบน Render 100%</strong> ฟรี 3,000 ฉบับ/เดือน สมัครง่ายใน 1 นาที
+                        </p>
                       </div>
-                    </div>
+                    </button>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSmtpConfig({ ...smtpConfig, provider: 'smtp' })}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
+                        smtpConfig.provider !== 'resend'
+                          ? 'bg-blue-50/70 border-[#0075de] ring-1 ring-[#0075de]'
+                          : 'bg-white border-[#e6e6e6] hover:bg-[#f6f5f4]'
+                      }`}
+                    >
+                      <Mail className={`w-4 h-4 shrink-0 mt-0.5 ${smtpConfig.provider !== 'resend' ? 'text-[#0075de]' : 'text-[#a39e98]'}`} />
+                      <div>
+                        <div className="text-xs font-bold text-[#000000]">Gmail / Custom SMTP</div>
+                        <p className="text-[11px] text-[#615d59] mt-0.5 leading-snug">
+                          ใช้พอร์ต 465/587 (หมายเหตุ: Render Free บล็อกพอร์ต SMTP ขาออก ต้องใช้แพ็กเกจ Starter)
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {smtpConfig.provider === 'resend' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {/* Resend Fields */}
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-[#000000] flex items-center justify-between">
+                          <span>Resend API Key *</span>
+                          <a
+                            href="https://resend.com/api-keys"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-[#0075de] hover:underline flex items-center gap-0.5"
+                          >
+                            <span>รับ API Key ฟรีที่ resend.com</span>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        </label>
+                        <div className="relative">
+                          <KeyRound className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="password"
+                            value={smtpConfig.resendApiKey || ''}
+                            onChange={(e) => setSmtpConfig({ ...smtpConfig, resendApiKey: e.target.value })}
+                            placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxx"
+                            className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
+                          />
+                        </div>
+                      </div>
+
                       <div className="space-y-1">
                         <label className="block text-xs font-semibold text-[#000000]">
-                          พอร์ต (Port)
+                          ชื่อผู้ส่งที่แสดง (Sender Name)
                         </label>
-                        <input
-                          type="number"
-                          value={smtpConfig.port}
-                          onChange={(e) => setSmtpConfig({ ...smtpConfig, port: parseInt(e.target.value, 10) || 587 })}
-                          placeholder="465 หรือ 587"
-                          className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
-                          required
-                        />
-                      </div>
-
-                      <div className="flex flex-col justify-end pb-1.5">
-                        <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-[#31302e]">
-                          <input
-                            type="checkbox"
-                            checked={smtpConfig.secure}
-                            onChange={(e) => setSmtpConfig({ ...smtpConfig, secure: e.target.checked })}
-                            className="rounded border-[#e6e6e6] text-[#0075de] focus:ring-[#0075de] cursor-pointer"
-                          />
-                          <span>SSL/TLS (ปกติพอร์ต 465)</span>
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-[#000000]">
-                        SMTP Username / Email
-                      </label>
-                      <div className="relative">
-                        <Mail className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
                         <input
                           type="text"
-                          value={smtpConfig.user}
-                          onChange={(e) => setSmtpConfig({ ...smtpConfig, user: e.target.value })}
-                          placeholder="เช่น your-email@gmail.com หรือ admin@pleng.online"
-                          className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
-                          required
+                          value={smtpConfig.fromName}
+                          onChange={(e) => setSmtpConfig({ ...smtpConfig, fromName: e.target.value })}
+                          placeholder="เช่น pleng.online 🎧"
+                          className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-[#000000] flex items-center justify-between">
-                        <span>SMTP Password / App Password</span>
-                        {smtpHasPass && (
-                          <span className="text-[10px] text-emerald-600 font-normal">
-                            ✓ มีรหัสผ่านบันทึกไว้แล้ว (เว้นว่างเพื่อคงรหัสเดิม)
-                          </span>
-                        )}
-                      </label>
-                      <div className="relative">
-                        <KeyRound className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input
-                          type={smtpShowPass ? 'text' : 'password'}
-                          value={smtpConfig.pass}
-                          onChange={(e) => setSmtpConfig({ ...smtpConfig, pass: e.target.value })}
-                          placeholder={smtpHasPass ? '•••••••••••••••• (เว้นว่างไว้เพื่อคงรหัสเดิม)' : 'กรอกรหัสผ่าน SMTP หรือ App Password 16 หลัก'}
-                          className="w-full pl-9 pr-10 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setSmtpShowPass(!smtpShowPass)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a39e98] hover:text-[#000000]"
-                        >
-                          {smtpShowPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Column: Sender Branding & Guidance */}
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-[#000000]">
-                        ชื่อผู้ส่งที่แสดง (Sender Name)
-                      </label>
-                      <input
-                        type="text"
-                        value={smtpConfig.fromName}
-                        onChange={(e) => setSmtpConfig({ ...smtpConfig, fromName: e.target.value })}
-                        placeholder="เช่น pleng.online 🎧"
-                        className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-[#000000]">
-                        อีเมลผู้ส่ง (Sender Email Address)
-                      </label>
-                      <input
-                        type="email"
-                        value={smtpConfig.fromEmail}
-                        onChange={(e) => setSmtpConfig({ ...smtpConfig, fromEmail: e.target.value })}
-                        placeholder="เช่น admin@pleng.online หรือ your-gmail@gmail.com"
-                        className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
-                      />
-                    </div>
-
-                    {/* Quick Guide Card */}
-                    <div className="p-3.5 rounded-xl bg-blue-50/50 border border-blue-200/60 text-xs text-blue-900 space-y-2">
+                    {/* Resend Quick Guide */}
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50/60 to-indigo-50/60 border border-blue-200/60 text-xs text-blue-900 space-y-2">
                       <div className="flex items-center gap-1.5 font-bold text-blue-800">
-                        <HelpCircle className="w-4 h-4 shrink-0 text-blue-600" />
-                        <span>คำแนะนำการใช้ Gmail SMTP:</span>
+                        <Sparkles className="w-4 h-4 shrink-0 text-blue-600" />
+                        <span>วิธีสมัครใช้งาน Resend ฟรี (30 วินาที):</span>
                       </div>
-                      <ol className="list-decimal list-inside space-y-1 text-[11px] text-blue-800/90">
-                        <li>เข้าหน้า Google Account &gt; ความปลอดภัย (Security)</li>
-                        <li>เปิดการยืนยันแบบ 2 ขั้นตอน (2-Step Verification)</li>
-                        <li>ค้นหา &quot;รหัสผ่านสำหรับแอป&quot; (App Passwords)</li>
-                        <li>สร้างรหัสใหม่ 16 ตัว แล้วนำมากรอกในช่อง Password ด้านซ้าย</li>
+                      <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-blue-800/90 leading-relaxed">
+                        <li>ไปที่ <a href="https://resend.com" target="_blank" rel="noopener noreferrer" className="underline font-bold text-[#0075de]">resend.com</a> แล้วกด Log in ด้วย Google</li>
+                        <li>คลิกเมนู <strong>API Keys</strong> &rarr; กดปุ่ม <strong>Create API Key</strong></li>
+                        <li>ก๊อปปี้คีย์ที่ขึ้นต้นด้วย <code>re_...</code> นำมากรอกในช่องด้านซ้าย</li>
+                        <li>กดบันทึก แล้วกดทดสอบส่งเมลได้ทันที 100% ฟรี 3,000 ฉบับ/เดือน</li>
                       </ol>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {/* Standard SMTP Fields */}
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-[#000000]">
+                          SMTP Host / Server
+                        </label>
+                        <div className="relative">
+                          <Server className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={smtpConfig.host}
+                            onChange={(e) => setSmtpConfig({ ...smtpConfig, host: e.target.value })}
+                            placeholder="เช่น smtp.gmail.com หรือ smtp-relay.brevo.com"
+                            className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="block text-xs font-semibold text-[#000000]">
+                            พอร์ต (Port)
+                          </label>
+                          <input
+                            type="number"
+                            value={smtpConfig.port}
+                            onChange={(e) => setSmtpConfig({ ...smtpConfig, port: parseInt(e.target.value, 10) || 587 })}
+                            placeholder="465 หรือ 587"
+                            className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
+                          />
+                        </div>
+
+                        <div className="flex flex-col justify-end pb-1.5">
+                          <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-[#31302e]">
+                            <input
+                              type="checkbox"
+                              checked={smtpConfig.secure}
+                              onChange={(e) => setSmtpConfig({ ...smtpConfig, secure: e.target.checked })}
+                              className="rounded border-[#e6e6e6] text-[#0075de] focus:ring-[#0075de] cursor-pointer"
+                            />
+                            <span>SSL/TLS (ปกติพอร์ต 465)</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-[#000000]">
+                          SMTP Username / Email
+                        </label>
+                        <div className="relative">
+                          <Mail className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={smtpConfig.user}
+                            onChange={(e) => setSmtpConfig({ ...smtpConfig, user: e.target.value })}
+                            placeholder="เช่น your-email@gmail.com หรือ admin@pleng.online"
+                            className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-[#000000] flex items-center justify-between">
+                          <span>SMTP Password / App Password</span>
+                          {smtpHasPass && (
+                            <span className="text-[10px] text-emerald-600 font-normal">
+                              ✓ มีรหัสผ่านบันทึกไว้แล้ว (เว้นว่างเพื่อคงรหัสเดิม)
+                            </span>
+                          )}
+                        </label>
+                        <div className="relative">
+                          <KeyRound className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type={smtpShowPass ? 'text' : 'password'}
+                            value={smtpConfig.pass}
+                            onChange={(e) => setSmtpConfig({ ...smtpConfig, pass: e.target.value })}
+                            placeholder={smtpHasPass ? '•••••••••••••••• (เว้นว่างไว้เพื่อคงรหัสเดิม)' : 'กรอกรหัสผ่าน SMTP หรือ App Password 16 หลัก'}
+                            className="w-full pl-9 pr-10 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setSmtpShowPass(!smtpShowPass)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a39e98] hover:text-[#000000]"
+                          >
+                            {smtpShowPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Sender Branding & Guidance */}
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-[#000000]">
+                          ชื่อผู้ส่งที่แสดง (Sender Name)
+                        </label>
+                        <input
+                          type="text"
+                          value={smtpConfig.fromName}
+                          onChange={(e) => setSmtpConfig({ ...smtpConfig, fromName: e.target.value })}
+                          placeholder="เช่น pleng.online 🎧"
+                          className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-[#000000]">
+                          อีเมลผู้ส่ง (Sender Email Address)
+                        </label>
+                        <input
+                          type="email"
+                          value={smtpConfig.fromEmail}
+                          onChange={(e) => setSmtpConfig({ ...smtpConfig, fromEmail: e.target.value })}
+                          placeholder="เช่น admin@pleng.online หรือ your-gmail@gmail.com"
+                          className="w-full px-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono"
+                        />
+                      </div>
+
+                      {/* Quick Guide Card */}
+                      <div className="p-3.5 rounded-xl bg-blue-50/50 border border-blue-200/60 text-xs text-blue-900 space-y-2">
+                        <div className="flex items-center gap-1.5 font-bold text-blue-800">
+                          <HelpCircle className="w-4 h-4 shrink-0 text-blue-600" />
+                          <span>คำแนะนำการใช้ Gmail SMTP:</span>
+                        </div>
+                        <ol className="list-decimal list-inside space-y-1 text-[11px] text-blue-800/90">
+                          <li>เข้าหน้า Google Account &gt; ความปลอดภัย (Security)</li>
+                          <li>เปิดการยืนยันแบบ 2 ขั้นตอน (2-Step Verification)</li>
+                          <li>ค้นหา &quot;รหัสผ่านสำหรับแอป&quot; (App Passwords)</li>
+                          <li>สร้างรหัสใหม่ 16 ตัว แล้วนำมากรอกในช่อง Password ด้านซ้าย</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="pt-2 border-t border-[#e6e6e6] flex items-center gap-3">
                   <button

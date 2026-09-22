@@ -1,6 +1,12 @@
 import crypto from 'crypto';
+import dns from 'dns';
 import nodemailer from 'nodemailer';
 import { SmtpConfig, EmailLogEntry, DEFAULT_SMTP_CONFIG } from '../src/types/index.js';
+
+// Enforce IPv4 lookups first on environments without IPv6 internet egress (such as Render containers)
+if (typeof (dns as any).setDefaultResultOrder === 'function') {
+  (dns as any).setDefaultResultOrder('ipv4first');
+}
 
 export interface PendingRegistration {
   email: string;
@@ -71,12 +77,12 @@ class EmailService {
   }
 
   /**
-   * Resolve active SMTP config from manager or environment variables
+   * Resolve active SMTP / Resend config from manager or environment variables
    */
   public getEffectiveSmtpConfig(): SmtpConfig {
     if (this.smtpConfigGetter) {
       const stored = this.smtpConfigGetter();
-      if (stored && stored.host) {
+      if (stored && (stored.host || stored.resendApiKey)) {
         return stored;
       }
     }
@@ -85,11 +91,14 @@ class EmailService {
     const envHost = process.env.SMTP_HOST || '';
     const envUser = process.env.SMTP_USER || '';
     const envPass = process.env.SMTP_PASS || '';
+    const envResend = process.env.RESEND_API_KEY || '';
     const envPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587;
     const envSecure = envPort === 465 || process.env.SMTP_SECURE === 'true';
 
     return {
-      enabled: !!(envHost && envUser && envPass),
+      enabled: !!(envResend || (envHost && envUser && envPass)),
+      provider: envResend ? 'resend' : 'smtp',
+      resendApiKey: envResend,
       host: envHost || DEFAULT_SMTP_CONFIG.host,
       port: envPort,
       secure: envSecure,
@@ -105,6 +114,99 @@ class EmailService {
    */
   public hashPassword(password: string): string {
     return crypto.createHash('sha256').update(password.trim() + '_pleng_salt_2026').digest('hex');
+  }
+
+  /**
+   * Universal email sender: Supports both modern Resend REST API (Port 443 HTTPS) and standard SMTP (IPv4 forced)
+   */
+  public async sendMail(
+    to: string,
+    subject: string,
+    html: string,
+    customConfig?: SmtpConfig
+  ): Promise<{ success: boolean; error?: string }> {
+    const config = customConfig || this.getEffectiveSmtpConfig();
+    const isResend = config.provider === 'resend' || (!config.user && !!(config.resendApiKey || process.env.RESEND_API_KEY));
+
+    // 1. Resend REST API (Bypasses Render SMTP port blocks completely via HTTPS Port 443!)
+    if (isResend) {
+      const apiKey = (config.resendApiKey || process.env.RESEND_API_KEY || '').trim();
+      if (!apiKey) {
+        return { success: false, error: 'ยังไม่ได้ระบุ Resend API Key' };
+      }
+
+      try {
+        let fromAddress = 'onboarding@resend.dev';
+        if (config.fromEmail && !config.fromEmail.includes('@gmail.com') && !config.fromEmail.includes('@yahoo.com') && !config.fromEmail.includes('@hotmail.com')) {
+          fromAddress = `${config.fromName || 'pleng.online'} <${config.fromEmail}>`;
+        }
+
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: fromAddress,
+            to: [to],
+            subject,
+            html,
+          }),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.id) {
+          return { success: true };
+        }
+        return { success: false, error: data.message || JSON.stringify(data) };
+      } catch (err: any) {
+        return { success: false, error: err.message || String(err) };
+      }
+    }
+
+    // 2. Traditional SMTP transport with IPv4 enforcement
+    if (config.host && config.user && config.pass) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: config.host,
+          port: config.port,
+          secure: config.secure || config.port === 465,
+          auth: {
+            user: config.user,
+            pass: config.pass,
+          },
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 15000,
+          tls: {
+            rejectUnauthorized: false,
+          },
+          family: 4, // Enforce IPv4 socket connection
+        } as any);
+
+        const fromAddress = config.fromEmail.includes('<')
+          ? config.fromEmail
+          : `"${config.fromName || 'pleng.online'}" <${config.fromEmail || config.user}>`;
+
+        await transporter.sendMail({
+          from: fromAddress,
+          to,
+          subject,
+          html,
+        });
+
+        return { success: true };
+      } catch (err: any) {
+        let msg = err.message || 'SMTP Connection Error';
+        if (msg.includes('ENETUNREACH') || msg.includes('timeout') || msg.includes('ETIMEDOUT')) {
+          msg += ' (Render Free Tier บล็อกพอร์ต SMTP ขาออก 25, 465, 587 แนะนำให้สลับไปใช้ Resend API ซึ่งส่งผ่านพอร์ต 443 ได้ 100% ฟรี 3,000 ฉบับ/เดือน)';
+        }
+        return { success: false, error: msg };
+      }
+    }
+
+    return { success: false, error: 'ยังไม่ได้ตั้งค่าผู้ให้บริการส่งอีเมล (กรุณาตั้งค่า Resend API หรือ SMTP)' };
   }
 
   /**
@@ -135,57 +237,36 @@ class EmailService {
   }
 
   /**
-   * Sends the OTP email (SMTP if configured, otherwise server console log)
+   * Sends the OTP email (Resend / SMTP if configured, otherwise server console log)
    */
   private async sendOtpEmail(email: string, name: string, code: string): Promise<boolean> {
     const config = this.getEffectiveSmtpConfig();
+    const isConfigured = (config.provider === 'resend' && (config.resendApiKey || process.env.RESEND_API_KEY)) ||
+      (config.enabled && config.host && config.user && config.pass);
 
     console.log(`\n======================================================`);
     console.log(`📩 [EMAIL SERVICE] ส่งรหัสยืนยันการสมัครสมาชิก pleng.online`);
     console.log(`👤 ถึง: ${name} <${email}>`);
     console.log(`🔑 รหัสยืนยัน OTP: ${code}`);
     console.log(`⏱️ หมดอายุใน: 10 นาที`);
-    console.log(`🌐 สถานะ SMTP: ${config.enabled ? 'เปิดใช้งาน (' + config.host + ')' : 'ปิด/ยังไม่ตั้งค่า (โหมดจำลอง)'}`);
+    console.log(`🌐 สถานะการส่ง: ${isConfigured ? 'เปิดใช้งาน (' + (config.provider === 'resend' ? 'Resend API' : config.host) + ')' : 'ปิด/ยังไม่ตั้งค่า (โหมดจำลอง/บันทึก Log)'}`);
     console.log(`======================================================\n`);
 
-    if (config.enabled && config.host && config.user && config.pass) {
-      try {
-        const transporter = nodemailer.createTransport({
-          host: config.host,
-          port: config.port,
-          secure: config.secure || config.port === 465,
-          auth: {
-            user: config.user,
-            pass: config.pass,
-          },
-          connectionTimeout: 10000,
-          greetingTimeout: 10000,
-          tls: {
-            rejectUnauthorized: false,
-          },
-        });
+    const otpHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #eaeaea; border-radius: 12px; background: #ffffff;">
+        <h2 style="color: #0075de; margin-top: 0;">ยืนยันการสมัครสมาชิก pleng.online 🎧</h2>
+        <p style="font-size: 14px; color: #333333;">สวัสดีคุณ <strong>${name}</strong>,</p>
+        <p style="font-size: 14px; color: #555555;">ขอบคุณที่ร่วมเป็นส่วนหนึ่งของ pleng.online โปรดใช้รหัสยืนยันด้านล่างนี้เพื่อเปิดใช้งานบัญชีของคุณ:</p>
+        <div style="background: #f4f7fa; border: 2px dashed #0075de; border-radius: 8px; padding: 16px; text-align: center; margin: 24px 0;">
+          <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0075de;">${code}</span>
+        </div>
+        <p style="font-size: 12px; color: #888888; margin-bottom: 0;">* รหัสยืนยันนี้มีอายุการใช้งาน 10 นาที หากคุณไม่ได้ทำรายการนี้ สามารถเพิกเฉยต่ออีเมลนี้ได้</p>
+      </div>
+    `;
 
-        const fromAddress = config.fromEmail.includes('<')
-          ? config.fromEmail
-          : `"${config.fromName || 'pleng.online'}" <${config.fromEmail || config.user}>`;
-
-        await transporter.sendMail({
-          from: fromAddress,
-          to: email,
-          subject: `[pleng.online] รหัสยืนยันการสมัครสมาชิกของคุณคือ ${code}`,
-          html: `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #eaeaea; border-radius: 12px; background: #ffffff;">
-              <h2 style="color: #0075de; margin-top: 0;">ยืนยันการสมัครสมาชิก pleng.online 🎧</h2>
-              <p style="font-size: 14px; color: #333333;">สวัสดีคุณ <strong>${name}</strong>,</p>
-              <p style="font-size: 14px; color: #555555;">ขอบคุณที่ร่วมเป็นส่วนหนึ่งของ pleng.online โปรดใช้รหัสยืนยันด้านล่างนี้เพื่อเปิดใช้งานบัญชีของคุณ:</p>
-              <div style="background: #f4f7fa; border: 2px dashed #0075de; border-radius: 8px; padding: 16px; text-align: center; margin: 24px 0;">
-                <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0075de;">${code}</span>
-              </div>
-              <p style="font-size: 12px; color: #888888; margin-bottom: 0;">* รหัสยืนยันนี้มีอายุการใช้งาน 10 นาที หากคุณไม่ได้ทำรายการนี้ สามารถเพิกเฉยต่ออีเมลนี้ได้</p>
-            </div>
-          `,
-        });
-
+    if (isConfigured) {
+      const res = await this.sendMail(email, `[pleng.online] รหัสยืนยันการสมัครสมาชิกของคุณคือ ${code}`, otpHtml, config);
+      if (res.success) {
         this.addLog({
           type: 'register_otp',
           email,
@@ -193,14 +274,14 @@ class EmailService {
           status: 'sent_smtp',
         });
         return true;
-      } catch (err: any) {
-        console.error('Failed to send registration OTP via SMTP:', err);
+      } else {
+        console.error('Failed to send registration OTP:', res.error);
         this.addLog({
           type: 'register_otp',
           email,
           code,
           status: 'failed',
-          errorMessage: err.message || 'SMTP Error',
+          errorMessage: res.error,
         });
         return false;
       }
@@ -251,7 +332,7 @@ class EmailService {
   }
 
   /**
-   * Creates a 6-digit OTP code for password reset
+   * Generates a 6-digit OTP code for password reset
    */
   public async createPasswordResetOtp(email: string): Promise<{ code: string; expiresAt: number }> {
     const cleanEmail = email.trim().toLowerCase();
@@ -275,53 +356,32 @@ class EmailService {
    */
   private async sendPasswordResetEmail(email: string, code: string): Promise<boolean> {
     const config = this.getEffectiveSmtpConfig();
+    const isConfigured = (config.provider === 'resend' && (config.resendApiKey || process.env.RESEND_API_KEY)) ||
+      (config.enabled && config.host && config.user && config.pass);
 
     console.log(`\n======================================================`);
-    console.log(`🔐 [EMAIL SERVICE] รหัสรีเซ็ตรหัสผ่าน pleng.online`);
-    console.log(`👤 ถึง: <${email}>`);
+    console.log(`🔑 [EMAIL SERVICE] ส่งรหัสรีเซ็ตรหัสผ่าน pleng.online`);
+    console.log(`👤 ถึง: ${email}`);
     console.log(`🔑 รหัสยืนยัน OTP: ${code}`);
     console.log(`⏱️ หมดอายุใน: 10 นาที`);
-    console.log(`🌐 สถานะ SMTP: ${config.enabled ? 'เปิดใช้งาน (' + config.host + ')' : 'ปิด/ยังไม่ตั้งค่า (โหมดจำลอง)'}`);
+    console.log(`🌐 สถานะการส่ง: ${isConfigured ? 'เปิดใช้งาน (' + (config.provider === 'resend' ? 'Resend API' : config.host) + ')' : 'ปิด/ยังไม่ตั้งค่า (โหมดจำลอง/บันทึก Log)'}`);
     console.log(`======================================================\n`);
 
-    if (config.enabled && config.host && config.user && config.pass) {
-      try {
-        const transporter = nodemailer.createTransport({
-          host: config.host,
-          port: config.port,
-          secure: config.secure || config.port === 465,
-          auth: {
-            user: config.user,
-            pass: config.pass,
-          },
-          connectionTimeout: 10000,
-          greetingTimeout: 10000,
-          tls: {
-            rejectUnauthorized: false,
-          },
-        });
+    const resetHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #eaeaea; border-radius: 12px; background: #ffffff;">
+        <h2 style="color: #0075de; margin-top: 0;">คำขอรีเซ็ตรหัสผ่าน pleng.online 🔐</h2>
+        <p style="font-size: 14px; color: #333333;">มีคำขอตั้งรหัสผ่านใหม่สำหรับบัญชี: <strong>${email}</strong></p>
+        <p style="font-size: 14px; color: #555555;">โปรดใช้รหัสยืนยันด้านล่างนี้เพื่อตั้งรหัสผ่านใหม่ของคุณ:</p>
+        <div style="background: #f4f7fa; border: 2px dashed #0075de; border-radius: 8px; padding: 16px; text-align: center; margin: 24px 0;">
+          <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0075de;">${code}</span>
+        </div>
+        <p style="font-size: 12px; color: #888888; margin-bottom: 0;">* รหัสยืนยันนี้มีอายุ 10 นาที หากคุณไม่ได้ทำรายการนี้ สามารถเพิกเฉยต่ออีเมลนี้ได้</p>
+      </div>
+    `;
 
-        const fromAddress = config.fromEmail.includes('<')
-          ? config.fromEmail
-          : `"${config.fromName || 'pleng.online'}" <${config.fromEmail || config.user}>`;
-
-        await transporter.sendMail({
-          from: fromAddress,
-          to: email,
-          subject: `[pleng.online] รหัสรีเซ็ตรหัสผ่านของคุณคือ ${code}`,
-          html: `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #eaeaea; border-radius: 12px; background: #ffffff;">
-              <h2 style="color: #0075de; margin-top: 0;">คำขอรีเซ็ตรหัสผ่าน pleng.online 🔐</h2>
-              <p style="font-size: 14px; color: #333333;">มีคำขอตั้งรหัสผ่านใหม่สำหรับบัญชี: <strong>${email}</strong></p>
-              <p style="font-size: 14px; color: #555555;">โปรดใช้รหัสยืนยันด้านล่างนี้เพื่อตั้งรหัสผ่านใหม่ของคุณ:</p>
-              <div style="background: #f4f7fa; border: 2px dashed #0075de; border-radius: 8px; padding: 16px; text-align: center; margin: 24px 0;">
-                <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0075de;">${code}</span>
-              </div>
-              <p style="font-size: 12px; color: #888888; margin-bottom: 0;">* รหัสยืนยันนี้มีอายุ 10 นาที หากคุณไม่ได้ทำรายการนี้ สามารถเพิกเฉยต่ออีเมลนี้ได้</p>
-            </div>
-          `,
-        });
-
+    if (isConfigured) {
+      const res = await this.sendMail(email, `[pleng.online] รหัสรีเซ็ตรหัสผ่านของคุณคือ ${code}`, resetHtml, config);
+      if (res.success) {
         this.addLog({
           type: 'reset_password_otp',
           email,
@@ -329,14 +389,14 @@ class EmailService {
           status: 'sent_smtp',
         });
         return true;
-      } catch (err: any) {
-        console.error('Failed to send reset email via SMTP transport:', err);
+      } else {
+        console.error('Failed to send reset email:', res.error);
         this.addLog({
           type: 'reset_password_otp',
           email,
           code,
           status: 'failed',
-          errorMessage: err.message || 'SMTP Error',
+          errorMessage: res.error,
         });
         return false;
       }
@@ -386,90 +446,66 @@ class EmailService {
   }
 
   /**
-   * Sends a test email to verify SMTP configuration
+   * Sends a test email to verify SMTP / Resend configuration
    */
   public async sendTestEmail(
     toEmail: string,
     customConfig?: SmtpConfig
   ): Promise<{ success: boolean; message: string }> {
     const config = customConfig || this.getEffectiveSmtpConfig();
+    const isResend = config.provider === 'resend' || (!config.user && !!config.resendApiKey);
 
-    if (!config.host || !config.user || !config.pass) {
+    if (isResend && !config.resendApiKey && !process.env.RESEND_API_KEY) {
+      return {
+        success: false,
+        message: 'กรุณากรอก Resend API Key ก่อนกดส่งทดสอบ',
+      };
+    }
+
+    if (!isResend && (!config.host || !config.user || !config.pass)) {
       return {
         success: false,
         message: 'กรุณากรอกข้อมูล SMTP Server, Username และ Password ให้ครบถ้วนก่อนทดสอบ',
       };
     }
 
-    try {
-      const transporter = nodemailer.createTransport({
-        host: config.host,
-        port: config.port,
-        secure: config.secure || config.port === 465,
-        auth: {
-          user: config.user,
-          pass: config.pass,
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        tls: {
-          rejectUnauthorized: false,
-        },
-      });
+    const testHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 12px; background: #ffffff;">
+        <h2 style="color: #10b981; margin-top: 0;">🎉 ทดสอบการส่งอีเมลสำเร็จ!</h2>
+        <p style="font-size: 14px; color: #333333;">สวัสดีครับผู้ดูแลระบบ pleng.online,</p>
+        <p style="font-size: 14px; color: #555555;">นี่คืออีเมลทดสอบยืนยันว่าการตั้งค่า <strong>${isResend ? 'Resend API Gateway' : 'SMTP Gateway'}</strong> ของคุณทำงานได้อย่างสมบูรณ์แบบแล้ว!</p>
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; margin: 20px 0;">
+          <p style="margin: 0; font-size: 13px; color: #166534;">
+            <strong>เวลาที่ส่ง:</strong> ${new Date().toLocaleString('th-TH')}<br/>
+            <strong>ส่งไปยัง:</strong> ${toEmail}<br/>
+            <strong>ช่องทาง:</strong> ${isResend ? 'Resend REST API (HTTPS Port 443)' : `SMTP (${config.host}:${config.port})`}
+          </p>
+        </div>
+        <p style="font-size: 12px; color: #888888; margin-bottom: 0;">ระบบ WatchParty & Voice Stage พร้อมสำหรับการส่งอีเมลยืนยันสมาชิกและรหัส OTP แล้ว</p>
+      </div>
+    `;
 
-      // Verify connection first
-      await transporter.verify();
-
-      const fromAddress = config.fromEmail.includes('<')
-        ? config.fromEmail
-        : `"${config.fromName || 'pleng.online'}" <${config.fromEmail || config.user}>`;
-
-      await transporter.sendMail({
-        from: fromAddress,
-        to: toEmail,
-        subject: `[pleng.online] 🧪 ทดสอบระบบส่งอีเมลสำเร็จ! (${new Date().toLocaleTimeString('th-TH')})`,
-        html: `
-          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 12px; background: #ffffff;">
-            <div style="text-align: center; margin-bottom: 20px;">
-              <h1 style="color: #10b981; margin: 0; font-size: 24px;">🎉 เชื่อมต่อระบบอีเมลสำเร็จ!</h1>
-              <p style="color: #666666; font-size: 14px; margin-top: 6px;">ระบบส่งอีเมลของ pleng.online พร้อมใช้งานแล้ว</p>
-            </div>
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
-              <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>SMTP Host:</strong> ${config.host}</p>
-              <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Port:</strong> ${config.port} (${config.secure ? 'SSL/TLS' : 'STARTTLS'})</p>
-              <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Sender:</strong> ${fromAddress}</p>
-              <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Recipient:</strong> ${toEmail}</p>
-              <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Time:</strong> ${new Date().toLocaleString('th-TH')}</p>
-            </div>
-            <p style="font-size: 13px; color: #64748b; line-height: 1.5; margin-bottom: 0;">
-              อีเมลฉบับนี้ส่งเพื่อทดสอบการเชื่อมต่อ SMTP หากคุณได้รับอีเมลนี้ แสดงว่าระบบ OTP สมัครสมาชิกและรีเซ็ตรหัสผ่านสามารถส่งถึงผู้ใช้งานได้จริง 100% แล้วครับ
-            </p>
-          </div>
-        `,
-      });
-
+    const res = await this.sendMail(toEmail, '[pleng.online] ทดสอบการส่งอีเมลสำเร็จ! 🎉', testHtml, config);
+    if (res.success) {
       this.addLog({
         type: 'test',
         email: toEmail,
         status: 'sent_smtp',
       });
-
       return {
         success: true,
-        message: `ส่งอีเมลทดสอบไปยัง ${toEmail} สำเร็จเรียบร้อย! โปรดตรวจสอบในกล่องจดหมายของคุณ`,
+        message: `ส่งอีเมลทดสอบไปยัง ${toEmail} สำเร็จเรียบร้อย! 🎉 กรุณาตรวจสอบในกล่องจดหมายของคุณ (Inbox หรือ Spam)`,
       };
-    } catch (err: any) {
-      console.error('SMTP test error:', err);
-      const errMsg = err.message || 'Unknown SMTP error';
+    } else {
       this.addLog({
         type: 'test',
         email: toEmail,
         status: 'failed',
-        errorMessage: errMsg,
+        errorMessage: res.error,
       });
       return {
         success: false,
-        message: `การทดสอบล้มเหลว: ${errMsg}`,
+        message: `การทดสอบล้มเหลว: ${res.error}`,
       };
     }
   }
@@ -503,6 +539,8 @@ class EmailService {
         : `[pleng.online] 📩 มีข้อความตอบกลับเกี่ยวกับ: "${ticketTitle}"`;
 
     const config = this.getEffectiveSmtpConfig();
+    const isConfigured = (config.provider === 'resend' && (config.resendApiKey || process.env.RESEND_API_KEY)) ||
+      (config.enabled && config.host && config.user && config.pass);
 
     console.log(`\n======================================================`);
     console.log(`📩 [EMAIL SERVICE] ส่งอีเมลแจ้งเตือนสถานะ Ticket ไปยังผู้ใช้`);
@@ -512,89 +550,65 @@ class EmailService {
     if (adminReply) console.log(`💬 ข้อความแอดมิน: ${adminReply}`);
     console.log(`======================================================\n`);
 
-    if (config.enabled && config.host && config.user && config.pass) {
-      try {
-        const transporter = nodemailer.createTransport({
-          host: config.host,
-          port: config.port,
-          secure: config.secure || config.port === 465,
-          auth: {
-            user: config.user,
-            pass: config.pass,
-          },
-          tls: { rejectUnauthorized: false },
-        });
-
-        const fromAddress = config.fromEmail.includes('<')
-          ? config.fromEmail
-          : `"${config.fromName || 'pleng.online'}" <${config.fromEmail || config.user}>`;
-
-        await transporter.sendMail({
-          from: fromAddress,
-          to: cleanEmail,
-          subject,
-          html: `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 540px; margin: 0 auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 14px; background: #ffffff;">
-              <div style="text-align: center; margin-bottom: 20px;">
-                <h1 style="color: #0075de; margin: 0; font-size: 22px;">pleng.online ศูนย์แจ้งปัญหา 🎧</h1>
-                <p style="color: #64748b; font-size: 13px; margin-top: 6px;">แจ้งความคืบหน้าเรื่องที่คุณส่งเข้ามาในระบบ</p>
-              </div>
-
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin: 16px 0;">
-                <p style="margin: 0 0 8px 0; font-size: 14px; color: #1e293b;"><strong>เรื่องที่แจ้ง:</strong> ${ticketTitle}</p>
-                <div style="display: inline-block; padding: 4px 10px; border-radius: 6px; background: ${statusBadgeColor}18; border: 1px solid ${statusBadgeColor}40; color: ${statusBadgeColor}; font-size: 12px; font-weight: bold;">
-                  สถานะ: ${statusText}
-                </div>
-              </div>
-
-              ${adminReply ? `
-              <div style="background: #eff6ff; border-left: 4px solid #0075de; border-radius: 6px; padding: 14px; margin: 16px 0;">
-                <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: bold; color: #0075de;">👑 ข้อความตอบกลับจากผู้ดูแลระบบ:</p>
-                <p style="margin: 0; font-size: 13px; color: #1e293b; line-height: 1.6; white-space: pre-wrap;">${adminReply}</p>
-              </div>
-              ` : ''}
-
-              <p style="font-size: 13px; color: #475569; line-height: 1.6; margin-top: 16px;">
-                สวัสดีครับคุณ <strong>${userName}</strong> ทีมงานได้ดำเนินการตรวจสอบและปรับปรุงตามที่ท่านแจ้งเข้ามาเรียบร้อยแล้ว ท่านสามารถเข้าใช้งานเว็บไซต์หรือตรวจสอบประวัติได้ที่:
-              </p>
-
-              <div style="text-align: center; margin: 24px 0;">
-                <a href="https://pleng.online" style="display: inline-block; padding: 12px 28px; background: #0075de; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 14px; border-radius: 8px;">
-                  เข้าสู่เว็บไซต์ pleng.online
-                </a>
-              </div>
-
-              <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
-                ขอขอบคุณที่ร่วมส่งข้อเสนอแนะเพื่อพัฒนา pleng.online 🎵
-              </p>
+    const ticketHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #eaeaea; border-radius: 12px; background: #ffffff;">
+        <h2 style="color: #0075de; margin-top: 0;">อัปเดตปัญหาที่คุณแจ้ง (Support Ticket) 🎫</h2>
+        <p style="font-size: 14px; color: #333333;">สวัสดีคุณ <strong>${userName}</strong>,</p>
+        <p style="font-size: 14px; color: #555555;">ทีมงาน pleng.online ได้อัปเดตสถานะปัญหาที่คุณแจ้งไว้เรียบร้อยแล้วครับ:</p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
+          <div style="margin-bottom: 8px;">
+            <span style="font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">หัวข้อปัญหา:</span>
+            <div style="font-size: 15px; font-weight: bold; color: #1e293b; margin-top: 2px;">${ticketTitle}</div>
+          </div>
+          <div style="margin-bottom: ${adminReply ? '12px' : '0'};">
+            <span style="font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">สถานะล่าสุด:</span>
+            <div style="margin-top: 4px;">
+              <span style="display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #ffffff; background-color: ${statusBadgeColor};">
+                ${statusText}
+              </span>
             </div>
-          `,
-        });
+          </div>
+          ${
+            adminReply
+              ? `
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #cbd5e1;">
+              <span style="font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">ข้อความจากผู้ดูแลระบบ:</span>
+              <div style="font-size: 14px; color: #334155; margin-top: 4px; line-height: 1.5; white-space: pre-wrap; background: #ffffff; padding: 10px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">${adminReply}</div>
+            </div>
+          `
+              : ''
+          }
+        </div>
+        <p style="font-size: 13px; color: #64748b;">คุณสามารถเข้าสู่ระบบ pleng.online เพื่อดูรายละเอียดเพิ่มเติมหรือติดตามสถานะได้ตลอดเวลา</p>
+      </div>
+    `;
 
+    if (isConfigured) {
+      const res = await this.sendMail(cleanEmail, subject, ticketHtml, config);
+      if (res.success) {
         this.addLog({
           type: 'ticket_update',
           email: cleanEmail,
           status: 'sent_smtp',
         });
         return true;
-      } catch (err: any) {
-        console.error('Failed to send ticket email:', err);
+      } else {
         this.addLog({
           type: 'ticket_update',
           email: cleanEmail,
           status: 'failed',
-          errorMessage: err.message,
+          errorMessage: res.error,
         });
         return false;
       }
-    } else {
-      this.addLog({
-        type: 'ticket_update',
-        email: cleanEmail,
-        status: 'simulated',
-      });
-      return true;
     }
+
+    this.addLog({
+      type: 'ticket_update',
+      email: cleanEmail,
+      status: 'console_fallback',
+    });
+    return true;
   }
 }
 
