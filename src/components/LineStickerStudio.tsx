@@ -20,6 +20,9 @@ import {
   FileArchive,
   Info,
   ExternalLink,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
 } from 'lucide-react';
 import {
   StickerSlice,
@@ -77,8 +80,66 @@ export const LineStickerStudio: React.FC = () => {
   const [mainDataUrl, setMainDataUrl] = useState<string>('');
   const [tabDataUrl, setTabDataUrl] = useState<string>('');
 
-  // Preview modal for full-size inspection
-  const [previewSticker, setPreviewSticker] = useState<{ url: string; title: string } | null>(null);
+  // Preview modal for full-size inspection with Next/Prev
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+
+  // Gallery layout: '5x8' (default), '8x5', or 'carousel'
+  const [galleryLayout, setGalleryLayout] = useState<'5x8' | '8x5' | 'carousel'>('5x8');
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const activeThumbRef = useRef<HTMLButtonElement>(null);
+  const touchStartX = useRef<number | null>(null);
+
+  // Auto-scroll active thumbnail into view inside preview modal
+  useEffect(() => {
+    if (previewIndex !== null && activeThumbRef.current) {
+      activeThumbRef.current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [previewIndex]);
+
+  // Keyboard navigation for preview modal (ArrowLeft / ArrowRight / Escape)
+  useEffect(() => {
+    if (previewIndex === null || stickers.length === 0) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setPreviewIndex((prev) => (prev !== null && prev > 0 ? prev - 1 : stickers.length - 1));
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setPreviewIndex((prev) => (prev !== null && prev < stickers.length - 1 ? prev + 1 : 0));
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setPreviewIndex(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewIndex, stickers.length]);
+
+  const scrollCarousel = (direction: 'left' | 'right') => {
+    if (carouselRef.current) {
+      const scrollAmount = direction === 'left' ? -carouselRef.current.clientWidth * 0.75 : carouselRef.current.clientWidth * 0.75;
+      carouselRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || stickers.length === 0) return;
+    const diffX = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diffX) > 40) {
+      if (diffX > 0) {
+        // Swiped left -> next
+        setPreviewIndex((prev) => (prev !== null && prev < stickers.length - 1 ? prev + 1 : 0));
+      } else {
+        // Swiped right -> prev
+        setPreviewIndex((prev) => (prev !== null && prev > 0 ? prev - 1 : stickers.length - 1));
+      }
+    }
+    touchStartX.current = null;
+  };
 
   // Eyedropper state
   const [isEyedropperActive, setIsEyedropperActive] = useState(false);
@@ -877,124 +938,306 @@ export const LineStickerStudio: React.FC = () => {
               </div>
             </div>
 
-            {/* 40 Stickers Grid Display */}
+            {/* 40 Stickers Grid / Carousel Display */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-[#000000]">รายการสติกเกอร์ทั้งหมด ({stickers.length} รูป)</span>
-                <span className="text-[11px] text-[#615d59]">
-                  💡 คลิก ⭐ เพื่อเลือกเป็น main.png หรือคลิก 📑 เพื่อเลือกเป็น tab.png
-                </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[#000000]">รายการสติกเกอร์ทั้งหมด ({stickers.length} รูป)</span>
+                    <span className="px-2 py-0.5 rounded-md bg-[#0075de]/10 text-[#0075de] text-[10px] font-bold">
+                      {galleryLayout === '5x8' ? 'มุมมอง 5x8 แถว' : galleryLayout === '8x5' ? 'มุมมอง 8x5 แถว' : 'สไลด์เลื่อนซ้าย-ขวา'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#615d59] mt-0.5">
+                    💡 คลิกที่รูปเพื่อเปิดดูขนาดใหญ่พร้อมกดเลื่อนซ้าย-ขวา (Arrow Keys ◀ ▶) ได้ทันที
+                  </p>
+                </div>
+
+                {/* Layout Switcher */}
+                <div className="flex items-center gap-1 bg-[#f6f5f4] p-1 rounded-xl border border-[#e6e6e6] self-start sm:self-auto shrink-0">
+                  <button
+                    onClick={() => setGalleryLayout('5x8')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      galleryLayout === '5x8'
+                        ? 'bg-white text-[#0075de] shadow-xs'
+                        : 'text-[#615d59] hover:text-[#000000]'
+                    }`}
+                    title="แสดงแบบ 5 คอลัมน์ x 8 แถว (แนะนำ)"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    <span>5x8 แถว</span>
+                  </button>
+
+                  <button
+                    onClick={() => setGalleryLayout('8x5')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      galleryLayout === '8x5'
+                        ? 'bg-white text-[#0075de] shadow-xs'
+                        : 'text-[#615d59] hover:text-[#000000]'
+                    }`}
+                    title="แสดงแบบ 8 คอลัมน์ x 5 แถว"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    <span>8x5 แถว</span>
+                  </button>
+
+                  <button
+                    onClick={() => setGalleryLayout('carousel')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      galleryLayout === 'carousel'
+                        ? 'bg-white text-[#0075de] shadow-xs'
+                        : 'text-[#615d59] hover:text-[#000000]'
+                    }`}
+                    title="แสดงแบบสไลด์เลื่อนซ้าย-ขวา"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>สไลด์ซ้าย-ขวา</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-3">
-                {stickers.map((stk, idx) => {
-                  const filename = `${(idx + 1).toString().padStart(2, '0')}.png`;
-                  const isMain = idx === mainStickerIndex;
-                  const isTab = idx === tabStickerIndex;
+              {/* Render Cards according to selected layout */}
+              {galleryLayout === 'carousel' ? (
+                <div className="relative group/carousel">
+                  <button
+                    type="button"
+                    onClick={() => scrollCarousel('left')}
+                    className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 p-2.5 rounded-full bg-white/95 hover:bg-white text-[#31302e] shadow-md border border-[#e6e6e6] transition-all hover:scale-110 cursor-pointer hidden sm:flex items-center justify-center"
+                    title="เลื่อนซ้าย"
+                  >
+                    <ChevronLeft className="w-5 h-5 text-[#31302e]" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scrollCarousel('right')}
+                    className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 p-2.5 rounded-full bg-white/95 hover:bg-white text-[#31302e] shadow-md border border-[#e6e6e6] transition-all hover:scale-110 cursor-pointer hidden sm:flex items-center justify-center"
+                    title="เลื่อนขวา"
+                  >
+                    <ChevronRight className="w-5 h-5 text-[#31302e]" />
+                  </button>
 
-                  return (
-                    <div
-                      key={stk.id}
-                      className={`relative group rounded-xl border bg-white overflow-hidden transition-all shadow-2xs hover:shadow-xs flex flex-col ${
-                        isMain
-                          ? 'border-amber-400 ring-2 ring-amber-400/30'
-                          : isTab
-                          ? 'border-purple-400 ring-2 ring-purple-400/30'
-                          : 'border-[#e6e6e6]'
-                      }`}
+                  {/* Mobile Controls */}
+                  <div className="flex sm:hidden justify-between items-center pb-2">
+                    <button
+                      type="button"
+                      onClick={() => scrollCarousel('left')}
+                      className="px-3 py-1.5 rounded-lg bg-white border border-[#e6e6e6] text-xs font-semibold flex items-center gap-1 text-[#31302e] cursor-pointer"
                     >
-                      {/* Image Preview with Checkerboard */}
+                      <ChevronLeft className="w-4 h-4" />
+                      <span>เลื่อนซ้าย</span>
+                    </button>
+                    <span className="text-[11px] text-[#615d59]">ปัดซ้าย-ขวาได้</span>
+                    <button
+                      type="button"
+                      onClick={() => scrollCarousel('right')}
+                      className="px-3 py-1.5 rounded-lg bg-white border border-[#e6e6e6] text-xs font-semibold flex items-center gap-1 text-[#31302e] cursor-pointer"
+                    >
+                      <span>เลื่อนขวา</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div
+                    ref={carouselRef}
+                    className="overflow-x-auto flex gap-3 pb-3 pt-1 scroll-smooth snap-x snap-mandatory"
+                    style={{ scrollbarWidth: 'thin' }}
+                  >
+                    {stickers.map((stk, idx) => {
+                      const filename = `${(idx + 1).toString().padStart(2, '0')}.png`;
+                      const isMain = idx === mainStickerIndex;
+                      const isTab = idx === tabStickerIndex;
+
+                      return (
+                        <div
+                          key={stk.id}
+                          className={`relative group rounded-xl border bg-white overflow-hidden transition-all shadow-2xs hover:shadow-xs flex flex-col min-w-[160px] sm:min-w-[190px] shrink-0 snap-start ${
+                            isMain
+                              ? 'border-amber-400 ring-2 ring-amber-400/30'
+                              : isTab
+                              ? 'border-purple-400 ring-2 ring-purple-400/30'
+                              : 'border-[#e6e6e6]'
+                          }`}
+                        >
+                          <div
+                            onClick={() => setPreviewIndex(idx)}
+                            className="aspect-square w-full checkerboard-bg p-2 flex items-center justify-center cursor-pointer relative"
+                            title="คลิกเพื่อดูรูปขนาดเต็มพร้อมเลื่อนซ้าย-ขวา"
+                          >
+                            <img
+                              src={stk.processedDataUrl}
+                              alt={filename}
+                              className="max-w-full max-h-full object-contain filter drop-shadow-xs"
+                            />
+                            <div className="absolute top-1 left-1 flex items-center gap-1">
+                              <span className="px-1.5 py-0.5 rounded-md bg-black/75 text-white font-mono text-[9px] font-bold">
+                                {filename}
+                              </span>
+                            </div>
+                            <div className="absolute top-1 right-1 flex items-center gap-0.5">
+                              {isMain && (
+                                <span className="px-1 py-0.5 rounded-md bg-amber-500 text-white text-[8px] font-bold shadow-xs">
+                                  MAIN
+                                </span>
+                              )}
+                              {isTab && (
+                                <span className="px-1 py-0.5 rounded-md bg-purple-600 text-white text-[8px] font-bold shadow-xs">
+                                  TAB
+                                </span>
+                              )}
+                            </div>
+                            <div className="absolute inset-0 bg-black/40 backdrop-blur-2xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMainStickerIndex(idx);
+                                }}
+                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                  isMain ? 'bg-amber-500 text-white' : 'bg-white/90 hover:bg-white text-[#31302e]'
+                                }`}
+                                title="ตั้งเป็น Main (รูปหลัก)"
+                              >
+                                <Star className="w-3.5 h-3.5 fill-current" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setTabStickerIndex(idx);
+                                }}
+                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                  isTab ? 'bg-purple-600 text-white' : 'bg-white/90 hover:bg-white text-[#31302e]'
+                                }`}
+                                title="ตั้งเป็น Tab (ไอคอนแท็บ)"
+                              >
+                                <Bookmark className="w-3.5 h-3.5 fill-current" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadSingle(stk.processedDataUrl, filename);
+                                }}
+                                className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-[#31302e] transition-colors cursor-pointer"
+                                title={`ดาวน์โหลด ${filename}`}
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="p-1.5 border-t border-[#f0eee9] text-center bg-[#faf9f8] flex items-center justify-between px-2">
+                            <span className="text-[10px] font-mono text-[#615d59]">
+                              {fixedCanvasSize ? '370x320' : 'Auto'}
+                            </span>
+                            <span className="text-[9px] text-[#06C755] font-semibold">Margin 10px</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className={`grid gap-3 ${
+                    galleryLayout === '5x8'
+                      ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5'
+                      : 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8'
+                  }`}
+                >
+                  {stickers.map((stk, idx) => {
+                    const filename = `${(idx + 1).toString().padStart(2, '0')}.png`;
+                    const isMain = idx === mainStickerIndex;
+                    const isTab = idx === tabStickerIndex;
+
+                    return (
                       <div
-                        onClick={() => setPreviewSticker({ url: stk.processedDataUrl, title: filename })}
-                        className="aspect-square w-full checkerboard-bg p-2 flex items-center justify-center cursor-pointer relative"
-                        title="คลิกเพื่อดูรูปขนาดเต็ม"
+                        key={stk.id}
+                        className={`relative group rounded-xl border bg-white overflow-hidden transition-all shadow-2xs hover:shadow-xs flex flex-col ${
+                          isMain
+                            ? 'border-amber-400 ring-2 ring-amber-400/30'
+                            : isTab
+                            ? 'border-purple-400 ring-2 ring-purple-400/30'
+                            : 'border-[#e6e6e6]'
+                        }`}
                       >
-                        <img
-                          src={stk.processedDataUrl}
-                          alt={filename}
-                          className="max-w-full max-h-full object-contain filter drop-shadow-xs"
-                        />
-
-                        {/* Top Badges */}
-                        <div className="absolute top-1 left-1 flex items-center gap-1">
-                          <span className="px-1.5 py-0.5 rounded-md bg-black/75 text-white font-mono text-[9px] font-bold">
-                            {filename}
+                        <div
+                          onClick={() => setPreviewIndex(idx)}
+                          className="aspect-square w-full checkerboard-bg p-2 flex items-center justify-center cursor-pointer relative"
+                          title="คลิกเพื่อดูรูปขนาดเต็มพร้อมเลื่อนซ้าย-ขวา"
+                        >
+                          <img
+                            src={stk.processedDataUrl}
+                            alt={filename}
+                            className="max-w-full max-h-full object-contain filter drop-shadow-xs"
+                          />
+                          <div className="absolute top-1 left-1 flex items-center gap-1">
+                            <span className="px-1.5 py-0.5 rounded-md bg-black/75 text-white font-mono text-[9px] font-bold">
+                              {filename}
+                            </span>
+                          </div>
+                          <div className="absolute top-1 right-1 flex items-center gap-0.5">
+                            {isMain && (
+                              <span className="px-1 py-0.5 rounded-md bg-amber-500 text-white text-[8px] font-bold shadow-xs">
+                                MAIN
+                              </span>
+                            )}
+                            {isTab && (
+                              <span className="px-1 py-0.5 rounded-md bg-purple-600 text-white text-[8px] font-bold shadow-xs">
+                                TAB
+                              </span>
+                            )}
+                          </div>
+                          <div className="absolute inset-0 bg-black/40 backdrop-blur-2xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMainStickerIndex(idx);
+                              }}
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                isMain ? 'bg-amber-500 text-white' : 'bg-white/90 hover:bg-white text-[#31302e]'
+                              }`}
+                              title="ตั้งเป็น Main (รูปหลัก)"
+                            >
+                              <Star className="w-3.5 h-3.5 fill-current" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setTabStickerIndex(idx);
+                              }}
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                isTab ? 'bg-purple-600 text-white' : 'bg-white/90 hover:bg-white text-[#31302e]'
+                              }`}
+                              title="ตั้งเป็น Tab (ไอคอนแท็บ)"
+                            >
+                              <Bookmark className="w-3.5 h-3.5 fill-current" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadSingle(stk.processedDataUrl, filename);
+                              }}
+                              className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-[#31302e] transition-colors cursor-pointer"
+                              title={`ดาวน์โหลด ${filename}`}
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="p-1.5 border-t border-[#f0eee9] text-center bg-[#faf9f8] flex items-center justify-between px-2">
+                          <span className="text-[10px] font-mono text-[#615d59]">
+                            {fixedCanvasSize ? '370x320' : 'Auto'}
                           </span>
-                        </div>
-
-                        {/* Status Badges */}
-                        <div className="absolute top-1 right-1 flex items-center gap-0.5">
-                          {isMain && (
-                            <span className="px-1 py-0.5 rounded-md bg-amber-500 text-white text-[8px] font-bold shadow-xs">
-                              MAIN
-                            </span>
-                          )}
-                          {isTab && (
-                            <span className="px-1 py-0.5 rounded-md bg-purple-600 text-white text-[8px] font-bold shadow-xs">
-                              TAB
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Hover Overlay Actions */}
-                        <div className="absolute inset-0 bg-black/40 backdrop-blur-2xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setMainStickerIndex(idx);
-                            }}
-                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                              isMain
-                                ? 'bg-amber-500 text-white'
-                                : 'bg-white/90 hover:bg-white text-[#31302e]'
-                            }`}
-                            title="ตั้งเป็น Main (รูปหลัก)"
-                          >
-                            <Star className="w-3.5 h-3.5 fill-current" />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setTabStickerIndex(idx);
-                            }}
-                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                              isTab
-                                ? 'bg-purple-600 text-white'
-                                : 'bg-white/90 hover:bg-white text-[#31302e]'
-                            }`}
-                            title="ตั้งเป็น Tab (ไอคอนแท็บ)"
-                          >
-                            <Bookmark className="w-3.5 h-3.5 fill-current" />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDownloadSingle(stk.processedDataUrl, filename);
-                            }}
-                            className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-[#31302e] transition-colors cursor-pointer"
-                            title={`ดาวน์โหลด ${filename}`}
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </button>
+                          <span className="text-[9px] text-[#06C755] font-semibold">Margin 10px</span>
                         </div>
                       </div>
-
-                      {/* Footer Info */}
-                      <div className="p-1.5 border-t border-[#f0eee9] text-center bg-[#faf9f8] flex items-center justify-between px-2">
-                        <span className="text-[10px] font-mono text-[#615d59]">
-                          {fixedCanvasSize ? '370x320' : 'Auto'}
-                        </span>
-                        <span className="text-[9px] text-[#06C755] font-semibold">Margin 10px</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Bottom Big Download Bar */}
@@ -1055,46 +1298,168 @@ export const LineStickerStudio: React.FC = () => {
         </section>
       </main>
 
-      {/* Full-size preview modal */}
-      {previewSticker && (
-        <div
-          onClick={() => setPreviewSticker(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
-        >
+      {/* Full-size preview modal with Left / Right Navigation */}
+      {previewIndex !== null && stickers[previewIndex] && (() => {
+        const curStk = stickers[previewIndex];
+        const filename = `${(previewIndex + 1).toString().padStart(2, '0')}.png`;
+        const isMain = previewIndex === mainStickerIndex;
+        const isTab = previewIndex === tabStickerIndex;
+
+        return (
           <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl p-4 max-w-md w-full shadow-2xl space-y-3"
+            onClick={() => setPreviewIndex(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/75 backdrop-blur-xs animate-fade-in"
           >
-            <div className="flex items-center justify-between">
-              <span className="font-bold font-mono text-sm text-[#000000]">{previewSticker.title}</span>
-              <button
-                onClick={() => setPreviewSticker(null)}
-                className="text-xs text-[#615d59] hover:text-[#000000] cursor-pointer"
-              >
-                ปิด ✕
-              </button>
-            </div>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl p-4 sm:p-5 max-w-lg w-full shadow-2xl space-y-3.5 flex flex-col"
+            >
+              {/* Modal Top Bar */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold font-mono text-sm sm:text-base text-[#000000]">{filename}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-[#f6f5f4] text-[#615d59] font-mono text-[11px] font-bold border border-[#e6e6e6]">
+                    {previewIndex + 1} / {stickers.length}
+                  </span>
+                  {isMain && (
+                    <span className="px-1.5 py-0.5 rounded-md bg-amber-500 text-white text-[9px] font-bold">
+                      MAIN
+                    </span>
+                  )}
+                  {isTab && (
+                    <span className="px-1.5 py-0.5 rounded-md bg-purple-600 text-white text-[9px] font-bold">
+                      TAB
+                    </span>
+                  )}
+                </div>
 
-            <div className="checkerboard-bg rounded-xl p-4 flex items-center justify-center min-h-[260px] border border-[#e6e6e6]">
-              <img
-                src={previewSticker.url}
-                alt={previewSticker.title}
-                className="max-w-full max-h-[340px] object-contain drop-shadow-md"
-              />
-            </div>
+                <button
+                  type="button"
+                  onClick={() => setPreviewIndex(null)}
+                  className="p-1.5 rounded-lg text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4] transition-colors cursor-pointer text-xs font-semibold"
+                  title="ปิด (Esc)"
+                >
+                  ✕ ปิด
+                </button>
+              </div>
 
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                onClick={() => handleDownloadSingle(previewSticker.url, previewSticker.title)}
-                className="px-4 py-2 rounded-xl bg-[#0075de] hover:bg-[#005bab] text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>ดาวน์โหลดรูปนี้</span>
-              </button>
+              {/* Main Preview with Floating Left & Right Arrows */}
+              <div className="relative checkerboard-bg rounded-xl p-4 sm:p-6 flex items-center justify-center min-h-[280px] sm:min-h-[340px] border border-[#e6e6e6] overflow-hidden select-none">
+                {/* Left Arrow Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPreviewIndex((prev) => (prev !== null && prev > 0 ? prev - 1 : stickers.length - 1));
+                  }}
+                  className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-10 p-2 sm:p-2.5 rounded-full bg-white/90 hover:bg-white text-[#31302e] shadow-md border border-[#e6e6e6] transition-all hover:scale-110 cursor-pointer flex items-center justify-center"
+                  title="ภาพก่อนหน้า (กดแป้น ◀ บนคีย์บอร์ด)"
+                >
+                  <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 text-[#31302e]" />
+                </button>
+
+                {/* Sticker Image */}
+                <img
+                  src={curStk.processedDataUrl}
+                  alt={filename}
+                  className="max-w-full max-h-[280px] sm:max-h-[340px] object-contain drop-shadow-md transition-all"
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
+                />
+
+                {/* Right Arrow Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPreviewIndex((prev) => (prev !== null && prev < stickers.length - 1 ? prev + 1 : 0));
+                  }}
+                  className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-10 p-2 sm:p-2.5 rounded-full bg-white/90 hover:bg-white text-[#31302e] shadow-md border border-[#e6e6e6] transition-all hover:scale-110 cursor-pointer flex items-center justify-center"
+                  title="ภาพต่อไป (กดแป้น ▶ บนคีย์บอร์ด)"
+                >
+                  <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 text-[#31302e]" />
+                </button>
+              </div>
+
+              {/* Action Bar (Set Main / Set Tab / Download) */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#e6e6e6]">
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setMainStickerIndex(previewIndex)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                      isMain
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-[#faf9f8] hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6]'
+                    }`}
+                  >
+                    <Star className="w-3.5 h-3.5 fill-current" />
+                    <span>{isMain ? 'เป็นรูป Main แล้ว' : 'ตั้งเป็น Main'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTabStickerIndex(previewIndex)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                      isTab
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-[#faf9f8] hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6]'
+                    }`}
+                  >
+                    <Bookmark className="w-3.5 h-3.5 fill-current" />
+                    <span>{isTab ? 'เป็นรูป Tab แล้ว' : 'ตั้งเป็น Tab'}</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleDownloadSingle(curStk.processedDataUrl, filename)}
+                  className="px-3.5 py-1.5 rounded-lg bg-[#0075de] hover:bg-[#005bab] text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs ml-auto"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>ดาวน์โหลด {filename}</span>
+                </button>
+              </div>
+
+              {/* Mini Thumbnail Carousel Strip */}
+              <div className="pt-2 border-t border-[#f0eee9] space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-[#615d59]">
+                  <span>เลือกดูรูปในชุด ({stickers.length} รูป)</span>
+                  <span>กดปุ่มลูกศร ◀ ▶ หรือปัดจอเพื่อเปลี่ยนรูป</span>
+                </div>
+                <div
+                  className="overflow-x-auto flex items-center gap-1.5 p-1.5 bg-[#f6f5f4] rounded-xl border border-[#e6e6e6]"
+                  style={{ scrollbarWidth: 'thin' }}
+                >
+                  {stickers.map((stk, i) => {
+                    const isCur = i === previewIndex;
+                    const thumbName = `${(i + 1).toString().padStart(2, '0')}.png`;
+                    return (
+                      <button
+                        key={stk.id}
+                        type="button"
+                        ref={isCur ? activeThumbRef : null}
+                        onClick={() => setPreviewIndex(i)}
+                        className={`relative shrink-0 w-10 h-10 rounded-lg border overflow-hidden p-0.5 checkerboard-bg transition-all cursor-pointer ${
+                          isCur
+                            ? 'ring-2 ring-[#0075de] border-[#0075de] scale-105 shadow-xs'
+                            : 'border-[#d8d8d8] opacity-60 hover:opacity-100'
+                        }`}
+                        title={thumbName}
+                      >
+                        <img src={stk.processedDataUrl} alt="" className="w-full h-full object-contain" />
+                        <span className="absolute bottom-0 inset-x-0 bg-black/75 text-[8px] text-white font-mono text-center">
+                          {(i + 1).toString().padStart(2, '0')}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* CSS Checkerboard Pattern for Transparency Preview */}
       <style>{`
