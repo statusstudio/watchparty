@@ -72,9 +72,22 @@ export const LineStickerStudio: React.FC = () => {
   const [defringe, setDefringe] = useState<boolean>(true);
   const [addWhiteStroke, setAddWhiteStroke] = useState<boolean>(false);
   const [strokeWidth, setStrokeWidth] = useState<number>(3);
-  const [bgMode, setBgMode] = useState<'floodfill' | 'global'>('global');
+  const [bgMode, setBgMode] = useState<'floodfill' | 'global'>('floodfill');
   const [fixedCanvasSize, setFixedCanvasSize] = useState<boolean>(true);
   const [packageType, setPackageType] = useState<LinePackageType>('standard');
+
+  const handleSelectColorSwatch = (swatch: { name: string; hex: string; r: number; g: number; b: number }) => {
+    setTargetColor(swatch);
+    if (swatch.hex.toLowerCase() === '#ffffff') {
+      setBgMode('floodfill');
+      setChoke(0.5);
+      setRemoveShadows(false);
+    } else if (swatch.hex.toLowerCase() === '#e00096') {
+      setBgMode('global');
+      setChoke(1.2);
+      setRemoveShadows(true);
+    }
+  };
 
   // Cached raw sliced stickers for instant re-processing when adjusting sliders
   const [rawSlices, setRawSlices] = useState<StickerSlice[]>([]);
@@ -400,6 +413,9 @@ export const LineStickerStudio: React.FC = () => {
           const g = parseInt(hex.slice(3, 5), 16);
           const b = parseInt(hex.slice(5, 7), 16);
           setTargetColor({ r, g, b, hex });
+          if (r > 215 && g > 215 && b > 215) {
+            setBgMode('floodfill');
+          }
         }
       } catch (e) {
         // User cancelled eyedropper
@@ -778,6 +794,9 @@ export const LineStickerStudio: React.FC = () => {
                       const g = parseInt(hex.slice(3, 5), 16);
                       const b = parseInt(hex.slice(5, 7), 16);
                       setTargetColor({ r, g, b, hex });
+                      if (r > 215 && g > 215 && b > 215) {
+                        setBgMode('floodfill');
+                      }
                     }}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                   />
@@ -810,7 +829,7 @@ export const LineStickerStudio: React.FC = () => {
                 ].map((swatch) => (
                   <button
                     key={swatch.hex}
-                    onClick={() => setTargetColor(swatch)}
+                    onClick={() => handleSelectColorSwatch(swatch)}
                     title={swatch.name}
                     className="w-5 h-5 rounded-full border border-black/15 cursor-pointer shadow-2xs hover:scale-110 transition-transform"
                     style={{ backgroundColor: swatch.hex }}
@@ -921,29 +940,54 @@ export const LineStickerStudio: React.FC = () => {
                 )}
               </div>
 
-              <div className="pt-2 border-t border-[#e6e6e6] space-y-1.5">
-                <div className="flex items-center gap-4 text-xs">
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="bgMode"
-                      checked={bgMode === 'global'}
-                      onChange={() => setBgMode('global')}
-                      className="accent-[#06C755]"
-                    />
-                    <span className="text-[11px] font-medium text-[#000000]">ลบทุกจุดรวมรูตัวอักษร (แนะนำ)</span>
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="bgMode"
-                      checked={bgMode === 'floodfill'}
-                      onChange={() => setBgMode('floodfill')}
-                      className="accent-[#06C755]"
-                    />
-                    <span className="text-[11px] font-medium text-[#000000]">ลบจากขอบนอก</span>
-                  </label>
+              <div className="pt-2 border-t border-[#e6e6e6] space-y-2">
+                <label className="block text-[11px] font-bold text-[#000000]">
+                  ขอบเขตการลบพื้นหลัง (Removal Mode)
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setBgMode('floodfill')}
+                    className={`p-2 rounded-lg border text-left cursor-pointer transition-all ${
+                      bgMode === 'floodfill'
+                        ? 'bg-emerald-50 border-[#06C755] ring-1 ring-[#06C755] text-emerald-950 shadow-2xs'
+                        : 'bg-white border-[#e6e6e6] text-[#615d59] hover:bg-[#faf9f8]'
+                    }`}
+                  >
+                    <div className="font-bold text-[11px] flex items-center gap-1 text-[#000000]">
+                      <span>🛡️ ลบจากขอบนอก (Flood Fill)</span>
+                    </div>
+                    <p className="text-[10px] text-[#615d59] mt-0.5 leading-snug">
+                      แนะนำสำหรับพื้นขาว: ปกป้องเนื้อสีขาวในตัวหนังสือ ลายเสื้อ ดวงตา และผม
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setBgMode('global')}
+                    className={`p-2 rounded-lg border text-left cursor-pointer transition-all ${
+                      bgMode === 'global'
+                        ? 'bg-emerald-50 border-[#06C755] ring-1 ring-[#06C755] text-emerald-950 shadow-2xs'
+                        : 'bg-white border-[#e6e6e6] text-[#615d59] hover:bg-[#faf9f8]'
+                    }`}
+                  >
+                    <div className="font-bold text-[11px] flex items-center gap-1 text-[#000000]">
+                      <span>🌐 ลบทุกจุด (Global Chroma)</span>
+                    </div>
+                    <p className="text-[10px] text-[#615d59] mt-0.5 leading-snug">
+                      เหมาะกับพื้นเขียว/ชมพู: ลบสีเป้าหมายทั่วทั้งภาพรวมถึงช่องว่างระหว่างแขน
+                    </p>
+                  </button>
                 </div>
+
+                {targetColor.r > 215 && targetColor.g > 215 && targetColor.b > 215 && (
+                  <div className="p-2 rounded-lg bg-blue-50 border border-blue-200 text-[10px] text-blue-800 leading-snug flex items-start gap-1.5">
+                    <Info className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>ตรวจพบพื้นหลังสีขาว:</strong> ระบบเปิดโหมดปกป้องเนื้อภาพ (Flood Fill) ให้อัตโนมัติ เพื่อป้องกันไม่ให้สีขาวในผม ลายเสื้อ และตัวหนังสือ กลายเป็นรูโหว่โปร่งใส
+                    </span>
+                  </div>
+                )}
 
                 <label className="flex items-center gap-2 text-xs cursor-pointer pt-1">
                   <input
@@ -953,7 +997,7 @@ export const LineStickerStudio: React.FC = () => {
                     className="accent-[#06C755] rounded"
                   />
                   <span className="text-[11px] text-[#31302e]">
-                    ล็อกขนาด Canvas สติกเกอร์ที่ <strong>370 x 320 px</strong>
+                    ล็อกขนาด Canvas ตามมาตรฐาน (<strong>{LINE_PACKAGE_SPECS[packageType].badge}</strong>)
                   </span>
                 </label>
               </div>

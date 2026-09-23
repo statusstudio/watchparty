@@ -356,8 +356,22 @@ export async function processStickerImage(
     }
   }
 
+  const isWhiteBg = bgR > 215 && bgG > 215 && bgB > 215;
+  const isDarkBg = bgR < 35 && bgG < 35 && bgB < 35;
+  const isTargetMagenta = bgR > 120 && bgB > 120 && bgG < Math.min(bgR, bgB);
+
+  // For white or black background, global mode will hollow out white/black elements inside the artwork
+  // (e.g. white text fill, striped shirts, hair highlights, eyes, teeth).
+  // Automatically enforce floodfill when background is white or dark to protect internal artwork.
+  const effectiveMode = (isWhiteBg || isDarkBg) ? 'floodfill' : mode;
+
+  const maxRgbDist = isWhiteBg
+    ? (tolerance / 100) * 110 + 6
+    : isDarkBg
+    ? (tolerance / 100) * 110 + 6
+    : (tolerance / 100) * 180 + (isTargetMagenta ? 20 : 5);
+
   const [tH] = rgbToHsv(bgR, bgG, bgB);
-  const maxRgbDist = (tolerance / 100) * 180;
 
   const isColorBackground = (r: number, g: number, b: number): boolean => {
     // 1. Direct RGB closeness to slice background
@@ -365,10 +379,11 @@ export async function processStickerImage(
     const dG = g - bgG;
     const dB = b - bgB;
     const dist = Math.sqrt(dR * dR + dG * dG + dB * dB);
-    if (dist <= maxRgbDist || dist <= 48) return true;
+    if (dist <= maxRgbDist) return true;
 
     // 2. Smart Hue-Chroma Keying (removes floor shadows, lighting gradients of same hue)
-    if (removeShadows) {
+    // Only applies to saturated colored backgrounds (e.g. magenta, green), not monochrome white/black
+    if (removeShadows && !isWhiteBg && !isDarkBg) {
       const [hVal, sVal, vVal] = rgbToHsv(r, g, b);
       const dH = hueDistance(hVal, tH);
       // Floor shadows & backdrop gradients: matching hue within 28°, high saturation (s >= 0.50), mid-to-high brightness (v >= 0.38)
@@ -382,7 +397,7 @@ export async function processStickerImage(
 
   const isBg = new Uint8Array(w * h);
 
-  if (mode === 'global') {
+  if (effectiveMode === 'global') {
     for (let i = 0; i < w * h; i++) {
       const pIdx = i * 4;
       if (isColorBackground(pixels[pIdx], pixels[pIdx + 1], pixels[pIdx + 2])) {
@@ -488,7 +503,6 @@ export async function processStickerImage(
   }
 
   // Universal Spill Suppression / Defringing
-  const isTargetMagenta = bgR > 120 && bgB > 120 && bgG < Math.min(bgR, bgB);
   const isTargetGreen = bgG > Math.max(bgR, bgB) + 30;
   const isTargetBlue = bgB > Math.max(bgR, bgG) + 30;
 
