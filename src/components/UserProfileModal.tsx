@@ -21,6 +21,10 @@ import {
   LogOut,
   Camera,
   Upload,
+  Lock,
+  KeyRound,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import { UserProfile, FavoriteSong } from '../types/index.js';
 import { PRESET_AVATARS, COLOR_PALETTE } from '../data/presets.js';
@@ -101,6 +105,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarUploadError, setAvatarUploadError] = useState<string | null>(null);
+
+  // Password change state (for email members & admin)
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
+  const [passwordChangeMessage, setPasswordChangeMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
 
   const displayUser = profile || targetUser || currentUser;
   const isOwnProfile = Boolean(
@@ -258,6 +270,60 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
     if (!res.success && res.error) {
       console.warn('Supabase remote sync notice:', res.error);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordChangeMessage(null);
+
+    if (!currentPassword) {
+      setPasswordChangeMessage({ text: 'กรุณากรอกรหัสผ่านปัจจุบัน', type: 'error' });
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordChangeMessage({ text: 'รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 6 ตัวอักษร', type: 'error' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordChangeMessage({ text: 'รหัสผ่านใหม่และยืนยันรหัสผ่านไม่ตรงกัน', type: 'error' });
+      return;
+    }
+
+    setPasswordChangeLoading(true);
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          currentPassword,
+          newPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPasswordChangeMessage({
+          text: data.message || 'เปลี่ยนรหัสผ่านสำเร็จเรียบร้อยแล้ว 🎉',
+          type: 'success',
+        });
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        setPasswordChangeMessage({
+          text: data.error || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน',
+          type: 'error',
+        });
+      }
+    } catch (err) {
+      setPasswordChangeMessage({
+        text: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง',
+        type: 'error',
+      });
+    } finally {
+      setPasswordChangeLoading(false);
     }
   };
 
@@ -878,6 +944,105 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Password Change Section (For Email Members & Admin) */}
+              {(currentUser.provider === 'email' || currentUser.id === 'admin' || (currentUser.provider !== 'guest' && Boolean(currentUser.email))) && (
+                <div className="border border-[#e6e6e6] rounded-2xl p-4 bg-[#faf9f8] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-blue-50 text-[#0075de] border border-blue-100 shadow-2xs">
+                        <KeyRound className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-[#000000]">เปลี่ยนรหัสผ่านเข้าสู่ระบบ</h4>
+                        <p className="text-[11px] text-[#615d59]">ตั้งรหัสผ่านใหม่สำหรับล็อกอินด้วยอีเมล</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPasswordSection(!showPasswordSection);
+                        setPasswordChangeMessage(null);
+                      }}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-white border border-[#e6e6e6] text-[#0075de] hover:bg-[#f6f5f4] transition-colors cursor-pointer shadow-xs"
+                    >
+                      {showPasswordSection ? 'ซ่อน' : 'เปลี่ยนรหัสผ่าน'}
+                    </button>
+                  </div>
+
+                  {showPasswordSection && (
+                    <div className="pt-3 space-y-3 border-t border-[#e6e6e6]">
+                      {passwordChangeMessage && (
+                        <div
+                          className={`p-2.5 rounded-xl text-xs flex items-center gap-2 ${
+                            passwordChangeMessage.type === 'success'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-rose-50 text-rose-700 border border-rose-200'
+                          }`}
+                        >
+                          {passwordChangeMessage.type === 'success' ? (
+                            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                          )}
+                          <span>{passwordChangeMessage.text}</span>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-[#615d59] mb-1">
+                            รหัสผ่านปัจจุบัน
+                          </label>
+                          <input
+                            type="password"
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            placeholder="รหัสผ่านเดิม"
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-[#e6e6e6] text-xs text-[#000000] focus:outline-none focus:border-[#0075de] font-mono shadow-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-[#615d59] mb-1">
+                            รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)
+                          </label>
+                          <input
+                            type="password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="รหัสผ่านใหม่"
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-[#e6e6e6] text-xs text-[#000000] focus:outline-none focus:border-[#0075de] font-mono shadow-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-[#615d59] mb-1">
+                            ยืนยันรหัสผ่านใหม่
+                          </label>
+                          <input
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="พิมพ์รหัสใหม่อีกครั้ง"
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-[#e6e6e6] text-xs text-[#000000] focus:outline-none focus:border-[#0075de] font-mono shadow-xs"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-1">
+                        <button
+                          type="button"
+                          disabled={passwordChangeLoading || !currentPassword || !newPassword}
+                          onClick={handleChangePassword}
+                          className="px-4 py-2 rounded-xl bg-[#0075de] hover:bg-[#005bab] text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shadow-xs"
+                        >
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>{passwordChangeLoading ? 'กำลังบันทึก...' : 'ยืนยันเปลี่ยนรหัสผ่าน'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Save Button */}
               <div className="pt-2 flex items-center justify-end gap-3">

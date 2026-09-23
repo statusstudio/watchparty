@@ -561,6 +561,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               </div>
 
+              {/* Reminder banner about Gmail Junk/Spam/Trash */}
+              <div className="p-3 rounded-xl bg-amber-50/90 border border-amber-200/90 text-xs text-amber-900 flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5 leading-relaxed text-[11px]">
+                  <p className="font-bold text-amber-950">💡 คำแนะนำสำหรับการรับรหัส OTP:</p>
+                  <p>
+                    เมื่อกดขอรหัสแล้ว หากไม่พบอีเมลในกล่องจดหมายหลัก (Inbox) <strong>โปรดตรวจดูในโฟลเดอร์ "จดหมายขยะ (Spam / Junk Mail)" หรือ "ถังขยะ (Trash)"</strong> ด้วยนะครับ เนื่องจากระบบของ Gmail หรือผู้ให้บริการอีเมลอาจคัดกรองผิดพลาด
+                  </p>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 disabled={isLoading}
@@ -575,11 +586,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* MODE 2: REGISTER STEP 2 - ENTER 6-DIGIT OTP */}
           {authMode === 'register' && registerStep === 'otp' && (
             <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-xs text-[#0075de] space-y-1 text-center">
-                <p className="font-bold">รหัสยืนยัน 6 หลักถูกส่งไปยัง:</p>
-                <p className="font-mono text-sm text-[#005bab]">{regEmail}</p>
-                <p className="text-[11px] text-[#615d59]">
-                  (รหัสยืนยันมีอายุ 10 นาที หากไม่พบในกล่องจดหมาย ให้ตรวจดูในโฟลเดอร์ Junk/Spam)
+              <div className="p-3.5 rounded-xl bg-amber-50/90 border border-amber-200 text-xs text-amber-900 space-y-2 text-center">
+                <div className="flex items-center justify-center gap-1.5 text-amber-800 font-bold">
+                  <Mail className="w-4 h-4 text-[#0075de]" />
+                  <span>รหัสยืนยัน 6 หลักถูกส่งไปยัง:</span>
+                </div>
+                <p className="font-mono text-sm font-bold text-[#0075de]">{regEmail}</p>
+
+                <div className="p-2.5 rounded-lg bg-white/95 border border-amber-300 text-[11px] text-amber-900 text-left space-y-1 shadow-xs">
+                  <p className="font-bold text-rose-600 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                    <span>สำคัญมาก: หากไม่พบอีเมลในกล่องเข้า (Inbox)</span>
+                  </p>
+                  <p className="leading-relaxed text-[#5a4810]">
+                    กรุณาคลิกตรวจดูในโฟลเดอร์ <strong>"จดหมายขยะ / สแปม (Spam / Junk Mail)" หรือ "ถังขยะ (Trash)"</strong> ด้วยนะครับ เนื่องจากระบบกรองอีเมลของ Gmail/Outlook อาจคัดแยกผิดกล่อง
+                  </p>
+                </div>
+
+                <p className="text-[10px] text-[#8c7430]">
+                  (รหัสยืนยันมีอายุ 10 นาที สามารถกดขอรหัสใหม่ได้หากยังไม่ได้รับ)
                 </p>
               </div>
 
@@ -669,9 +694,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* MODE 3: FORGOT PASSWORD STEP 2 - ENTER OTP & NEW PASSWORD */}
           {authMode === 'forgot' && forgotStep === 'reset' && (
             <form onSubmit={handleForgotResetPassword} className="space-y-3.5">
-              <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-[#0075de] text-center">
-                <p className="font-bold">ส่งรหัสรีเซ็ตไปยัง:</p>
-                <p className="font-mono text-sm text-[#005bab]">{forgotEmail}</p>
+              <div className="p-3.5 rounded-xl bg-amber-50/90 border border-amber-200 text-xs text-amber-900 space-y-2 text-center">
+                <div className="flex items-center justify-center gap-1.5 text-amber-800 font-bold">
+                  <Mail className="w-4 h-4 text-[#0075de]" />
+                  <span>ส่งรหัสรีเซ็ตรหัสผ่านไปยัง:</span>
+                </div>
+                <p className="font-mono text-sm font-bold text-[#0075de]">{forgotEmail}</p>
+
+                <div className="p-2.5 rounded-lg bg-white/95 border border-amber-300 text-[11px] text-amber-900 text-left space-y-1 shadow-xs">
+                  <p className="font-bold text-rose-600 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                    <span>สำคัญมาก: หากไม่พบอีเมลในกล่องเข้า (Inbox)</span>
+                  </p>
+                  <p className="leading-relaxed text-[#5a4810]">
+                    กรุณาตรวจดูในโฟลเดอร์ <strong>"จดหมายขยะ / สแปม (Spam / Junk)" หรือ "ถังขยะ (Trash)"</strong> ด้วยนะครับ
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-1 text-center">

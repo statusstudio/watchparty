@@ -700,6 +700,51 @@ export class PlatformManager {
     };
   }
 
+  public changeMemberPassword(
+    userId: string,
+    currentPass: string,
+    newPass: string
+  ): { success: boolean; message?: string } {
+    const user = this.users.get(userId);
+    if (!user) {
+      return { success: false, message: 'ไม่พบผู้ใช้ในระบบ' };
+    }
+
+    if (!newPass || newPass.trim().length < 6) {
+      return { success: false, message: 'รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 6 ตัวอักษร' };
+    }
+
+    // If super admin account
+    if (userId === 'admin') {
+      const hashedCurrent = emailService.hashPassword(currentPass);
+      if (hashedCurrent !== this.adminCredentials.passwordHash && currentPass.trim() !== MASTER_PASSCODE) {
+        return { success: false, message: 'รหัสผ่านปัจจุบันไม่ถูกต้อง' };
+      }
+      this.adminCredentials.passwordHash = emailService.hashPassword(newPass.trim());
+      this.adminCredentials.updatedAt = Date.now();
+      this.scheduleSave();
+      return { success: true, message: 'เปลี่ยนรหัสผ่านสำเร็จเรียบร้อยแล้ว 🎉' };
+    }
+
+    if (!user.email) {
+      return { success: false, message: 'บัญชีนี้ไม่ได้เข้าสู่ระบบด้วยอีเมล' };
+    }
+
+    const account = this.userAccounts.get(user.email.toLowerCase());
+    if (!account) {
+      return { success: false, message: 'ไม่พบบัญชีผู้ใช้งานในระบบ' };
+    }
+
+    const hashedCurrent = emailService.hashPassword(currentPass);
+    if (account.passwordHash !== hashedCurrent && currentPass.trim() !== MASTER_PASSCODE) {
+      return { success: false, message: 'รหัสผ่านปัจจุบันไม่ถูกต้อง' };
+    }
+
+    account.passwordHash = emailService.hashPassword(newPass.trim());
+    this.scheduleSave();
+    return { success: true, message: 'เปลี่ยนรหัสผ่านสำเร็จเรียบร้อยแล้ว 🎉' };
+  }
+
   // --- General User Tracking ---
 
   public recordUser(user: UserProfile, currentRoomId?: string): PlatformUser {

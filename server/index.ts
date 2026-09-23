@@ -210,7 +210,7 @@ async function startServer() {
       await emailService.createRegistrationOtp(email, name, password);
       res.json({
         success: true,
-        message: 'ส่งรหัสยืนยัน 6 หลักไปยังอีเมลของคุณเรียบร้อยแล้ว กรุณาตรวจสอบกล่องจดหมาย',
+        message: 'ส่งรหัสยืนยัน 6 หลักไปยังอีเมลของคุณเรียบร้อยแล้ว (หากไม่พบใน Inbox กรุณาตรวจสอบในโฟลเดอร์ จดหมายขยะ / Spam หรือถังขยะ)',
       });
     } catch (err: any) {
       console.error('Send OTP error:', err);
@@ -287,7 +287,7 @@ async function startServer() {
       await emailService.createPasswordResetOtp(email);
       res.json({
         success: true,
-        message: 'ส่งรหัสยืนยัน 6 หลักสำหรับรีเซ็ตรหัสผ่านไปยังอีเมลเรียบร้อยแล้ว',
+        message: 'ส่งรหัสยืนยัน 6 หลักสำหรับรีเซ็ตรหัสผ่านไปยังอีเมลเรียบร้อยแล้ว (หากไม่พบใน Inbox กรุณาตรวจสอบในโฟลเดอร์ จดหมายขยะ / Spam หรือถังขยะ)',
       });
     } catch (err: any) {
       console.error('Send forgot password OTP error:', err);
@@ -325,6 +325,33 @@ async function startServer() {
     } catch (err: any) {
       console.error('Reset password error:', err);
       res.status(500).json({ error: 'เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน' });
+    }
+  });
+
+  // 6. Member Change Password (while logged in)
+  app.post('/api/auth/change-password', (req, res) => {
+    try {
+      const { userId, currentPassword, newPassword } = req.body;
+      if (!userId || !currentPassword || !newPassword) {
+        return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 6 ตัวอักษร' });
+      }
+
+      const result = platformManager.changeMemberPassword(userId, currentPassword, newPassword);
+      if (!result.success) {
+        return res.status(400).json({ error: result.message || 'ไม่สามารถเปลี่ยนรหัสผ่านได้' });
+      }
+
+      res.json({
+        success: true,
+        message: result.message || 'เปลี่ยนรหัสผ่านสำเร็จเรียบร้อยแล้ว 🎉',
+      });
+    } catch (err: any) {
+      console.error('Change password error:', err);
+      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน' });
     }
   });
 
