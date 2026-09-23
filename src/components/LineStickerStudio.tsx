@@ -59,10 +59,15 @@ export const LineStickerStudio: React.FC = () => {
     b: 150,
     hex: '#e00096', // Default magenta matching sample
   });
-  const [tolerance, setTolerance] = useState<number>(24);
-  const [feather, setFeather] = useState<number>(2);
-  const [bgMode, setBgMode] = useState<'floodfill' | 'global'>('floodfill');
+  const [tolerance, setTolerance] = useState<number>(20);
+  const [choke, setChoke] = useState<number>(0.8);
+  const [removeShadows, setRemoveShadows] = useState<boolean>(true);
+  const [defringe, setDefringe] = useState<boolean>(true);
+  const [bgMode, setBgMode] = useState<'floodfill' | 'global'>('global');
   const [fixedCanvasSize, setFixedCanvasSize] = useState<boolean>(true); // 370x320
+
+  // Cached raw sliced stickers for instant re-processing when adjusting sliders
+  const [rawSlices, setRawSlices] = useState<StickerSlice[]>([]);
 
   // Main & Tab sticker selection (indexes in stickers array)
   const [mainStickerIndex, setMainStickerIndex] = useState<number>(0);
@@ -133,6 +138,7 @@ export const LineStickerStudio: React.FC = () => {
 
     const updatedGrid = [...gridImages, ...newGridImages];
     setGridImages(updatedGrid);
+    setRawSlices([]);
 
     // Auto-detect background color from the first image
     if (newGridImages.length > 0) {
@@ -151,36 +157,45 @@ export const LineStickerStudio: React.FC = () => {
 
     setIsProcessing(true);
     setProcessProgress(0);
-    setProcessStatusText('กำลังตัดรูปภาพ 2x2 ออกเป็นสติกเกอร์ย่อย...');
+    setProcessStatusText('กำลังเตรียมภาพสติกเกอร์...');
 
     try {
-      const allSlices: StickerSlice[] = [];
+      let currentSlices = rawSlices;
 
-      // Step 1: Slice all grid images
-      for (let g = 0; g < gridImages.length; g++) {
-        setProcessStatusText(`กำลังตัดภาพชุดที่ ${g + 1} / ${gridImages.length}...`);
-        const slices = await slice2x2Grid(gridImages[g].dataUrl, g);
-        allSlices.push(...slices);
+      // Step 1: Slice all grid images if not already sliced
+      if (currentSlices.length !== gridImages.length * 4) {
+        setProcessStatusText('กำลังตัดรูปภาพ 2x2 ออกเป็นสติกเกอร์ย่อย...');
+        const allSlices: StickerSlice[] = [];
+        for (let g = 0; g < gridImages.length; g++) {
+          setProcessStatusText(`กำลังตัดภาพชุดที่ ${g + 1} / ${gridImages.length}...`);
+          const slices = await slice2x2Grid(gridImages[g].dataUrl, g);
+          allSlices.push(...slices);
+        }
+        currentSlices = allSlices;
+        setRawSlices(allSlices);
       }
 
       // Step 2: Remove background and format each slice to LINE specs
       const options: RemoveBgOptions = {
         targetColor: { r: targetColor.r, g: targetColor.g, b: targetColor.b },
         tolerance,
-        feather,
+        hueTolerance: 25,
+        removeShadows,
+        choke,
+        defringe,
         mode: bgMode,
         margin: 10,
         fixedCanvasSize,
       };
 
       const processedSlices: StickerSlice[] = [];
-      const totalSlices = allSlices.length;
+      const totalSlices = currentSlices.length;
 
       for (let i = 0; i < totalSlices; i++) {
         setProcessProgress(Math.round(((i + 1) / totalSlices) * 100));
-        setProcessStatusText(`กำลังลบพื้นหลังสติกเกอร์ที่ ${i + 1} / ${totalSlices}...`);
+        setProcessStatusText(`กำลังไดคัท & ลบขอบสีสติกเกอร์ที่ ${i + 1} / ${totalSlices}...`);
 
-        const slice = allSlices[i];
+        const slice = currentSlices[i];
         const processedUrl = await processStickerImage(slice.dataUrl, options);
         processedSlices.push({
           ...slice,
@@ -191,7 +206,7 @@ export const LineStickerStudio: React.FC = () => {
       setStickers(processedSlices);
       setMainStickerIndex(0);
       setTabStickerIndex(0);
-      setProcessStatusText('ประมวลผลเสร็จสมบูรณ์!');
+      setProcessStatusText('ไดคัท & ลบขอบสีเสร็จสมบูรณ์ 100%!');
     } catch (err) {
       console.error('Processing error:', err);
       alert('เกิดข้อผิดพลาดในการประมวลผลภาพ กรุณาลองใหม่อีกครั้ง');
@@ -256,12 +271,15 @@ export const LineStickerStudio: React.FC = () => {
   // Remove a grid image
   const handleRemoveGridImage = (id: string) => {
     setGridImages((prev) => prev.filter((img) => img.id !== id));
+    setRawSlices([]);
+    setStickers([]);
   };
 
   // Clear all
   const handleClearAll = () => {
     if (confirm('คุณต้องการล้างข้อมูลภาพทั้งหมดใช่หรือไม่?')) {
       setGridImages([]);
+      setRawSlices([]);
       setStickers([]);
       setMainDataUrl('');
       setTabDataUrl('');
@@ -483,15 +501,24 @@ export const LineStickerStudio: React.FC = () => {
 
         {/* SECTION 2: BACKGROUND REMOVAL & CROPPING CONTROLS */}
         <section className="bg-white border border-[#e6e6e6] rounded-2xl p-5 shadow-xs space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-emerald-50 text-[#06C755]">
-              <Sliders className="w-4 h-4" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-emerald-50 text-[#06C755]">
+                <Sliders className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-[#000000]">
+                  2. ตั้งค่าการไดคัท & ลบขอบสีอัจฉริยะ (Smart Matte & Defringe)
+                </h3>
+                <p className="text-xs text-[#615d59]">
+                  ลบพื้นหลัง, ตัดเงาพื้นอัตโนมัติ, พร้อมลอกขอบสีชมพู/ม่วงและฟอกขอบขาวให้คมชัด
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-[#000000]">2. ตั้งค่าการลบพื้นหลัง (Background Removal)</h3>
-              <p className="text-xs text-[#615d59]">
-                เลือกลบสีพื้นหลังของรูป (เช่น สีชมพู Magenta ตามรูปตัวอย่าง) และปรับความเนียนของขอบ
-              </p>
+
+            <div className="flex items-center gap-1.5 self-start sm:self-auto px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-[#0075de] text-[11px] font-semibold">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>โหมดอัจฉริยะ: ตัดเงาพื้น + ลอกขอบม่วง</span>
             </div>
           </div>
 
@@ -499,7 +526,7 @@ export const LineStickerStudio: React.FC = () => {
             {/* Color Selection */}
             <div className="p-4 rounded-xl bg-[#faf9f8] border border-[#e6e6e6] space-y-3">
               <label className="block text-xs font-bold text-[#000000]">
-                สีพื้นหลังที่ต้องการลบ (Target Color)
+                สีพื้นหลังหลัก (Chroma Key Color)
               </label>
 
               <div className="flex items-center gap-3">
@@ -557,8 +584,27 @@ export const LineStickerStudio: React.FC = () => {
               </div>
             </div>
 
-            {/* Tolerance & Feathering Sliders */}
+            {/* Choke & Tolerance Sliders */}
             <div className="p-4 rounded-xl bg-[#faf9f8] border border-[#e6e6e6] space-y-3.5">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-[#000000]">ลอกขอบสีส่วนเกิน (Choke / Defringe)</span>
+                  <span className="font-mono text-[#0075de] font-bold">{choke.toFixed(1)}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="2.5"
+                  step="0.1"
+                  value={choke}
+                  onChange={(e) => setChoke(parseFloat(e.target.value))}
+                  className="w-full accent-[#0075de] cursor-pointer"
+                />
+                <p className="text-[10px] text-[#615d59]">
+                  หดขอบเข้ามาเพื่อตัดขอบม่วง/ขอบสีสะท้อนออกให้เกลี้ยง (แนะนำ: 0.8px)
+                </p>
+              </div>
+
               <div>
                 <div className="flex items-center justify-between text-xs mb-1">
                   <span className="font-bold text-[#000000]">ความคลาดเคลื่อนสี (Tolerance)</span>
@@ -567,77 +613,76 @@ export const LineStickerStudio: React.FC = () => {
                 <input
                   type="range"
                   min="5"
-                  max="70"
+                  max="50"
                   value={tolerance}
                   onChange={(e) => setTolerance(parseInt(e.target.value, 10))}
                   className="w-full accent-[#0075de] cursor-pointer"
                 />
                 <p className="text-[10px] text-[#615d59]">
-                  ค่าเริ่มต้น ~24% หากยังมีขอบสีติดอยู่ให้เลื่อนเพิ่มขึ้น
-                </p>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="font-bold text-[#000000]">ความเนียนขอบ (Feathering)</span>
-                  <span className="font-mono text-[#0075de] font-bold">{feather}px</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="6"
-                  value={feather}
-                  onChange={(e) => setFeather(parseInt(e.target.value, 10))}
-                  className="w-full accent-[#0075de] cursor-pointer"
-                />
-                <p className="text-[10px] text-[#615d59]">
-                  เกลี่ยขอบให้นุ่มเนียนเป็นธรรมชาติ ไม่เป็นรอยหยัก
+                  ค่าเริ่มต้น ~20% ปรับเพิ่มขึ้นหากพื้นหลังยังออกไม่หมด
                 </p>
               </div>
             </div>
 
-            {/* Removal Mode & Sizing Options */}
-            <div className="p-4 rounded-xl bg-[#faf9f8] border border-[#e6e6e6] space-y-3">
+            {/* Smart Removal Options & LINE Standard */}
+            <div className="p-4 rounded-xl bg-[#faf9f8] border border-[#e6e6e6] space-y-2.5">
               <label className="block text-xs font-bold text-[#000000]">
-                โหมดการตัดขอบ & มาตรฐาน LINE
+                ฟังก์ชันปรับแต่งอัจฉริยะ (Smart Enhancements)
               </label>
 
               <div className="space-y-2">
-                <label className="flex items-start gap-2 text-xs cursor-pointer">
+                <label className="flex items-center gap-2 text-xs cursor-pointer">
                   <input
-                    type="radio"
-                    name="bgMode"
-                    checked={bgMode === 'floodfill'}
-                    onChange={() => setBgMode('floodfill')}
-                    className="mt-0.5 accent-[#06C755]"
+                    type="checkbox"
+                    checked={removeShadows}
+                    onChange={(e) => setRemoveShadows(e.target.checked)}
+                    className="accent-[#06C755] rounded"
                   />
                   <div>
-                    <span className="font-semibold text-[#000000]">ลบจากขอบนอก (Flood-Fill)</span>
-                    <p className="text-[10px] text-[#615d59]">
-                      แนะนำ 👍 ป้องกันสีบนตัวการ์ตูนหรือข้อความไม่ให้ถูกลบไปด้วย
-                    </p>
+                    <span className="font-semibold text-[#000000]">ตัดเงาพื้นอัจฉริยะ (Remove Shadows)</span>
+                    <p className="text-[10px] text-[#615d59]">ลบแถบเงาเข้มที่พื้นใต้เท้าตัวการ์ตูน</p>
                   </div>
                 </label>
 
-                <label className="flex items-start gap-2 text-xs cursor-pointer">
+                <label className="flex items-center gap-2 text-xs cursor-pointer">
                   <input
-                    type="radio"
-                    name="bgMode"
-                    checked={bgMode === 'global'}
-                    onChange={() => setBgMode('global')}
-                    className="mt-0.5 accent-[#06C755]"
+                    type="checkbox"
+                    checked={defringe}
+                    onChange={(e) => setDefringe(e.target.checked)}
+                    className="accent-[#06C755] rounded"
                   />
                   <div>
-                    <span className="font-semibold text-[#000000]">ลบสีทั้งรูป (Global Key)</span>
-                    <p className="text-[10px] text-[#615d59]">
-                      ลบทุกพิกเซลที่สีตรงกัน ทั้งด้านนอกและซอกใน
-                    </p>
+                    <span className="font-semibold text-[#000000]">ฟอกขอบขาว & ล้างคราบสีตก (Defringe)</span>
+                    <p className="text-[10px] text-[#615d59]">ล้างคราบสีชมพู/ม่วงบนขอบขาวของตัวหนังสือ</p>
                   </div>
                 </label>
               </div>
 
-              <div className="pt-2 border-t border-[#e6e6e6]">
-                <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <div className="pt-2 border-t border-[#e6e6e6] space-y-1.5">
+                <div className="flex items-center gap-4 text-xs">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="bgMode"
+                      checked={bgMode === 'global'}
+                      onChange={() => setBgMode('global')}
+                      className="accent-[#06C755]"
+                    />
+                    <span className="text-[11px] font-medium text-[#000000]">ลบทุกจุดรวมรูตัวอักษร (แนะนำ)</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="bgMode"
+                      checked={bgMode === 'floodfill'}
+                      onChange={() => setBgMode('floodfill')}
+                      className="accent-[#06C755]"
+                    />
+                    <span className="text-[11px] font-medium text-[#000000]">ลบจากขอบนอก</span>
+                  </label>
+                </div>
+
+                <label className="flex items-center gap-2 text-xs cursor-pointer pt-1">
                   <input
                     type="checkbox"
                     checked={fixedCanvasSize}
@@ -645,7 +690,7 @@ export const LineStickerStudio: React.FC = () => {
                     className="accent-[#06C755] rounded"
                   />
                   <span className="text-[11px] text-[#31302e]">
-                    ล็อกขนาด Canvas สติกเกอร์ที่ <strong>370 x 320 px</strong> (แนะนำสำหรับ LINE)
+                    ล็อกขนาด Canvas สติกเกอร์ที่ <strong>370 x 320 px</strong>
                   </span>
                 </label>
               </div>
@@ -660,25 +705,29 @@ export const LineStickerStudio: React.FC = () => {
                 : `พร้อมตัดภาพ ${gridImages.length} รูป ออกเป็น ${gridImages.length * 4} สติกเกอร์`}
             </p>
 
-            <button
-              onClick={handleProcessAll}
-              disabled={isProcessing || gridImages.length === 0}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#0075de] hover:bg-[#005bab] disabled:opacity-40 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              {isProcessing ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>{processStatusText || 'กำลังประมวลผล...'} ({processProgress}%)</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>
-                    ตัดภาพ 2x2 & ลบพื้นหลังทันที ({gridImages.length * 4 || 0} รูป)
-                  </span>
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={handleProcessAll}
+                disabled={isProcessing || gridImages.length === 0}
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#0075de] hover:bg-[#005bab] disabled:opacity-40 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                {isProcessing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>{processStatusText || 'กำลังประมวลผล...'} ({processProgress}%)</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>
+                      {stickers.length > 0
+                        ? `ไดคัท & อัปเดตใหม่ทันที (${stickers.length} รูป)`
+                        : `ตัดภาพ 2x2 & ลบพื้นหลังทันที (${gridImages.length * 4 || 0} รูป)`}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Progress bar */}

@@ -13,11 +13,55 @@ export interface StickerSlice {
 export interface RemoveBgOptions {
   targetColor: { r: number; g: number; b: number };
   tolerance: number; // 0 - 100
-  feather: number; // 0 - 10px edge smoothing
+  hueTolerance?: number; // 0 - 60 degrees (default: 25)
+  removeShadows?: boolean; // Smart floor shadow removal (default: true)
+  choke?: number; // 0 - 3px mask choke/erosion to eliminate fringe (default: 0.8)
+  defringe?: boolean; // Color decontamination / spill suppression (default: true)
+  feather?: number; // 0 - 10px edge smoothing
   mode: 'floodfill' | 'global'; // floodfill: from outer edges inward, global: all matching pixels
   margin: number; // padding around sticker content, default 10px (LINE spec)
   fixedCanvasSize?: boolean; // if true, stickers are fixed 370x320 canvas
 }
+
+/**
+ * Converts RGB (0-255) to HSV [H (0-360), S (0-1), V (0-1)]
+ */
+export function rgbToHsv(r: number, g: number, b: number): [number, number, number] {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  const v = max;
+  const d = max - min;
+  const s = max === 0 ? 0 : d / max;
+
+  if (max !== min) {
+    switch (max) {
+      case r:
+        h = (g - b) / d + (g < b ? 6 : 0);
+        break;
+      case g:
+        h = (b - r) / d + 2;
+        break;
+      case b:
+        h = (r - g) / d + 4;
+        break;
+    }
+    h /= 6;
+  }
+  return [h * 360, s, v];
+}
+
+/**
+ * Calculates cyclical distance between two hue angles (0 to 180 degrees)
+ */
+export function hueDistance(h1: number, h2: number): number {
+  const diff = Math.abs(h1 - h2) % 360;
+  return diff > 180 ? 360 - diff : diff;
+}
+
 
 /**
  * Loads an image from a File or Data URL into an HTMLImageElement
@@ -164,9 +208,12 @@ function colorDistance(
 
 /**
  * Removes background from an image slice and fits it into LINE sticker specs:
- * 1. Color keying / Flood-fill background removal with anti-aliasing.
- * 2. Tight bounding-box content trimming.
- * 3. Rescaling to fit max 370x320 with 10px margin, centered on transparent canvas.
+ * 1. Smart Hue-Chroma Keying & Flood-fill / Global removal.
+ * 2. Intelligent Floor Shadow Removal (matching hue with high saturation).
+ * 3. Alpha Matte Choke/Erosion (cleans 0.5 - 2px transition fringe).
+ * 4. Universal Spill Suppression / Defringe (neutralizes color halos on white outlines and character edges).
+ * 5. Tight bounding-box content trimming.
+ * 6. Rescaling to fit max 370x320 with 10px margin, centered on transparent canvas.
  */
 export async function processStickerImage(
   dataUrl: string,
@@ -187,14 +234,51 @@ export async function processStickerImage(
   const imgData = ctx.getImageData(0, 0, w, h);
   const pixels = imgData.data;
 
-  const { targetColor, tolerance, feather, mode } = options;
-  // Map tolerance (0-100) to perceptual distance threshold (0-250)
-  const maxThreshold = (tolerance / 100) * 255;
-  const featherRange = Math.max(1, feather * 10);
+  const {
+    targetColor,
+    tolerance = 20,
+    hueTolerance = 25,
+    removeShadows = true,
+    choke = 0.8,
+    defringe = true,
+    mode = 'global',
+  } = options;
 
-  if (mode === 'floodfill') {
-    // Flood-fill BFS starting from all 4 borders
-    const isBg = new Uint8Array(w * h);
+  const [tH] = rgbToHsv(targetColor.r, targetColor.g, targetColor.b);
+  const maxRgbDist = (tolerance / 100) * 180;
+
+  const isColorBackground = (r: number, g: number, b: number): boolean => {
+    // 1. Direct RGB closeness
+    const dR = r - targetColor.r;
+    const dG = g - targetColor.g;
+    const dB = b - targetColor.b;
+    const dist = Math.sqrt(dR * dR + dG * dG + dB * dB);
+    if (dist <= maxRgbDist) return true;
+
+    // 2. Smart Hue-Chroma Keying (removes floor shadows, lighting gradients of same hue)
+    if (removeShadows) {
+      const [h, s, v] = rgbToHsv(r, g, b);
+      const dH = hueDistance(h, tH);
+      // Floor shadows & backdrop gradients share the same hue, with high saturation (s >= 0.52) and mid-to-bright value (v >= 0.42)
+      if (dH <= hueTolerance && s >= 0.52 && v >= 0.42) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  const isBg = new Uint8Array(w * h);
+
+  if (mode === 'global') {
+    for (let i = 0; i < w * h; i++) {
+      const pIdx = i * 4;
+      if (isColorBackground(pixels[pIdx], pixels[pIdx + 1], pixels[pIdx + 2])) {
+        isBg[i] = 1;
+      }
+    }
+  } else {
+    // Flood-fill BFS starting from 4 borders
     const queue = new Int32Array(w * h);
     let queueStart = 0;
     let queueEnd = 0;
@@ -203,21 +287,13 @@ export async function processStickerImage(
       const idx = y * w + x;
       if (isBg[idx]) return;
       const pIdx = idx * 4;
-      const d = colorDistance(
-        pixels[pIdx],
-        pixels[pIdx + 1],
-        pixels[pIdx + 2],
-        targetColor.r,
-        targetColor.g,
-        targetColor.b
-      );
-      if (d <= maxThreshold + featherRange) {
+      if (isColorBackground(pixels[pIdx], pixels[pIdx + 1], pixels[pIdx + 2])) {
         isBg[idx] = 1;
         queue[queueEnd++] = (y << 16) | x;
       }
     };
 
-    // Seed outer borders
+    // Seed 4 borders
     for (let x = 0; x < w; x++) {
       pushQueue(x, 0);
       pushQueue(x, h - 1);
@@ -227,7 +303,7 @@ export async function processStickerImage(
       pushQueue(w - 1, y);
     }
 
-    // BFS expansion
+    // BFS
     while (queueStart < queueEnd) {
       const val = queue[queueStart++];
       const cx = val & 0xffff;
@@ -247,15 +323,7 @@ export async function processStickerImage(
           const nIdx = ny * w + nx;
           if (!isBg[nIdx]) {
             const pIdx = nIdx * 4;
-            const d = colorDistance(
-              pixels[pIdx],
-              pixels[pIdx + 1],
-              pixels[pIdx + 2],
-              targetColor.r,
-              targetColor.g,
-              targetColor.b
-            );
-            if (d <= maxThreshold + featherRange) {
+            if (isColorBackground(pixels[pIdx], pixels[pIdx + 1], pixels[pIdx + 2])) {
               isBg[nIdx] = 1;
               queue[queueEnd++] = (ny << 16) | nx;
             }
@@ -263,46 +331,108 @@ export async function processStickerImage(
         }
       }
     }
+  }
 
-    // Apply alpha transparency based on isBg and feathering
-    for (let i = 0; i < w * h; i++) {
-      if (isBg[i]) {
-        const pIdx = i * 4;
-        const d = colorDistance(
-          pixels[pIdx],
-          pixels[pIdx + 1],
-          pixels[pIdx + 2],
-          targetColor.r,
-          targetColor.g,
-          targetColor.b
-        );
-        if (d <= maxThreshold) {
-          pixels[pIdx + 3] = 0; // Completely transparent
+  // Alpha mask
+  const alphaMask = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    alphaMask[i] = isBg[i] ? 0 : 255;
+  }
+
+  // Choke / Erode alpha mask (eliminates dirty edge pixels)
+  let erodedMask = alphaMask;
+  if (choke > 0) {
+    erodedMask = new Float32Array(w * h);
+    const radius = Math.ceil(choke);
+    const chokeFactor = choke;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        if (alphaMask[idx] === 0) {
+          erodedMask[idx] = 0;
+          continue;
+        }
+
+        let minDist = 999;
+        for (let dy = -radius; dy <= radius; dy++) {
+          const ny = y + dy;
+          if (ny < 0 || ny >= h) continue;
+          for (let dx = -radius; dx <= radius; dx++) {
+            const nx = x + dx;
+            if (nx < 0 || nx >= w) continue;
+            if (alphaMask[ny * w + nx] === 0) {
+              const d = Math.sqrt(dx * dx + dy * dy);
+              if (d < minDist) minDist = d;
+            }
+          }
+        }
+
+        if (minDist <= chokeFactor) {
+          const ratio = minDist / chokeFactor;
+          erodedMask[idx] = Math.max(0, Math.min(255, ratio * 255));
         } else {
-          // Smooth feather edge
-          const alphaRatio = (d - maxThreshold) / featherRange;
-          pixels[pIdx + 3] = Math.round(pixels[pIdx + 3] * Math.min(1, Math.max(0, alphaRatio)));
+          erodedMask[idx] = 255;
         }
       }
     }
-  } else {
-    // Global color keying (removes all matching pixels everywhere)
-    for (let i = 0; i < pixels.length; i += 4) {
-      const d = colorDistance(
-        pixels[i],
-        pixels[i + 1],
-        pixels[i + 2],
-        targetColor.r,
-        targetColor.g,
-        targetColor.b
-      );
-      if (d <= maxThreshold) {
-        pixels[i + 3] = 0;
-      } else if (d < maxThreshold + featherRange) {
-        const alphaRatio = (d - maxThreshold) / featherRange;
-        pixels[i + 3] = Math.round(pixels[i + 3] * alphaRatio);
+  }
+
+  // Universal Spill Suppression / Defringing
+  const isTargetMagenta =
+    targetColor.r > 120 && targetColor.b > 120 && targetColor.g < Math.min(targetColor.r, targetColor.b);
+  const isTargetGreen = targetColor.g > Math.max(targetColor.r, targetColor.b) + 30;
+  const isTargetBlue = targetColor.b > Math.max(targetColor.r, targetColor.g) + 30;
+
+  for (let i = 0; i < w * h; i++) {
+    const pIdx = i * 4;
+    let r = pixels[pIdx];
+    let g = pixels[pIdx + 1];
+    let b = pixels[pIdx + 2];
+    const a = Math.round(erodedMask[i]);
+
+    if (a > 0 && defringe) {
+      if (isTargetMagenta) {
+        const spill = Math.max(0, Math.min(r, b) - g);
+        if (spill > 5) {
+          const brightness = (r + g + b) / 3;
+          if (brightness > 180) {
+            // White border: neutralize pink haze to pure white
+            g = Math.min(255, Math.round(g + spill * 0.95));
+          } else {
+            // Dark/midtones: neutralize purple fringe to deep natural tone
+            r = Math.max(0, r - Math.round(spill * 0.85));
+            b = Math.max(0, b - Math.round(spill * 0.85));
+          }
+        }
+      } else if (isTargetGreen) {
+        const spill = Math.max(0, g - Math.max(r, b));
+        if (spill > 5) {
+          const brightness = (r + g + b) / 3;
+          if (brightness > 180) {
+            r = Math.min(255, Math.round(r + spill * 0.95));
+            b = Math.min(255, Math.round(b + spill * 0.95));
+          } else {
+            g = Math.max(0, g - Math.round(spill * 0.85));
+          }
+        }
+      } else if (isTargetBlue) {
+        const spill = Math.max(0, b - Math.max(r, g));
+        if (spill > 5) {
+          const brightness = (r + g + b) / 3;
+          if (brightness > 180) {
+            r = Math.min(255, Math.round(r + spill * 0.95));
+            g = Math.min(255, Math.round(g + spill * 0.95));
+          } else {
+            b = Math.max(0, b - Math.round(spill * 0.85));
+          }
+        }
       }
     }
+
+    pixels[pIdx] = r;
+    pixels[pIdx + 1] = g;
+    pixels[pIdx + 2] = b;
+    pixels[pIdx + 3] = a;
   }
 
   ctx.putImageData(imgData, 0, 0);
