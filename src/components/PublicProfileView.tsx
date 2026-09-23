@@ -244,9 +244,9 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
   const banner = profile.bannerUrl || defaultBanner;
 
   return (
-    <div className="min-h-screen bg-[#fcfbf9] flex flex-col text-[#31302e]">
+    <div className="fixed inset-0 overflow-y-auto overflow-x-hidden bg-[#fcfbf9] flex flex-col text-[#31302e]">
       {/* Top Navbar */}
-      <header className="h-16 border-b border-[#e6e6e6] bg-white sticky top-0 z-40 px-4 sm:px-8 flex items-center justify-between shadow-xs">
+      <header className="h-16 border-b border-[#e6e6e6] bg-white sticky top-0 z-40 px-4 sm:px-8 flex items-center justify-between shadow-xs shrink-0">
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={onNavigateHome}

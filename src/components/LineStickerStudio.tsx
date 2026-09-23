@@ -268,10 +268,17 @@ export const LineStickerStudio: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    document.body.style.overflow = 'auto';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[#fbfbfa] text-[#31302e] font-sans flex flex-col selection:bg-[#0075de]/20">
+    <div className="fixed inset-0 overflow-y-auto overflow-x-hidden bg-[#fbfbfa] text-[#31302e] font-sans flex flex-col selection:bg-[#0075de]/20">
       {/* Top Header Bar */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-[#e6e6e6] px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-2xs">
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-[#e6e6e6] px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-2xs shrink-0">
         <div className="flex items-center gap-3">
           <a
             href="/"
