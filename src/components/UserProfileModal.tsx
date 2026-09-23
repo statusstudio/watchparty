@@ -333,6 +333,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       Facebook
                     </span>
                   )}
+                  {displayUser.provider === 'email' && (
+                    <span className="px-2 py-0.2 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-semibold">
+                      Email
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs sm:text-sm text-[#0075de] font-mono">
                   @{displayUser.username || `user_${displayUser.id.slice(0, 6)}`}
@@ -357,7 +362,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     <span>{activeTab === 'edit' ? 'ดูโปรไฟล์' : 'แก้ไขโปรไฟล์'}</span>
                   </button>
 
-                  {onLogout && (currentUser.provider === 'google' || currentUser.provider === 'facebook') && (
+                  {onLogout && (currentUser.provider !== 'guest') && (
                     <button
                       type="button"
                       onClick={() => {

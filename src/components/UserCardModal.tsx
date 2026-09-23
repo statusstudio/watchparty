@@ -204,6 +204,11 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
                   Facebook
                 </span>
               )}
+              {displayUser.provider === 'email' && (
+                <span className="px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-semibold">
+                  Email
+                </span>
+              )}
             </div>
 
             {/* Handle & Copy button */}

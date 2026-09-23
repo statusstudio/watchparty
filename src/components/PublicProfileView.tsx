@@ -393,6 +393,11 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                     Facebook
                   </span>
                 )}
+                {profile.provider === 'email' && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-semibold">
+                    Email
+                  </span>
+                )}
               </div>
 
               <p className="text-xs font-medium text-[#615d59] flex items-center gap-2">

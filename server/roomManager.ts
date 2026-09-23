@@ -134,24 +134,32 @@ export class RoomManager {
             },
           ];
 
-      const roomData: InternalRoomData = {
-        metadata: r.metadata,
-        seats: this.createDefaultSeats(),
-        video: restoredVideo,
-        playlist: r.playlist || [],
-        loopMode: r.loopMode || 'all',
-        isShuffle: r.isShuffle || false,
-        lastVideoEndedTime: 0,
-        stageAccessMode: r.stageAccessMode || 'everyone',
-        approvedSpeakerIds: new Set<string>([r.metadata?.ownerId].filter(Boolean)),
-        pendingStageRequests: new Map<string, StageRequest>(),
-        chat: restoredChat,
-        adminIds: new Set<string>(),
-        bannedUsers: new Map<string, BannedUser>(),
-        isMemberRoom: !!r.isMemberRoom,
-        lastActiveTime: r.lastActiveTime || Date.now(),
-        emptySince: null,
-      };
+        let isMember = !!r.isMemberRoom;
+        if (!isMember && r.metadata?.ownerId) {
+          const owner = platformManager.getUserByHandle(r.metadata.ownerId);
+          if (owner && (owner.provider === 'google' || owner.provider === 'facebook' || owner.provider === 'email' || Boolean(owner.email && owner.provider !== 'guest'))) {
+            isMember = true;
+          }
+        }
+
+        const roomData: InternalRoomData = {
+          metadata: r.metadata,
+          seats: this.createDefaultSeats(),
+          video: restoredVideo,
+          playlist: r.playlist || [],
+          loopMode: r.loopMode || 'all',
+          isShuffle: r.isShuffle || false,
+          lastVideoEndedTime: 0,
+          stageAccessMode: r.stageAccessMode || 'everyone',
+          approvedSpeakerIds: new Set<string>([r.metadata?.ownerId].filter(Boolean)),
+          pendingStageRequests: new Map<string, StageRequest>(),
+          chat: restoredChat,
+          adminIds: new Set<string>(),
+          bannedUsers: new Map<string, BannedUser>(),
+          isMemberRoom: isMember,
+          lastActiveTime: r.lastActiveTime || Date.now(),
+          emptySince: null,
+        };
       this.rooms.set(r.metadata.id, roomData);
     }
   }
@@ -322,7 +330,12 @@ export class RoomManager {
     const rawVideoId = settings.initialVideoId?.trim();
     const hasInitialVideo = !!rawVideoId;
     const stageAccessMode = settings.stageAccessMode || 'everyone';
-    const isMember = creator.provider === 'google' || creator.provider === 'facebook';
+    const isMember =
+      creator.provider === 'google' ||
+      creator.provider === 'facebook' ||
+      creator.provider === 'email' ||
+      Boolean(creator.email && creator.provider !== 'guest') ||
+      (Boolean(creator.id) && !creator.id.startsWith('usr-guest') && creator.provider !== 'guest');
 
     const newRoom: InternalRoomData = {
       metadata: {
@@ -742,6 +755,20 @@ export class RoomManager {
 
     // Register client
     this.clients.set(ws, { ws, user, roomId, isStealth });
+
+    // Ensure room is recognized as a member room if the owner is a registered member
+    const isUserMember =
+      user.provider === 'google' ||
+      user.provider === 'facebook' ||
+      user.provider === 'email' ||
+      Boolean(user.email && user.provider !== 'guest') ||
+      (Boolean(user.id) && !user.id.startsWith('usr-guest') && user.provider !== 'guest');
+
+    if (isUserMember && room.metadata.ownerId === user.id && !room.isMemberRoom) {
+      room.isMemberRoom = true;
+      this.scheduleSave();
+    }
+
     const roomState = this.getRoomState(roomId, user.id, isStealth);
 
     // Send initial room state
