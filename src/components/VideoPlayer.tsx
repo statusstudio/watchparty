@@ -188,6 +188,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       return;
     }
 
+    // Always reset hasEndedRef whenever player is actively PLAYING (1)
+    if (state === 1) {
+      const currentTime = playerRef.current?.getCurrentTime ? playerRef.current.getCurrentTime() : 0;
+      const duration = playerRef.current?.getDuration ? playerRef.current.getDuration() : 0;
+      if (duration === 0 || currentTime < duration - 1.5) {
+        hasEndedRef.current = false;
+      }
+    }
+
     if (!playerRef.current || isApplyingRemoteRef.current) {
       return;
     }
@@ -197,9 +206,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     // 1: PLAYING
     if (state === 1) {
-      if (duration > 0 && currentTime < duration - 2) {
-        hasEndedRef.current = false;
-      }
       // ONLY trigger onPlay if room is NOT currently playing
       // (prevents players loading a new song from echoing back a false play command)
       if (!videoRef.current.isPlaying) {
@@ -258,8 +264,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           const localTime = player.getCurrentTime ? player.getCurrentTime() : 0;
           const drift = Math.abs(localTime - targetTime);
 
-          // Only seek if difference is noticeable (> 2.0s) or forced
-          if (forceSeek || drift > 2.0) {
+          // If rewinding to start (e.g. repeat single or loop all with 1 track), ensure ended guard is reset
+          if (targetTime < 2 || targetVideo.currentTime === 0) {
+            hasEndedRef.current = false;
+          }
+
+          // Only seek if difference is noticeable (> 2.0s) or forced or rewinding to start
+          if (forceSeek || drift > 2.0 || targetTime === 0) {
             player.seekTo(targetTime, true);
           }
 
@@ -335,6 +346,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
 
       const localTime = player.getCurrentTime();
+      if (duration > 5 && localTime < duration - 2.5) {
+        hasEndedRef.current = false;
+      }
 
       // Fallback watchdog: if video is within 0.8s of the end or past duration
       if (duration > 5 && localTime >= duration - 0.8) {
