@@ -10,9 +10,84 @@ export interface StickerSlice {
   height: number;
 }
 
+export type LinePackageType = 'standard' | 'big' | 'emoji';
+
+export interface LinePackageSpec {
+  id: LinePackageType;
+  name: string;
+  shortName: string;
+  stickerWidth: number;
+  stickerHeight: number;
+  defaultMargin: number;
+  hasMain: boolean;
+  mainWidth: number;
+  mainHeight: number;
+  hasTab: boolean;
+  tabWidth: number;
+  tabHeight: number;
+  filenamePad: number; // 2 for '01.png', 3 for '001.png'
+  description: string;
+  badge: string;
+}
+
+export const LINE_PACKAGE_SPECS: Record<LinePackageType, LinePackageSpec> = {
+  standard: {
+    id: 'standard',
+    name: 'สติกเกอร์มาตรฐาน (Standard)',
+    shortName: 'Standard',
+    stickerWidth: 370,
+    stickerHeight: 320,
+    defaultMargin: 10,
+    hasMain: true,
+    mainWidth: 240,
+    mainHeight: 240,
+    hasTab: true,
+    tabWidth: 96,
+    tabHeight: 74,
+    filenamePad: 2,
+    description: 'ขนาดสูงสุด 370 x 320 px (ขอบ 10px) พร้อม main.png และ tab.png',
+    badge: '370 x 320 px',
+  },
+  big: {
+    id: 'big',
+    name: 'บิ๊กสติกเกอร์ (Big Sticker)',
+    shortName: 'Big Sticker',
+    stickerWidth: 396,
+    stickerHeight: 660,
+    defaultMargin: 10,
+    hasMain: true,
+    mainWidth: 240,
+    mainHeight: 240,
+    hasTab: true,
+    tabWidth: 96,
+    tabHeight: 74,
+    filenamePad: 2,
+    description: 'ขนาดใหญ่พิเศษสูงสุด 396 x 660 px (แนวตั้ง ขอบ 10px) พร้อม main.png และ tab.png',
+    badge: '396 x 660 px',
+  },
+  emoji: {
+    id: 'emoji',
+    name: 'LINE อิโมจิ (Emoji)',
+    shortName: 'Emoji',
+    stickerWidth: 180,
+    stickerHeight: 180,
+    defaultMargin: 2,
+    hasMain: false,
+    mainWidth: 240,
+    mainHeight: 240,
+    hasTab: true,
+    tabWidth: 96,
+    tabHeight: 74,
+    filenamePad: 3,
+    description: 'ขนาดพอดี 180 x 180 px (ไร้ขอบ เพื่อความชัดในแชท) พร้อม tab.png และชื่อไฟล์ 001.png-040.png',
+    badge: '180 x 180 px',
+  },
+};
+
 export interface RemoveBgOptions {
   targetColor?: { r: number; g: number; b: number };
   autoSampleCorners?: boolean; // automatically sample slice corners for 100% accurate background color
+  packageType?: LinePackageType; // 'standard' (370x320), 'big' (396x660), or 'emoji' (180x180)
   tolerance: number; // 0 - 100
   hueTolerance?: number; // 0 - 60 degrees (default: 28)
   removeShadows?: boolean; // Smart floor shadow removal (default: true)
@@ -23,7 +98,7 @@ export interface RemoveBgOptions {
   feather?: number; // 0 - 10px edge smoothing
   mode: 'floodfill' | 'global'; // default 'global'
   margin: number; // padding around sticker content, default 10px (LINE spec)
-  fixedCanvasSize?: boolean; // if true, stickers are fixed 370x320 canvas
+  fixedCanvasSize?: boolean; // if true, stickers are fixed canvas per package spec
 }
 
 /**
@@ -539,9 +614,10 @@ export async function processStickerImage(
   // 2. Find bounding box of remaining content (Auto-trim)
   const trimmedCanvas = getTrimmedCanvas(canvas);
 
-  // 3. Format into LINE Sticker specification
-  // Max size: 370 x 320 with margin 10px (Content max: 350 x 300)
-  return formatToLineSticker(trimmedCanvas, options.margin || 10, options.fixedCanvasSize ?? true);
+  // 3. Format into LINE Sticker specification per package type
+  const pkgType = options.packageType || 'standard';
+  const defaultMarg = options.margin !== undefined ? options.margin : (pkgType === 'emoji' ? 2 : 10);
+  return formatToLineSticker(trimmedCanvas, defaultMarg, options.fixedCanvasSize ?? true, pkgType);
 }
 
 /**
@@ -596,20 +672,23 @@ function getTrimmedCanvas(sourceCanvas: HTMLCanvasElement): HTMLCanvasElement {
 }
 
 /**
- * Resizes and centers content onto LINE Sticker canvas:
- * - Content fits within 350x300 (preserving aspect ratio)
- * - Canvas size is 370x320 (or scaled even size with 10px margin)
+ * Resizes and centers content onto LINE Sticker canvas according to LINE specifications:
+ * - Standard: 370 x 320 px (Margin 10px)
+ * - Big Sticker: 396 x 660 px (Margin 10px)
+ * - Emoji: 180 x 180 px (Margin 0-2px)
  * - Canvas dimensions are guaranteed to be even numbers
  */
 function formatToLineSticker(
   contentCanvas: HTMLCanvasElement,
   margin: number,
-  fixedCanvasSize = true
+  fixedCanvasSize = true,
+  packageType: LinePackageType = 'standard'
 ): string {
-  const LINE_MAX_W = 370;
-  const LINE_MAX_H = 320;
-  const maxContentW = LINE_MAX_W - margin * 2; // 350
-  const maxContentH = LINE_MAX_H - margin * 2; // 300
+  const spec = LINE_PACKAGE_SPECS[packageType] || LINE_PACKAGE_SPECS.standard;
+  const targetW = spec.stickerWidth;
+  const targetH = spec.stickerHeight;
+  const maxContentW = Math.max(10, targetW - margin * 2);
+  const maxContentH = Math.max(10, targetH - margin * 2);
 
   const contentW = contentCanvas.width;
   const contentH = contentCanvas.height;
@@ -623,16 +702,16 @@ function formatToLineSticker(
   let canvasH: number;
 
   if (fixedCanvasSize) {
-    canvasW = LINE_MAX_W;
-    canvasH = LINE_MAX_H;
+    canvasW = targetW;
+    canvasH = targetH;
   } else {
     // Dynamic bounding size with margin, ensuring even numbers
     canvasW = drawW + margin * 2;
     canvasH = drawH + margin * 2;
     if (canvasW % 2 !== 0) canvasW += 1;
     if (canvasH % 2 !== 0) canvasH += 1;
-    if (canvasW > LINE_MAX_W) canvasW = LINE_MAX_W;
-    if (canvasH > LINE_MAX_H) canvasH = LINE_MAX_H;
+    if (canvasW > targetW) canvasW = targetW;
+    if (canvasH > targetH) canvasH = targetH;
   }
 
   const finalCanvas = document.createElement('canvas');
@@ -729,17 +808,18 @@ function imageToCanvas(img: HTMLImageElement): HTMLCanvasElement {
 
 /**
  * Generates full LINE Creators Market ZIP package containing:
- * - 01.png, 02.png, ..., 40.png
- * - main.png (240x240)
- * - tab.png (96x74)
+ * - Standard / Big Sticker: 01.png-40.png, main.png (240x240), tab.png (96x74)
+ * - Emoji: 001.png-040.png (3 digits), tab.png (96x74) (no main.png required)
  */
 export async function createLineStickerZip(
   stickers: string[], // Array of processed sticker data URLs (e.g. 40 items)
   mainDataUrl: string,
   tabDataUrl: string,
-  zipFilename = 'line_stickers_package.zip'
+  zipFilename = 'line_stickers_package.zip',
+  packageType: LinePackageType = 'standard'
 ): Promise<Blob> {
   const zip = new JSZip();
+  const spec = LINE_PACKAGE_SPECS[packageType] || LINE_PACKAGE_SPECS.standard;
 
   // Helper to convert dataUrl to Uint8Array for JSZip
   const addDataUrlToZip = (filename: string, dataUrl: string) => {
@@ -747,17 +827,21 @@ export async function createLineStickerZip(
     zip.file(filename, base64, { base64: true });
   };
 
-  // 1. Add all stickers (01.png to XX.png)
+  // 1. Add all stickers (01.png or 001.png for emoji)
   for (let i = 0; i < stickers.length; i++) {
-    const num = (i + 1).toString().padStart(2, '0');
+    const num = (i + 1).toString().padStart(spec.filenamePad, '0');
     addDataUrlToZip(`${num}.png`, stickers[i]);
   }
 
-  // 2. Add main.png
-  addDataUrlToZip('main.png', mainDataUrl);
+  // 2. Add main.png (only for standard and big stickers, not emoji)
+  if (spec.hasMain && mainDataUrl) {
+    addDataUrlToZip('main.png', mainDataUrl);
+  }
 
   // 3. Add tab.png
-  addDataUrlToZip('tab.png', tabDataUrl);
+  if (tabDataUrl) {
+    addDataUrlToZip('tab.png', tabDataUrl);
+  }
 
   // Generate ZIP blob
   const zipBlob = await zip.generateAsync({
@@ -785,11 +869,12 @@ export function downloadBlob(blob: Blob, filename: string) {
 
 export interface CompositeSheetOptions {
   columns?: number; // default 4
+  packageType?: LinePackageType; // 'standard', 'big', or 'emoji'
   backgroundColor?: string; // 'transparent', '#ffffff', '#000000', etc.
   padding?: number; // outer padding around whole sheet
   gapX?: number; // gap between columns
   gapY?: number; // gap between rows
-  scale?: number; // resolution scale, default 1.0 (crisp 370x320 per cell)
+  scale?: number; // resolution scale, default 1.0
 }
 
 /**
@@ -804,9 +889,11 @@ export async function createCompositeSheet(
   const rows = Math.ceil(count / columns) || 10;
   const bgColor = options?.backgroundColor ?? 'transparent';
   const scale = options?.scale ?? 1.0;
+  const pkgType = options?.packageType || 'standard';
+  const spec = LINE_PACKAGE_SPECS[pkgType] || LINE_PACKAGE_SPECS.standard;
 
-  const baseCellW = 370;
-  const baseCellH = 320;
+  const baseCellW = spec.stickerWidth;
+  const baseCellH = spec.stickerHeight;
   const cellW = Math.round(baseCellW * scale);
   const cellH = Math.round(baseCellH * scale);
   const pad = Math.round((options?.padding ?? 40) * scale);

@@ -36,6 +36,8 @@ import {
   createLineStickerZip,
   downloadBlob,
   createCompositeSheet,
+  LinePackageType,
+  LINE_PACKAGE_SPECS,
 } from '../services/stickerProcessor.js';
 
 interface UploadedGridImage {
@@ -71,7 +73,8 @@ export const LineStickerStudio: React.FC = () => {
   const [addWhiteStroke, setAddWhiteStroke] = useState<boolean>(false);
   const [strokeWidth, setStrokeWidth] = useState<number>(3);
   const [bgMode, setBgMode] = useState<'floodfill' | 'global'>('global');
-  const [fixedCanvasSize, setFixedCanvasSize] = useState<boolean>(true); // 370x320
+  const [fixedCanvasSize, setFixedCanvasSize] = useState<boolean>(true);
+  const [packageType, setPackageType] = useState<LinePackageType>('standard');
 
   // Cached raw sliced stickers for instant re-processing when adjusting sliders
   const [rawSlices, setRawSlices] = useState<StickerSlice[]>([]);
@@ -136,6 +139,7 @@ export const LineStickerStudio: React.FC = () => {
 
       const sheetUrl = await createCompositeSheet(stickerUrls, {
         columns: 4,
+        packageType,
         backgroundColor: exportBg,
         padding: 30,
         gapX: 20,
@@ -147,6 +151,47 @@ export const LineStickerStudio: React.FC = () => {
       console.error('Failed to export composite sheet', err);
     } finally {
       setIsGeneratingSheet(false);
+    }
+  };
+
+  const handlePackageTypeChange = async (newType: LinePackageType) => {
+    setPackageType(newType);
+    if (rawSlices.length > 0) {
+      setIsProcessing(true);
+      setProcessProgress(0);
+      setProcessStatusText(`กำลังปรับรูปแบบสติกเกอร์เป็น ${LINE_PACKAGE_SPECS[newType].name}...`);
+      try {
+        const options: RemoveBgOptions = {
+          targetColor: { r: targetColor.r, g: targetColor.g, b: targetColor.b },
+          autoSampleCorners: true,
+          packageType: newType,
+          tolerance,
+          hueTolerance: 28,
+          removeShadows,
+          choke,
+          defringe,
+          addWhiteStroke,
+          strokeWidth,
+          mode: bgMode,
+          margin: newType === 'emoji' ? 2 : 10,
+          fixedCanvasSize,
+        };
+        const processedSlices: StickerSlice[] = [];
+        for (let i = 0; i < rawSlices.length; i++) {
+          const s = rawSlices[i];
+          const processedUrl = await processStickerImage(s.dataUrl, options);
+          processedSlices.push({
+            ...s,
+            processedDataUrl: processedUrl,
+          });
+          setProcessProgress(Math.round(((i + 1) / rawSlices.length) * 100));
+        }
+        setStickers(processedSlices);
+      } catch (err) {
+        console.error('Error switching package type:', err);
+      } finally {
+        setIsProcessing(false);
+      }
     }
   };
 
@@ -303,6 +348,7 @@ export const LineStickerStudio: React.FC = () => {
       const options: RemoveBgOptions = {
         targetColor: { r: targetColor.r, g: targetColor.g, b: targetColor.b },
         autoSampleCorners: true,
+        packageType,
         tolerance,
         hueTolerance: 28,
         removeShadows,
@@ -311,7 +357,7 @@ export const LineStickerStudio: React.FC = () => {
         addWhiteStroke,
         strokeWidth,
         mode: bgMode,
-        margin: 10,
+        margin: packageType === 'emoji' ? 2 : 10,
         fixedCanvasSize,
       };
 
@@ -365,7 +411,8 @@ export const LineStickerStudio: React.FC = () => {
 
   // Download entire ZIP package
   const handleDownloadZip = async () => {
-    if (stickers.length === 0 || !mainDataUrl || !tabDataUrl) {
+    const spec = LINE_PACKAGE_SPECS[packageType];
+    if (stickers.length === 0 || (spec.hasMain && !mainDataUrl) || !tabDataUrl) {
       alert('กรุณาประมวลผลสติกเกอร์ก่อนดาวน์โหลด');
       return;
     }
@@ -376,9 +423,10 @@ export const LineStickerStudio: React.FC = () => {
         stickerUrls,
         mainDataUrl,
         tabDataUrl,
-        `line_stickers_${stickers.length}pcs.zip`
+        `line_${packageType}_${stickers.length}pcs.zip`,
+        packageType
       );
-      downloadBlob(zipBlob, `line_stickers_${stickers.length}pcs.zip`);
+      downloadBlob(zipBlob, `line_${packageType}_${stickers.length}pcs.zip`);
     } catch (e) {
       console.error('Zip generation error:', e);
       alert('เกิดข้อผิดพลาดในการสร้างไฟล์ ZIP');
@@ -652,6 +700,63 @@ export const LineStickerStudio: React.FC = () => {
             </div>
           </div>
 
+          {/* Package Type Selector (Standard, Big Sticker, Emoji) */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50/70 via-blue-50/50 to-purple-50/60 border border-emerald-200/80 space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+              <div>
+                <label className="text-xs font-bold text-[#000000] flex items-center gap-1.5">
+                  <span>เลือกประเภทสติกเกอร์ LINE ที่ต้องการสร้าง</span>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold">
+                    LINE Creators Market Specs
+                  </span>
+                </label>
+                <p className="text-[11px] text-[#615d59]">
+                  กำหนดขนาดภาพ, สัดส่วน, รูป Main/Tab และชื่อไฟล์อัตโนมัติตามมาตรฐานทางการของ LINE
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+              {(Object.keys(LINE_PACKAGE_SPECS) as LinePackageType[]).map((typeKey) => {
+                const spec = LINE_PACKAGE_SPECS[typeKey];
+                const isSelected = packageType === typeKey;
+                return (
+                  <button
+                    key={typeKey}
+                    type="button"
+                    onClick={() => handlePackageTypeChange(typeKey)}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between ${
+                      isSelected
+                        ? 'bg-white border-[#06C755] ring-2 ring-[#06C755]/25 shadow-xs'
+                        : 'bg-white/80 hover:bg-white border-[#e6e6e6] hover:border-[#cccccc]'
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-[#000000] flex items-center gap-1.5">
+                          {spec.name}
+                        </span>
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                            isSelected ? 'bg-emerald-100 text-emerald-800' : 'bg-[#f0eee9] text-[#615d59]'
+                          }`}
+                        >
+                          {spec.badge}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#615d59] leading-snug">{spec.description}</p>
+                    </div>
+
+                    <div className="pt-2 mt-2 border-t border-[#f0eee9] flex items-center justify-between text-[10px] text-[#888580]">
+                      <span>{spec.hasMain ? 'รวม main + tab' : 'ไม่มี main, รวม tab'}</span>
+                      <span className="font-mono">{spec.filenamePad === 3 ? '001-040.png' : '01-40.png'}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
             {/* Color Selection */}
             <div className="p-4 rounded-xl bg-[#faf9f8] border border-[#e6e6e6] space-y-3">
@@ -907,11 +1012,13 @@ export const LineStickerStudio: React.FC = () => {
                 <h3 className="text-sm font-bold text-[#000000] flex items-center gap-2">
                   <span>3. แกลเลอรีสติกเกอร์ที่พร้อมใช้งาน</span>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-bold">
-                    {stickers.length} สติกเกอร์ + main.png + tab.png
+                    {stickers.length} {LINE_PACKAGE_SPECS[packageType].hasMain ? 'สติกเกอร์ + main.png + tab.png' : 'อิโมจิ + tab.png'}
                   </span>
                 </h3>
                 <p className="text-xs text-[#615d59] mt-0.5">
-                  ตรวจสอบความโปร่งใส เลือกรูปที่ต้องการตั้งเป็น Main และ Tab หรือดาวน์โหลด ZIP ทั้งชุด
+                  {LINE_PACKAGE_SPECS[packageType].hasMain
+                    ? 'ตรวจสอบความโปร่งใส เลือกรูปที่ต้องการตั้งเป็น Main และ Tab หรือดาวน์โหลด ZIP ทั้งชุด'
+                    : 'ตรวจสอบความโปร่งใส เลือกรูปที่ต้องการตั้งเป็น Tab หรือดาวน์โหลด ZIP ทั้งชุด'}
                 </p>
               </div>
 
@@ -931,42 +1038,44 @@ export const LineStickerStudio: React.FC = () => {
                   className="px-4 py-2 rounded-xl bg-[#06C755] hover:bg-[#05b34c] text-white text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer"
                 >
                   <FileArchive className="w-4 h-4" />
-                  <span>ดาวน์โหลด ZIP ({stickers.length + 2} ไฟล์)</span>
+                  <span>ดาวน์โหลด ZIP ({stickers.length + (LINE_PACKAGE_SPECS[packageType].hasMain ? 2 : 1)} ไฟล์)</span>
                 </button>
               </div>
             </div>
 
             {/* Special LINE Images: main.png and tab.png */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-[#faf9f8] border border-[#e6e6e6]">
-              {/* main.png card */}
-              <div className="flex items-center gap-4 bg-white p-3.5 rounded-xl border border-[#e6e6e6] shadow-2xs">
-                <div
-                  className="w-20 h-20 rounded-xl overflow-hidden border border-[#e6e6e6] shrink-0 checkerboard-bg flex items-center justify-center p-1"
-                >
-                  {mainDataUrl && (
-                    <img src={mainDataUrl} alt="main.png" className="max-w-full max-h-full object-contain" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                    <span className="font-bold text-xs text-[#000000]">main.png (รูปหลักร้านค้า)</span>
+            <div className={`grid ${LINE_PACKAGE_SPECS[packageType].hasMain ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 max-w-xl mx-auto'} gap-4 p-4 rounded-xl bg-[#faf9f8] border border-[#e6e6e6]`}>
+              {/* main.png card - only for packages requiring main image */}
+              {LINE_PACKAGE_SPECS[packageType].hasMain && (
+                <div className="flex items-center gap-4 bg-white p-3.5 rounded-xl border border-[#e6e6e6] shadow-2xs">
+                  <div
+                    className="w-20 h-20 rounded-xl overflow-hidden border border-[#e6e6e6] shrink-0 checkerboard-bg flex items-center justify-center p-1"
+                  >
+                    {mainDataUrl && (
+                      <img src={mainDataUrl} alt="main.png" className="max-w-full max-h-full object-contain" />
+                    )}
                   </div>
-                  <p className="text-[11px] text-[#615d59]">
-                    ขนาด: <strong className="text-[#0075de]">240 x 240 px</strong>
-                  </p>
-                  <p className="text-[10px] text-[#a39e98] truncate">
-                    ใช้สติกเกอร์รูปที่ #{mainStickerIndex + 1}
-                  </p>
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                      <span className="font-bold text-xs text-[#000000]">main.png (รูปหลักร้านค้า)</span>
+                    </div>
+                    <p className="text-[11px] text-[#615d59]">
+                      ขนาด: <strong className="text-[#0075de]">240 x 240 px</strong>
+                    </p>
+                    <p className="text-[10px] text-[#a39e98] truncate">
+                      ใช้สติกเกอร์รูปที่ #{mainStickerIndex + 1}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => mainDataUrl && handleDownloadSingle(mainDataUrl, 'main.png')}
+                    className="p-2 rounded-lg bg-[#f6f5f4] hover:bg-[#e6e6e6] text-[#31302e] transition-colors cursor-pointer"
+                    title="ดาวน์โหลด main.png"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => mainDataUrl && handleDownloadSingle(mainDataUrl, 'main.png')}
-                  className="p-2 rounded-lg bg-[#f6f5f4] hover:bg-[#e6e6e6] text-[#31302e] transition-colors cursor-pointer"
-                  title="ดาวน์โหลด main.png"
-                >
-                  <Download className="w-4 h-4" />
-                </button>
-              </div>
+              )}
 
               {/* tab.png card */}
               <div className="flex items-center gap-4 bg-white p-3.5 rounded-xl border border-[#e6e6e6] shadow-2xs">
@@ -1235,8 +1344,9 @@ export const LineStickerStudio: React.FC = () => {
                       style={{ scrollbarWidth: 'thin' }}
                     >
                       {stickers.map((stk, idx) => {
-                        const filename = `${(idx + 1).toString().padStart(2, '0')}.png`;
-                        const isMain = idx === mainStickerIndex;
+                        const spec = LINE_PACKAGE_SPECS[packageType];
+                        const filename = `${(idx + 1).toString().padStart(spec.filenamePad, '0')}.png`;
+                        const isMain = spec.hasMain && idx === mainStickerIndex;
                         const isTab = idx === tabStickerIndex;
 
                         return (
@@ -1279,19 +1389,21 @@ export const LineStickerStudio: React.FC = () => {
                                 )}
                               </div>
                               <div className="absolute inset-0 bg-black/40 backdrop-blur-2xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setMainStickerIndex(idx);
-                                  }}
-                                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                                    isMain ? 'bg-amber-500 text-white' : 'bg-white/90 hover:bg-white text-[#31302e]'
-                                  }`}
-                                  title="ตั้งเป็น Main (รูปหลัก)"
-                                >
-                                  <Star className="w-3.5 h-3.5 fill-current" />
-                                </button>
+                                {spec.hasMain && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setMainStickerIndex(idx);
+                                    }}
+                                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                      isMain ? 'bg-amber-500 text-white' : 'bg-white/90 hover:bg-white text-[#31302e]'
+                                    }`}
+                                    title="ตั้งเป็น Main (รูปหลัก)"
+                                  >
+                                    <Star className="w-3.5 h-3.5 fill-current" />
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -1320,9 +1432,11 @@ export const LineStickerStudio: React.FC = () => {
                             </div>
                             <div className="p-1.5 border-t border-[#f0eee9] text-center bg-[#faf9f8] flex items-center justify-between px-2">
                               <span className="text-[10px] font-mono text-[#615d59]">
-                                {fixedCanvasSize ? '370x320' : 'Auto'}
+                                {fixedCanvasSize ? spec.badge : 'Auto'}
                               </span>
-                              <span className="text-[9px] text-[#06C755] font-semibold">Margin 10px</span>
+                              <span className="text-[9px] text-[#06C755] font-semibold">
+                                {packageType === 'emoji' ? 'Margin 0-2px' : 'Margin 10px'}
+                              </span>
                             </div>
                           </div>
                         );
@@ -1332,8 +1446,9 @@ export const LineStickerStudio: React.FC = () => {
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-4 gap-3 max-w-5xl mx-auto">
                     {stickers.map((stk, idx) => {
-                      const filename = `${(idx + 1).toString().padStart(2, '0')}.png`;
-                      const isMain = idx === mainStickerIndex;
+                      const spec = LINE_PACKAGE_SPECS[packageType];
+                      const filename = `${(idx + 1).toString().padStart(spec.filenamePad, '0')}.png`;
+                      const isMain = spec.hasMain && idx === mainStickerIndex;
                       const isTab = idx === tabStickerIndex;
 
                       return (
@@ -1376,19 +1491,21 @@ export const LineStickerStudio: React.FC = () => {
                               )}
                             </div>
                             <div className="absolute inset-0 bg-black/40 backdrop-blur-2xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setMainStickerIndex(idx);
-                                }}
-                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                                  isMain ? 'bg-amber-500 text-white' : 'bg-white/90 hover:bg-white text-[#31302e]'
-                                }`}
-                                title="ตั้งเป็น Main (รูปหลัก)"
-                              >
-                                <Star className="w-3.5 h-3.5 fill-current" />
-                              </button>
+                              {spec.hasMain && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setMainStickerIndex(idx);
+                                  }}
+                                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                    isMain ? 'bg-amber-500 text-white' : 'bg-white/90 hover:bg-white text-[#31302e]'
+                                  }`}
+                                  title="ตั้งเป็น Main (รูปหลัก)"
+                                >
+                                  <Star className="w-3.5 h-3.5 fill-current" />
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1417,9 +1534,11 @@ export const LineStickerStudio: React.FC = () => {
                           </div>
                           <div className="p-1.5 border-t border-[#f0eee9] text-center bg-[#faf9f8] flex items-center justify-between px-2">
                             <span className="text-[10px] font-mono text-[#615d59]">
-                              {fixedCanvasSize ? '370x320' : 'Auto'}
+                              {fixedCanvasSize ? spec.badge : 'Auto'}
                             </span>
-                            <span className="text-[9px] text-[#06C755] font-semibold">Margin 10px</span>
+                            <span className="text-[9px] text-[#06C755] font-semibold">
+                              {packageType === 'emoji' ? 'Margin 0-2px' : 'Margin 10px'}
+                            </span>
                           </div>
                         </div>
                       );
@@ -1434,10 +1553,14 @@ export const LineStickerStudio: React.FC = () => {
               <div className="space-y-1 text-center sm:text-left">
                 <h4 className="text-xs sm:text-sm font-bold text-emerald-950 flex items-center gap-2 justify-center sm:justify-start">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>ไฟล์ชุดสติกเกอร์ครบ {stickers.length + 2} ไฟล์พร้อมอัปโหลดแล้ว!</span>
+                  <span>
+                    ไฟล์ชุด{packageType === 'emoji' ? 'อิโมจิ' : 'สติกเกอร์'}ครบ {stickers.length + (LINE_PACKAGE_SPECS[packageType].hasMain ? 2 : 1)} ไฟล์พร้อมอัปโหลดแล้ว!
+                  </span>
                 </h4>
                 <p className="text-[11px] text-emerald-800 leading-relaxed">
-                  ในไฟล์ ZIP จะประกอบด้วย 01.png - {stickers.length.toString().padStart(2, '0')}.png, main.png และ tab.png ตรงตามกฎของ LINE ทุกประการ
+                  {packageType === 'emoji'
+                    ? `ในไฟล์ ZIP จะประกอบด้วย 001.png - ${(stickers.length).toString().padStart(3, '0')}.png และ tab.png ตรงตามกฎ LINE Emoji ทุกประการ`
+                    : `ในไฟล์ ZIP จะประกอบด้วย 01.png - ${(stickers.length).toString().padStart(2, '0')}.png, main.png และ tab.png ตรงตามกฎของ LINE ทุกประการ`}
                 </p>
               </div>
 
@@ -1458,7 +1581,7 @@ export const LineStickerStudio: React.FC = () => {
                   className="px-5 py-2.5 rounded-xl bg-[#06C755] hover:bg-[#05b34c] text-white text-xs sm:text-sm font-bold shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
-                  <span>ดาวน์โหลด ZIP ครบ {stickers.length + 2} ไฟล์</span>
+                  <span>ดาวน์โหลด ZIP ครบ {stickers.length + (LINE_PACKAGE_SPECS[packageType].hasMain ? 2 : 1)} ไฟล์</span>
                 </button>
               </div>
             </div>
@@ -1502,9 +1625,10 @@ export const LineStickerStudio: React.FC = () => {
 
       {/* Full-size preview modal with Left / Right Navigation */}
       {previewIndex !== null && stickers[previewIndex] && (() => {
+        const spec = LINE_PACKAGE_SPECS[packageType];
         const curStk = stickers[previewIndex];
-        const filename = `${(previewIndex + 1).toString().padStart(2, '0')}.png`;
-        const isMain = previewIndex === mainStickerIndex;
+        const filename = `${(previewIndex + 1).toString().padStart(spec.filenamePad, '0')}.png`;
+        const isMain = spec.hasMain && previewIndex === mainStickerIndex;
         const isTab = previewIndex === tabStickerIndex;
 
         return (
@@ -1589,18 +1713,20 @@ export const LineStickerStudio: React.FC = () => {
               {/* Action Bar (Set Main / Set Tab / Download) */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#e6e6e6]">
                 <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setMainStickerIndex(previewIndex)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                      isMain
-                        ? 'bg-amber-500 text-white'
-                        : 'bg-[#faf9f8] hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6]'
-                    }`}
-                  >
-                    <Star className="w-3.5 h-3.5 fill-current" />
-                    <span>{isMain ? 'เป็นรูป Main แล้ว' : 'ตั้งเป็น Main'}</span>
-                  </button>
+                  {spec.hasMain && (
+                    <button
+                      type="button"
+                      onClick={() => setMainStickerIndex(previewIndex)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                        isMain
+                          ? 'bg-amber-500 text-white'
+                          : 'bg-[#faf9f8] hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6]'
+                      }`}
+                    >
+                      <Star className="w-3.5 h-3.5 fill-current" />
+                      <span>{isMain ? 'เป็นรูป Main แล้ว' : 'ตั้งเป็น Main'}</span>
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -1638,7 +1764,7 @@ export const LineStickerStudio: React.FC = () => {
                 >
                   {stickers.map((stk, i) => {
                     const isCur = i === previewIndex;
-                    const thumbName = `${(i + 1).toString().padStart(2, '0')}.png`;
+                    const thumbName = `${(i + 1).toString().padStart(spec.filenamePad, '0')}.png`;
                     return (
                       <button
                         key={stk.id}
@@ -1654,7 +1780,7 @@ export const LineStickerStudio: React.FC = () => {
                       >
                         <img src={stk.processedDataUrl} alt="" className="w-full h-full object-contain" />
                         <span className="absolute bottom-0 inset-x-0 bg-black/75 text-[8px] text-white font-mono text-center">
-                          {(i + 1).toString().padStart(2, '0')}
+                          {(i + 1).toString().padStart(spec.filenamePad, '0')}
                         </span>
                       </button>
                     );
