@@ -23,6 +23,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
+  Palette,
 } from 'lucide-react';
 import {
   StickerSlice,
@@ -34,6 +35,7 @@ import {
   createTabImage,
   createLineStickerZip,
   downloadBlob,
+  createCompositeSheet,
 } from '../services/stickerProcessor.js';
 
 interface UploadedGridImage {
@@ -83,11 +85,70 @@ export const LineStickerStudio: React.FC = () => {
   // Preview modal for full-size inspection with Next/Prev
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
-  // Gallery layout: '5x8' (default), '8x5', or 'carousel'
-  const [galleryLayout, setGalleryLayout] = useState<'5x8' | '8x5' | 'carousel'>('5x8');
+  // Gallery layout: '4x10' (default) or 'carousel'
+  const [galleryLayout, setGalleryLayout] = useState<'4x10' | 'carousel'>('4x10');
   const carouselRef = useRef<HTMLDivElement>(null);
   const activeThumbRef = useRef<HTMLButtonElement>(null);
   const touchStartX = useRef<number | null>(null);
+
+  // Background inspection color presets
+  type InspectBgMode = 'checker' | 'white' | 'black' | 'dark' | 'line' | 'green' | 'custom';
+  const [inspectBg, setInspectBg] = useState<InspectBgMode>('checker');
+  const [customInspectColor, setCustomInspectColor] = useState<string>('#f5576c');
+
+  // 4x10 Composite Sheet Modal
+  const [compositeSheetDataUrl, setCompositeSheetDataUrl] = useState<string | null>(null);
+  const [isGeneratingSheet, setIsGeneratingSheet] = useState(false);
+  const [sheetBg, setSheetBg] = useState<string>('white');
+
+  const getInspectBgStyle = (): { style: React.CSSProperties; className: string } => {
+    if (inspectBg === 'checker') {
+      return { style: {}, className: 'checkerboard-bg' };
+    }
+    const colors: Record<string, string> = {
+      white: '#ffffff',
+      black: '#000000',
+      dark: '#1e1e1e',
+      line: '#849ebf',
+      green: '#00e676',
+      custom: customInspectColor,
+    };
+    return {
+      style: { backgroundColor: colors[inspectBg] || '#ffffff' },
+      className: '',
+    };
+  };
+
+  const handleExportCompositeSheet = async (bgChoice?: string) => {
+    if (stickers.length === 0) return;
+    setIsGeneratingSheet(true);
+    try {
+      const stickerUrls = stickers.map((s) => s.processedDataUrl);
+      const choice = bgChoice !== undefined ? bgChoice : sheetBg;
+      let exportBg = 'transparent';
+      if (choice === 'white') exportBg = '#ffffff';
+      else if (choice === 'black') exportBg = '#000000';
+      else if (choice === 'line') exportBg = '#849ebf';
+      else if (choice === 'current') {
+        const cur = getInspectBgStyle();
+        exportBg = (cur.style.backgroundColor as string) || 'transparent';
+      }
+
+      const sheetUrl = await createCompositeSheet(stickerUrls, {
+        columns: 4,
+        backgroundColor: exportBg,
+        padding: 30,
+        gapX: 20,
+        gapY: 28,
+        scale: 1.0,
+      });
+      setCompositeSheetDataUrl(sheetUrl);
+    } catch (err) {
+      console.error('Failed to export composite sheet', err);
+    } finally {
+      setIsGeneratingSheet(false);
+    }
+  };
 
   // Auto-scroll active thumbnail into view inside preview modal
   useEffect(() => {
@@ -940,108 +1001,336 @@ export const LineStickerStudio: React.FC = () => {
 
             {/* 40 Stickers Grid / Carousel Display */}
             <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-[#000000]">รายการสติกเกอร์ทั้งหมด ({stickers.length} รูป)</span>
-                    <span className="px-2 py-0.5 rounded-md bg-[#0075de]/10 text-[#0075de] text-[10px] font-bold">
-                      {galleryLayout === '5x8' ? 'มุมมอง 5x8 แถว' : galleryLayout === '8x5' ? 'มุมมอง 8x5 แถว' : 'สไลด์เลื่อนซ้าย-ขวา'}
-                    </span>
+              {/* Top Controls: Layout, Background Inspection, and Export 4x10 */}
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-[#000000]">รายการสติกเกอร์ทั้งหมด ({stickers.length} รูป)</span>
+                      <span className="px-2 py-0.5 rounded-md bg-[#0075de]/10 text-[#0075de] text-[10px] font-bold">
+                        {galleryLayout === '4x10' ? 'มุมมอง 4x10 แถว (แนะนำ)' : 'สไลด์เลื่อนซ้าย-ขวา'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#615d59] mt-0.5">
+                      💡 คลิกที่รูปเพื่อเปิดดูขนาดใหญ่พร้อมกดเลื่อนซ้าย-ขวา (Arrow Keys ◀ ▶) ได้ทันที
+                    </p>
                   </div>
-                  <p className="text-[11px] text-[#615d59] mt-0.5">
-                    💡 คลิกที่รูปเพื่อเปิดดูขนาดใหญ่พร้อมกดเลื่อนซ้าย-ขวา (Arrow Keys ◀ ▶) ได้ทันที
-                  </p>
+
+                  {/* Actions: Layout Switcher + Export Sheet */}
+                  <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleExportCompositeSheet()}
+                      className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      title="รวม 40 รูปเป็นแผ่นเดียว 4 คอลัมน์ x 10 แถว"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>Export แผ่นรวม 4x10</span>
+                    </button>
+
+                    <div className="flex items-center gap-1 bg-[#f6f5f4] p-1 rounded-xl border border-[#e6e6e6]">
+                      <button
+                        type="button"
+                        onClick={() => setGalleryLayout('4x10')}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                          galleryLayout === '4x10'
+                            ? 'bg-white text-[#0075de] shadow-xs'
+                            : 'text-[#615d59] hover:text-[#000000]'
+                        }`}
+                        title="แสดงแบบ 4 คอลัมน์ x 10 แถว (ตามมาตรฐาน)"
+                      >
+                        <LayoutGrid className="w-3.5 h-3.5" />
+                        <span>4x10 แถว</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setGalleryLayout('carousel')}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                          galleryLayout === 'carousel'
+                            ? 'bg-white text-[#0075de] shadow-xs'
+                            : 'text-[#615d59] hover:text-[#000000]'
+                        }`}
+                        title="แสดงแบบสไลด์เลื่อนซ้าย-ขวา"
+                      >
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>สไลด์ซ้าย-ขวา</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Layout Switcher */}
-                <div className="flex items-center gap-1 bg-[#f6f5f4] p-1 rounded-xl border border-[#e6e6e6] self-start sm:self-auto shrink-0">
-                  <button
-                    onClick={() => setGalleryLayout('5x8')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                      galleryLayout === '5x8'
-                        ? 'bg-white text-[#0075de] shadow-xs'
-                        : 'text-[#615d59] hover:text-[#000000]'
-                    }`}
-                    title="แสดงแบบ 5 คอลัมน์ x 8 แถว (แนะนำ)"
-                  >
-                    <LayoutGrid className="w-3.5 h-3.5" />
-                    <span>5x8 แถว</span>
-                  </button>
+                {/* Background Color Inspection Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-2.5 p-2.5 sm:px-3.5 sm:py-2.5 rounded-xl bg-[#faf9f8] border border-[#e6e6e6]">
+                  <div className="flex items-center gap-2">
+                    <Palette className="w-4 h-4 text-[#0075de]" />
+                    <span className="text-xs font-bold text-[#000000]">สีพื้นหลังตรวจสอบสีรั่ว:</span>
+                    <span className="text-[11px] text-[#615d59] hidden md:inline">
+                      (เปลี่ยนสีพื้นเพื่อเช็คขอบม่วง แสงสะท้อน หรือเงาตกค้าง)
+                    </span>
+                  </div>
 
-                  <button
-                    onClick={() => setGalleryLayout('8x5')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                      galleryLayout === '8x5'
-                        ? 'bg-white text-[#0075de] shadow-xs'
-                        : 'text-[#615d59] hover:text-[#000000]'
-                    }`}
-                    title="แสดงแบบ 8 คอลัมน์ x 5 แถว"
-                  >
-                    <LayoutGrid className="w-3.5 h-3.5" />
-                    <span>8x5 แถว</span>
-                  </button>
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    {/* Checkerboard (Transparent) */}
+                    <button
+                      type="button"
+                      onClick={() => setInspectBg('checker')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                        inspectBg === 'checker'
+                          ? 'bg-white border-[#0075de] text-[#0075de] ring-2 ring-[#0075de]/20 shadow-xs'
+                          : 'bg-white border-[#e6e6e6] text-[#615d59] hover:text-[#000000]'
+                      }`}
+                      title="ตารางหมากรุก (โปร่งใส)"
+                    >
+                      <span className="w-3.5 h-3.5 rounded border border-[#ccc] checkerboard-bg inline-block" />
+                      <span>โปร่งใส</span>
+                    </button>
 
-                  <button
-                    onClick={() => setGalleryLayout('carousel')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                      galleryLayout === 'carousel'
-                        ? 'bg-white text-[#0075de] shadow-xs'
-                        : 'text-[#615d59] hover:text-[#000000]'
-                    }`}
-                    title="แสดงแบบสไลด์เลื่อนซ้าย-ขวา"
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>สไลด์ซ้าย-ขวา</span>
-                  </button>
+                    {/* White */}
+                    <button
+                      type="button"
+                      onClick={() => setInspectBg('white')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                        inspectBg === 'white'
+                          ? 'bg-white border-[#0075de] text-[#0075de] ring-2 ring-[#0075de]/20 shadow-xs'
+                          : 'bg-white border-[#e6e6e6] text-[#615d59] hover:text-[#000000]'
+                      }`}
+                      title="พื้นขาว (เช็คคราบเงาและสีเข้มตกค้าง)"
+                    >
+                      <span className="w-3.5 h-3.5 rounded border border-[#ddd] bg-white inline-block" />
+                      <span>สีขาว</span>
+                    </button>
+
+                    {/* Black */}
+                    <button
+                      type="button"
+                      onClick={() => setInspectBg('black')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                        inspectBg === 'black'
+                          ? 'bg-white border-[#0075de] text-[#0075de] ring-2 ring-[#0075de]/20 shadow-xs'
+                          : 'bg-white border-[#e6e6e6] text-[#615d59] hover:text-[#000000]'
+                      }`}
+                      title="พื้นดำ (เช็คขอบขาวและขอบม่วงฟุ้ง)"
+                    >
+                      <span className="w-3.5 h-3.5 rounded bg-black inline-block" />
+                      <span>สีดำ</span>
+                    </button>
+
+                    {/* Dark Gray */}
+                    <button
+                      type="button"
+                      onClick={() => setInspectBg('dark')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                        inspectBg === 'dark'
+                          ? 'bg-white border-[#0075de] text-[#0075de] ring-2 ring-[#0075de]/20 shadow-xs'
+                          : 'bg-white border-[#e6e6e6] text-[#615d59] hover:text-[#000000]'
+                      }`}
+                      title="สีเทาเข้ม (#1e1e1e)"
+                    >
+                      <span className="w-3.5 h-3.5 rounded bg-[#1e1e1e] inline-block" />
+                      <span>เทาเข้ม</span>
+                    </button>
+
+                    {/* LINE Chat Blue */}
+                    <button
+                      type="button"
+                      onClick={() => setInspectBg('line')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                        inspectBg === 'line'
+                          ? 'bg-white border-[#0075de] text-[#0075de] ring-2 ring-[#0075de]/20 shadow-xs'
+                          : 'bg-white border-[#e6e6e6] text-[#615d59] hover:text-[#000000]'
+                      }`}
+                      title="สีแชท LINE ยอดนิยม (#849ebf)"
+                    >
+                      <span className="w-3.5 h-3.5 rounded bg-[#849ebf] inline-block" />
+                      <span>แชท LINE</span>
+                    </button>
+
+                    {/* Green */}
+                    <button
+                      type="button"
+                      onClick={() => setInspectBg('green')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                        inspectBg === 'green'
+                          ? 'bg-white border-[#0075de] text-[#0075de] ring-2 ring-[#0075de]/20 shadow-xs'
+                          : 'bg-white border-[#e6e6e6] text-[#615d59] hover:text-[#000000]'
+                      }`}
+                      title="สีเขียวสะท้อนแสง"
+                    >
+                      <span className="w-3.5 h-3.5 rounded bg-[#00e676] inline-block" />
+                      <span>เขียวสด</span>
+                    </button>
+
+                    {/* Custom Color */}
+                    <label
+                      className={`px-2 py-1 rounded-lg font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                        inspectBg === 'custom'
+                          ? 'bg-white border-[#0075de] text-[#0075de] ring-2 ring-[#0075de]/20 shadow-xs'
+                          : 'bg-white border-[#e6e6e6] text-[#615d59] hover:text-[#000000]'
+                      }`}
+                      title="เลือกสีพื้นหลังเอง"
+                    >
+                      <input
+                        type="color"
+                        value={customInspectColor}
+                        onChange={(e) => {
+                          setCustomInspectColor(e.target.value);
+                          setInspectBg('custom');
+                        }}
+                        className="w-3.5 h-3.5 rounded cursor-pointer border-0 p-0"
+                      />
+                      <span>เลือกสี</span>
+                    </label>
+                  </div>
                 </div>
               </div>
 
               {/* Render Cards according to selected layout */}
-              {galleryLayout === 'carousel' ? (
-                <div className="relative group/carousel">
-                  <button
-                    type="button"
-                    onClick={() => scrollCarousel('left')}
-                    className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 p-2.5 rounded-full bg-white/95 hover:bg-white text-[#31302e] shadow-md border border-[#e6e6e6] transition-all hover:scale-110 cursor-pointer hidden sm:flex items-center justify-center"
-                    title="เลื่อนซ้าย"
-                  >
-                    <ChevronLeft className="w-5 h-5 text-[#31302e]" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => scrollCarousel('right')}
-                    className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 p-2.5 rounded-full bg-white/95 hover:bg-white text-[#31302e] shadow-md border border-[#e6e6e6] transition-all hover:scale-110 cursor-pointer hidden sm:flex items-center justify-center"
-                    title="เลื่อนขวา"
-                  >
-                    <ChevronRight className="w-5 h-5 text-[#31302e]" />
-                  </button>
+              {(() => {
+                const inspectBgStyle = getInspectBgStyle();
 
-                  {/* Mobile Controls */}
-                  <div className="flex sm:hidden justify-between items-center pb-2">
+                return galleryLayout === 'carousel' ? (
+                  <div className="relative group/carousel">
                     <button
                       type="button"
                       onClick={() => scrollCarousel('left')}
-                      className="px-3 py-1.5 rounded-lg bg-white border border-[#e6e6e6] text-xs font-semibold flex items-center gap-1 text-[#31302e] cursor-pointer"
+                      className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 p-2.5 rounded-full bg-white/95 hover:bg-white text-[#31302e] shadow-md border border-[#e6e6e6] transition-all hover:scale-110 cursor-pointer hidden sm:flex items-center justify-center"
+                      title="เลื่อนซ้าย"
                     >
-                      <ChevronLeft className="w-4 h-4" />
-                      <span>เลื่อนซ้าย</span>
+                      <ChevronLeft className="w-5 h-5 text-[#31302e]" />
                     </button>
-                    <span className="text-[11px] text-[#615d59]">ปัดซ้าย-ขวาได้</span>
                     <button
                       type="button"
                       onClick={() => scrollCarousel('right')}
-                      className="px-3 py-1.5 rounded-lg bg-white border border-[#e6e6e6] text-xs font-semibold flex items-center gap-1 text-[#31302e] cursor-pointer"
+                      className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 p-2.5 rounded-full bg-white/95 hover:bg-white text-[#31302e] shadow-md border border-[#e6e6e6] transition-all hover:scale-110 cursor-pointer hidden sm:flex items-center justify-center"
+                      title="เลื่อนขวา"
                     >
-                      <span>เลื่อนขวา</span>
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-5 h-5 text-[#31302e]" />
                     </button>
-                  </div>
 
-                  <div
-                    ref={carouselRef}
-                    className="overflow-x-auto flex gap-3 pb-3 pt-1 scroll-smooth snap-x snap-mandatory"
-                    style={{ scrollbarWidth: 'thin' }}
-                  >
+                    {/* Mobile Controls */}
+                    <div className="flex sm:hidden justify-between items-center pb-2">
+                      <button
+                        type="button"
+                        onClick={() => scrollCarousel('left')}
+                        className="px-3 py-1.5 rounded-lg bg-white border border-[#e6e6e6] text-xs font-semibold flex items-center gap-1 text-[#31302e] cursor-pointer"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span>เลื่อนซ้าย</span>
+                      </button>
+                      <span className="text-[11px] text-[#615d59]">ปัดซ้าย-ขวาได้</span>
+                      <button
+                        type="button"
+                        onClick={() => scrollCarousel('right')}
+                        className="px-3 py-1.5 rounded-lg bg-white border border-[#e6e6e6] text-xs font-semibold flex items-center gap-1 text-[#31302e] cursor-pointer"
+                      >
+                        <span>เลื่อนขวา</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div
+                      ref={carouselRef}
+                      className="overflow-x-auto flex gap-3 pb-3 pt-1 scroll-smooth snap-x snap-mandatory"
+                      style={{ scrollbarWidth: 'thin' }}
+                    >
+                      {stickers.map((stk, idx) => {
+                        const filename = `${(idx + 1).toString().padStart(2, '0')}.png`;
+                        const isMain = idx === mainStickerIndex;
+                        const isTab = idx === tabStickerIndex;
+
+                        return (
+                          <div
+                            key={stk.id}
+                            className={`relative group rounded-xl border bg-white overflow-hidden transition-all shadow-2xs hover:shadow-xs flex flex-col min-w-[160px] sm:min-w-[190px] shrink-0 snap-start ${
+                              isMain
+                                ? 'border-amber-400 ring-2 ring-amber-400/30'
+                                : isTab
+                                ? 'border-purple-400 ring-2 ring-purple-400/30'
+                                : 'border-[#e6e6e6]'
+                            }`}
+                          >
+                            <div
+                              onClick={() => setPreviewIndex(idx)}
+                              style={inspectBgStyle.style}
+                              className={`aspect-square w-full ${inspectBgStyle.className} p-2 flex items-center justify-center cursor-pointer relative transition-colors`}
+                              title="คลิกเพื่อดูรูปขนาดเต็มพร้อมเลื่อนซ้าย-ขวา"
+                            >
+                              <img
+                                src={stk.processedDataUrl}
+                                alt={filename}
+                                className="max-w-full max-h-full object-contain filter drop-shadow-xs"
+                              />
+                              <div className="absolute top-1 left-1 flex items-center gap-1">
+                                <span className="px-1.5 py-0.5 rounded-md bg-black/75 text-white font-mono text-[9px] font-bold">
+                                  {filename}
+                                </span>
+                              </div>
+                              <div className="absolute top-1 right-1 flex items-center gap-0.5">
+                                {isMain && (
+                                  <span className="px-1 py-0.5 rounded-md bg-amber-500 text-white text-[8px] font-bold shadow-xs">
+                                    MAIN
+                                  </span>
+                                )}
+                                {isTab && (
+                                  <span className="px-1 py-0.5 rounded-md bg-purple-600 text-white text-[8px] font-bold shadow-xs">
+                                    TAB
+                                  </span>
+                                )}
+                              </div>
+                              <div className="absolute inset-0 bg-black/40 backdrop-blur-2xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setMainStickerIndex(idx);
+                                  }}
+                                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                    isMain ? 'bg-amber-500 text-white' : 'bg-white/90 hover:bg-white text-[#31302e]'
+                                  }`}
+                                  title="ตั้งเป็น Main (รูปหลัก)"
+                                >
+                                  <Star className="w-3.5 h-3.5 fill-current" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setTabStickerIndex(idx);
+                                  }}
+                                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                    isTab ? 'bg-purple-600 text-white' : 'bg-white/90 hover:bg-white text-[#31302e]'
+                                  }`}
+                                  title="ตั้งเป็น Tab (ไอคอนแท็บ)"
+                                >
+                                  <Bookmark className="w-3.5 h-3.5 fill-current" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownloadSingle(stk.processedDataUrl, filename);
+                                  }}
+                                  className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-[#31302e] transition-colors cursor-pointer"
+                                  title={`ดาวน์โหลด ${filename}`}
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                            <div className="p-1.5 border-t border-[#f0eee9] text-center bg-[#faf9f8] flex items-center justify-between px-2">
+                              <span className="text-[10px] font-mono text-[#615d59]">
+                                {fixedCanvasSize ? '370x320' : 'Auto'}
+                              </span>
+                              <span className="text-[9px] text-[#06C755] font-semibold">Margin 10px</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-4 gap-3 max-w-5xl mx-auto">
                     {stickers.map((stk, idx) => {
                       const filename = `${(idx + 1).toString().padStart(2, '0')}.png`;
                       const isMain = idx === mainStickerIndex;
@@ -1050,7 +1339,7 @@ export const LineStickerStudio: React.FC = () => {
                       return (
                         <div
                           key={stk.id}
-                          className={`relative group rounded-xl border bg-white overflow-hidden transition-all shadow-2xs hover:shadow-xs flex flex-col min-w-[160px] sm:min-w-[190px] shrink-0 snap-start ${
+                          className={`relative group rounded-xl border bg-white overflow-hidden transition-all shadow-2xs hover:shadow-xs flex flex-col ${
                             isMain
                               ? 'border-amber-400 ring-2 ring-amber-400/30'
                               : isTab
@@ -1060,7 +1349,8 @@ export const LineStickerStudio: React.FC = () => {
                         >
                           <div
                             onClick={() => setPreviewIndex(idx)}
-                            className="aspect-square w-full checkerboard-bg p-2 flex items-center justify-center cursor-pointer relative"
+                            style={inspectBgStyle.style}
+                            className={`aspect-square w-full ${inspectBgStyle.className} p-2 flex items-center justify-center cursor-pointer relative transition-colors`}
                             title="คลิกเพื่อดูรูปขนาดเต็มพร้อมเลื่อนซ้าย-ขวา"
                           >
                             <img
@@ -1135,109 +1425,8 @@ export const LineStickerStudio: React.FC = () => {
                       );
                     })}
                   </div>
-                </div>
-              ) : (
-                <div
-                  className={`grid gap-3 ${
-                    galleryLayout === '5x8'
-                      ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5'
-                      : 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8'
-                  }`}
-                >
-                  {stickers.map((stk, idx) => {
-                    const filename = `${(idx + 1).toString().padStart(2, '0')}.png`;
-                    const isMain = idx === mainStickerIndex;
-                    const isTab = idx === tabStickerIndex;
-
-                    return (
-                      <div
-                        key={stk.id}
-                        className={`relative group rounded-xl border bg-white overflow-hidden transition-all shadow-2xs hover:shadow-xs flex flex-col ${
-                          isMain
-                            ? 'border-amber-400 ring-2 ring-amber-400/30'
-                            : isTab
-                            ? 'border-purple-400 ring-2 ring-purple-400/30'
-                            : 'border-[#e6e6e6]'
-                        }`}
-                      >
-                        <div
-                          onClick={() => setPreviewIndex(idx)}
-                          className="aspect-square w-full checkerboard-bg p-2 flex items-center justify-center cursor-pointer relative"
-                          title="คลิกเพื่อดูรูปขนาดเต็มพร้อมเลื่อนซ้าย-ขวา"
-                        >
-                          <img
-                            src={stk.processedDataUrl}
-                            alt={filename}
-                            className="max-w-full max-h-full object-contain filter drop-shadow-xs"
-                          />
-                          <div className="absolute top-1 left-1 flex items-center gap-1">
-                            <span className="px-1.5 py-0.5 rounded-md bg-black/75 text-white font-mono text-[9px] font-bold">
-                              {filename}
-                            </span>
-                          </div>
-                          <div className="absolute top-1 right-1 flex items-center gap-0.5">
-                            {isMain && (
-                              <span className="px-1 py-0.5 rounded-md bg-amber-500 text-white text-[8px] font-bold shadow-xs">
-                                MAIN
-                              </span>
-                            )}
-                            {isTab && (
-                              <span className="px-1 py-0.5 rounded-md bg-purple-600 text-white text-[8px] font-bold shadow-xs">
-                                TAB
-                              </span>
-                            )}
-                          </div>
-                          <div className="absolute inset-0 bg-black/40 backdrop-blur-2xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setMainStickerIndex(idx);
-                              }}
-                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                                isMain ? 'bg-amber-500 text-white' : 'bg-white/90 hover:bg-white text-[#31302e]'
-                              }`}
-                              title="ตั้งเป็น Main (รูปหลัก)"
-                            >
-                              <Star className="w-3.5 h-3.5 fill-current" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setTabStickerIndex(idx);
-                              }}
-                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                                isTab ? 'bg-purple-600 text-white' : 'bg-white/90 hover:bg-white text-[#31302e]'
-                              }`}
-                              title="ตั้งเป็น Tab (ไอคอนแท็บ)"
-                            >
-                              <Bookmark className="w-3.5 h-3.5 fill-current" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownloadSingle(stk.processedDataUrl, filename);
-                              }}
-                              className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-[#31302e] transition-colors cursor-pointer"
-                              title={`ดาวน์โหลด ${filename}`}
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="p-1.5 border-t border-[#f0eee9] text-center bg-[#faf9f8] flex items-center justify-between px-2">
-                          <span className="text-[10px] font-mono text-[#615d59]">
-                            {fixedCanvasSize ? '370x320' : 'Auto'}
-                          </span>
-                          <span className="text-[9px] text-[#06C755] font-semibold">Margin 10px</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* Bottom Big Download Bar */}
@@ -1252,13 +1441,26 @@ export const LineStickerStudio: React.FC = () => {
                 </p>
               </div>
 
-              <button
-                onClick={handleDownloadZip}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#06C755] hover:bg-[#05b34c] text-white text-sm font-bold shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0"
-              >
-                <Download className="w-4 h-4" />
-                <span>ดาวน์โหลด ZIP ครบ {stickers.length + 2} ไฟล์</span>
-              </button>
+              <div className="flex flex-wrap items-center justify-center gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleExportCompositeSheet()}
+                  className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-bold shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  title="รวม 40 รูปเป็นแผ่นเดียว 4 คอลัมน์ x 10 แถว"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  <span>Export แผ่นรวม 4x10 (PNG)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadZip}
+                  className="px-5 py-2.5 rounded-xl bg-[#06C755] hover:bg-[#05b34c] text-white text-xs sm:text-sm font-bold shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>ดาวน์โหลด ZIP ครบ {stickers.length + 2} ไฟล์</span>
+                </button>
+              </div>
             </div>
           </section>
         )}
@@ -1344,7 +1546,10 @@ export const LineStickerStudio: React.FC = () => {
               </div>
 
               {/* Main Preview with Floating Left & Right Arrows */}
-              <div className="relative checkerboard-bg rounded-xl p-4 sm:p-6 flex items-center justify-center min-h-[280px] sm:min-h-[340px] border border-[#e6e6e6] overflow-hidden select-none">
+              <div
+                style={getInspectBgStyle().style}
+                className={`relative ${getInspectBgStyle().className} rounded-xl p-4 sm:p-6 flex items-center justify-center min-h-[280px] sm:min-h-[340px] border border-[#e6e6e6] overflow-hidden select-none transition-colors`}
+              >
                 {/* Left Arrow Button */}
                 <button
                   type="button"
@@ -1460,6 +1665,106 @@ export const LineStickerStudio: React.FC = () => {
           </div>
         );
       })()}
+
+      {/* 4x10 Composite Sheet Preview & Download Modal */}
+      {compositeSheetDataUrl && (
+        <div
+          onClick={() => setCompositeSheetDataUrl(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-xs animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden"
+          >
+            {/* Header */}
+            <div className="p-4 border-b border-[#e6e6e6] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-purple-100 text-purple-700">
+                  <ImageIcon className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#000000]">แผ่นรวมสติกเกอร์ 4x10 แถว ({stickers.length} รูป)</h3>
+                  <p className="text-[11px] text-[#615d59]">ภาพรวมขนาดเต็มความละเอียดสูง เรียง 4 คอลัมน์ x 10 แถว</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCompositeSheetDataUrl(null)}
+                className="p-1.5 rounded-lg text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4] cursor-pointer text-xs font-semibold"
+              >
+                ✕ ปิด
+              </button>
+            </div>
+
+            {/* Background Selector for Re-export */}
+            <div className="px-4 py-2.5 bg-[#faf9f8] border-b border-[#e6e6e6] flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-1.5 text-[#615d59] font-medium">
+                <span>เลือกสีพื้นหลังของแผ่น:</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[
+                  { id: 'white', label: 'พื้นขาว' },
+                  { id: 'transparent', label: 'โปร่งใส' },
+                  { id: 'black', label: 'พื้นดำ' },
+                  { id: 'line', label: 'แชท LINE' },
+                  { id: 'current', label: 'สีตรวจสอบปัจจุบัน' },
+                ].map((bgItem) => (
+                  <button
+                    key={bgItem.id}
+                    type="button"
+                    disabled={isGeneratingSheet}
+                    onClick={() => {
+                      setSheetBg(bgItem.id);
+                      handleExportCompositeSheet(bgItem.id);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
+                      sheetBg === bgItem.id
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                        : 'bg-white text-[#31302e] border-[#e6e6e6] hover:bg-[#f6f5f4]'
+                    }`}
+                  >
+                    {bgItem.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Preview Area (Scrollable) */}
+            <div className="p-4 overflow-y-auto flex-1 flex items-center justify-center checkerboard-bg min-h-[350px]">
+              {isGeneratingSheet ? (
+                <div className="flex flex-col items-center gap-2 p-8">
+                  <RefreshCw className="w-6 h-6 text-purple-600 animate-spin" />
+                  <span className="text-xs text-[#615d59] font-medium">กำลังรวมภาพ 4x10 แถว...</span>
+                </div>
+              ) : (
+                <img
+                  src={compositeSheetDataUrl}
+                  alt="แผ่นรวมสติกเกอร์ 4x10"
+                  className="max-w-full max-h-[58vh] object-contain shadow-md rounded-lg border border-[#e6e6e6]"
+                />
+              )}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-4 border-t border-[#e6e6e6] flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#faf9f8]">
+              <span className="text-[11px] text-[#615d59]">
+                จัดเรียง 4 คอลัมน์ 10 แถว รวม {stickers.length} รูป ความละเอียดสูง
+              </span>
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadSingle(compositeSheetDataUrl, `line_stickers_4x10_sheet_${sheetBg}.png`)}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>ดาวน์โหลดภาพแผ่นรวม 4x10 (PNG)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CSS Checkerboard Pattern for Transparency Preview */}
       <style>{`

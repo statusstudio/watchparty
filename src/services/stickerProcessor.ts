@@ -782,3 +782,75 @@ export function downloadBlob(blob: Blob, filename: string) {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+export interface CompositeSheetOptions {
+  columns?: number; // default 4
+  backgroundColor?: string; // 'transparent', '#ffffff', '#000000', etc.
+  padding?: number; // outer padding around whole sheet
+  gapX?: number; // gap between columns
+  gapY?: number; // gap between rows
+  scale?: number; // resolution scale, default 1.0 (crisp 370x320 per cell)
+}
+
+/**
+ * Creates a combined 4x10 grid overview sheet containing all 40 stickers in one high-res image
+ */
+export async function createCompositeSheet(
+  stickers: string[],
+  options?: CompositeSheetOptions
+): Promise<string> {
+  const columns = options?.columns ?? 4;
+  const count = stickers.length;
+  const rows = Math.ceil(count / columns) || 10;
+  const bgColor = options?.backgroundColor ?? 'transparent';
+  const scale = options?.scale ?? 1.0;
+
+  const baseCellW = 370;
+  const baseCellH = 320;
+  const cellW = Math.round(baseCellW * scale);
+  const cellH = Math.round(baseCellH * scale);
+  const pad = Math.round((options?.padding ?? 40) * scale);
+  const gapX = Math.round((options?.gapX ?? 24) * scale);
+  const gapY = Math.round((options?.gapY ?? 32) * scale);
+
+  const totalW = pad * 2 + columns * cellW + (columns - 1) * gapX;
+  const totalH = pad * 2 + rows * cellH + (rows - 1) * gapY;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = totalW;
+  canvas.height = totalH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  if (bgColor && bgColor !== 'transparent') {
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, totalW, totalH);
+  }
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  for (let i = 0; i < count; i++) {
+    const col = i % columns;
+    const row = Math.floor(i / columns);
+
+    const cellX = pad + col * (cellW + gapX);
+    const cellY = pad + row * (cellH + gapY);
+
+    try {
+      const img = await loadImage(stickers[i]);
+      const imgScale = Math.min(cellW / img.width, cellH / img.height);
+      const drawW = Math.round(img.width * imgScale);
+      const drawH = Math.round(img.height * imgScale);
+      const drawX = cellX + Math.round((cellW - drawW) / 2);
+      const drawY = cellY + Math.round((cellH - drawH) / 2);
+
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    } catch (err) {
+      console.error(`Failed to draw sticker ${i} on composite sheet:`, err);
+    }
+  }
+
+  return canvas.toDataURL('image/png');
+}
+
