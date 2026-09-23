@@ -11,14 +11,17 @@ export interface StickerSlice {
 }
 
 export interface RemoveBgOptions {
-  targetColor: { r: number; g: number; b: number };
+  targetColor?: { r: number; g: number; b: number };
+  autoSampleCorners?: boolean; // automatically sample slice corners for 100% accurate background color
   tolerance: number; // 0 - 100
-  hueTolerance?: number; // 0 - 60 degrees (default: 25)
+  hueTolerance?: number; // 0 - 60 degrees (default: 28)
   removeShadows?: boolean; // Smart floor shadow removal (default: true)
-  choke?: number; // 0 - 3px mask choke/erosion to eliminate fringe (default: 0.8)
+  choke?: number; // 0 - 3px mask choke/erosion to eliminate fringe (default: 1.2)
   defringe?: boolean; // Color decontamination / spill suppression (default: true)
+  addWhiteStroke?: boolean; // Optional clean white die-cut outline (default: false)
+  strokeWidth?: number; // 1 - 5px outline width (default: 3)
   feather?: number; // 0 - 10px edge smoothing
-  mode: 'floodfill' | 'global'; // floodfill: from outer edges inward, global: all matching pixels
+  mode: 'floodfill' | 'global'; // default 'global'
   margin: number; // padding around sticker content, default 10px (LINE spec)
   fixedCanvasSize?: boolean; // if true, stickers are fixed 370x320 canvas
 }
@@ -236,31 +239,65 @@ export async function processStickerImage(
 
   const {
     targetColor,
+    autoSampleCorners = true,
     tolerance = 20,
-    hueTolerance = 25,
+    hueTolerance = 28,
     removeShadows = true,
-    choke = 0.8,
+    choke = 1.2,
     defringe = true,
+    addWhiteStroke = false,
+    strokeWidth = 3,
     mode = 'global',
   } = options;
 
-  const [tH] = rgbToHsv(targetColor.r, targetColor.g, targetColor.b);
+  // Auto-sample 4 corner regions (5x5 pixels each) from the slice itself for guaranteed accuracy
+  let bgR = targetColor?.r ?? 224;
+  let bgG = targetColor?.g ?? 0;
+  let bgB = targetColor?.b ?? 150;
+
+  if (autoSampleCorners && w >= 10 && h >= 10) {
+    let sR = 0, sG = 0, sB = 0, sCount = 0;
+    const sampleBoxes = [
+      { x0: 0, y0: 0 },
+      { x0: w - 5, y0: 0 },
+      { x0: 0, y0: h - 5 },
+      { x0: w - 5, y0: h - 5 },
+    ];
+    for (const box of sampleBoxes) {
+      for (let dy = 0; dy < 5; dy++) {
+        for (let dx = 0; dx < 5; dx++) {
+          const idx = ((box.y0 + dy) * w + (box.x0 + dx)) * 4;
+          sR += pixels[idx];
+          sG += pixels[idx + 1];
+          sB += pixels[idx + 2];
+          sCount++;
+        }
+      }
+    }
+    if (sCount > 0) {
+      bgR = Math.round(sR / sCount);
+      bgG = Math.round(sG / sCount);
+      bgB = Math.round(sB / sCount);
+    }
+  }
+
+  const [tH] = rgbToHsv(bgR, bgG, bgB);
   const maxRgbDist = (tolerance / 100) * 180;
 
   const isColorBackground = (r: number, g: number, b: number): boolean => {
-    // 1. Direct RGB closeness
-    const dR = r - targetColor.r;
-    const dG = g - targetColor.g;
-    const dB = b - targetColor.b;
+    // 1. Direct RGB closeness to slice background
+    const dR = r - bgR;
+    const dG = g - bgG;
+    const dB = b - bgB;
     const dist = Math.sqrt(dR * dR + dG * dG + dB * dB);
-    if (dist <= maxRgbDist) return true;
+    if (dist <= maxRgbDist || dist <= 48) return true;
 
     // 2. Smart Hue-Chroma Keying (removes floor shadows, lighting gradients of same hue)
     if (removeShadows) {
-      const [h, s, v] = rgbToHsv(r, g, b);
-      const dH = hueDistance(h, tH);
-      // Floor shadows & backdrop gradients share the same hue, with high saturation (s >= 0.52) and mid-to-bright value (v >= 0.42)
-      if (dH <= hueTolerance && s >= 0.52 && v >= 0.42) {
+      const [hVal, sVal, vVal] = rgbToHsv(r, g, b);
+      const dH = hueDistance(hVal, tH);
+      // Floor shadows & backdrop gradients: matching hue within 28°, high saturation (s >= 0.50), mid-to-high brightness (v >= 0.38)
+      if (dH <= hueTolerance && sVal >= 0.50 && vVal >= 0.38) {
         return true;
       }
     }
@@ -293,7 +330,6 @@ export async function processStickerImage(
       }
     };
 
-    // Seed 4 borders
     for (let x = 0; x < w; x++) {
       pushQueue(x, 0);
       pushQueue(x, h - 1);
@@ -303,7 +339,6 @@ export async function processStickerImage(
       pushQueue(w - 1, y);
     }
 
-    // BFS
     while (queueStart < queueEnd) {
       const val = queue[queueStart++];
       const cx = val & 0xffff;
@@ -378,10 +413,9 @@ export async function processStickerImage(
   }
 
   // Universal Spill Suppression / Defringing
-  const isTargetMagenta =
-    targetColor.r > 120 && targetColor.b > 120 && targetColor.g < Math.min(targetColor.r, targetColor.b);
-  const isTargetGreen = targetColor.g > Math.max(targetColor.r, targetColor.b) + 30;
-  const isTargetBlue = targetColor.b > Math.max(targetColor.r, targetColor.g) + 30;
+  const isTargetMagenta = bgR > 120 && bgB > 120 && bgG < Math.min(bgR, bgB);
+  const isTargetGreen = bgG > Math.max(bgR, bgB) + 30;
+  const isTargetBlue = bgB > Math.max(bgR, bgG) + 30;
 
   for (let i = 0; i < w * h; i++) {
     const pIdx = i * 4;
@@ -391,24 +425,38 @@ export async function processStickerImage(
     const a = Math.round(erodedMask[i]);
 
     if (a > 0 && defringe) {
+      const [hVal, sVal] = rgbToHsv(r, g, b);
+      const dH = hueDistance(hVal, tH);
+
       if (isTargetMagenta) {
-        const spill = Math.max(0, Math.min(r, b) - g);
-        if (spill > 5) {
+        if (dH < 45 || (r > g + 15 && b > g + 15)) {
           const brightness = (r + g + b) / 3;
-          if (brightness > 180) {
-            // White border: neutralize pink haze to pure white
-            g = Math.min(255, Math.round(g + spill * 0.95));
+
+          if (brightness > 165) {
+            // White outline pixel: clean to pure crisp white
+            const maxVal = Math.max(r, g, b);
+            r = maxVal;
+            g = maxVal;
+            b = maxVal;
+          } else if (hVal > 5 && hVal < 35 && sVal < 0.6) {
+            // Peach skin tone: clamp excess Blue from magenta bounce
+            if (b > g * 0.8) {
+              b = Math.round(g * 0.8);
+            }
           } else {
-            // Dark/midtones: neutralize purple fringe to deep natural tone
-            r = Math.max(0, r - Math.round(spill * 0.85));
-            b = Math.max(0, b - Math.round(spill * 0.85));
+            // Dark/Neutral tones (hat, hair, kimono): clamp excess Red & Blue to eliminate fringe
+            const excess = Math.max(0, Math.min(r, b) - g);
+            if (excess > 3) {
+              r = Math.max(0, r - Math.round(excess * 0.95));
+              b = Math.max(0, b - Math.round(excess * 0.95));
+            }
           }
         }
       } else if (isTargetGreen) {
         const spill = Math.max(0, g - Math.max(r, b));
         if (spill > 5) {
           const brightness = (r + g + b) / 3;
-          if (brightness > 180) {
+          if (brightness > 165) {
             r = Math.min(255, Math.round(r + spill * 0.95));
             b = Math.min(255, Math.round(b + spill * 0.95));
           } else {
@@ -419,7 +467,7 @@ export async function processStickerImage(
         const spill = Math.max(0, b - Math.max(r, g));
         if (spill > 5) {
           const brightness = (r + g + b) / 3;
-          if (brightness > 180) {
+          if (brightness > 165) {
             r = Math.min(255, Math.round(r + spill * 0.95));
             g = Math.min(255, Math.round(g + spill * 0.95));
           } else {
@@ -433,6 +481,57 @@ export async function processStickerImage(
     pixels[pIdx + 1] = g;
     pixels[pIdx + 2] = b;
     pixels[pIdx + 3] = a;
+  }
+
+  // Optional: Add clean white sticker die-cut stroke
+  if (addWhiteStroke && strokeWidth > 0) {
+    const strokeRad = Math.ceil(strokeWidth);
+    const strokeData = new Uint8Array(pixels);
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = (y * w + x) * 4;
+        const origA = pixels[idx + 3];
+
+        if (origA > 200) {
+          // Inside original content
+          strokeData[idx] = pixels[idx];
+          strokeData[idx + 1] = pixels[idx + 1];
+          strokeData[idx + 2] = pixels[idx + 2];
+          strokeData[idx + 3] = origA;
+        } else {
+          // Check distance to foreground
+          let minDist = 999;
+          for (let dy = -strokeRad; dy <= strokeRad; dy++) {
+            const ny = y + dy;
+            if (ny < 0 || ny >= h) continue;
+            for (let dx = -strokeRad; dx <= strokeRad; dx++) {
+              const nx = x + dx;
+              if (nx < 0 || nx >= w) continue;
+              const nA = pixels[(ny * w + nx) * 4 + 3];
+              if (nA > 150) {
+                const d = Math.sqrt(dx * dx + dy * dy);
+                if (d < minDist) minDist = d;
+              }
+            }
+          }
+
+          if (minDist <= strokeWidth) {
+            const alpha = Math.min(255, Math.max(0, Math.round((1 - (minDist - (strokeWidth - 1))) * 255)));
+            strokeData[idx] = 255;
+            strokeData[idx + 1] = 255;
+            strokeData[idx + 2] = 255;
+            strokeData[idx + 3] = minDist < strokeWidth - 0.5 ? 255 : alpha;
+          } else {
+            strokeData[idx + 3] = 0;
+          }
+        }
+      }
+    }
+
+    for (let i = 0; i < pixels.length; i++) {
+      pixels[i] = strokeData[i];
+    }
   }
 
   ctx.putImageData(imgData, 0, 0);

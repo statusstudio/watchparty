@@ -60,9 +60,11 @@ export const LineStickerStudio: React.FC = () => {
     hex: '#e00096', // Default magenta matching sample
   });
   const [tolerance, setTolerance] = useState<number>(20);
-  const [choke, setChoke] = useState<number>(0.8);
+  const [choke, setChoke] = useState<number>(1.2);
   const [removeShadows, setRemoveShadows] = useState<boolean>(true);
   const [defringe, setDefringe] = useState<boolean>(true);
+  const [addWhiteStroke, setAddWhiteStroke] = useState<boolean>(false);
+  const [strokeWidth, setStrokeWidth] = useState<number>(3);
   const [bgMode, setBgMode] = useState<'floodfill' | 'global'>('global');
   const [fixedCanvasSize, setFixedCanvasSize] = useState<boolean>(true); // 370x320
 
@@ -178,11 +180,14 @@ export const LineStickerStudio: React.FC = () => {
       // Step 2: Remove background and format each slice to LINE specs
       const options: RemoveBgOptions = {
         targetColor: { r: targetColor.r, g: targetColor.g, b: targetColor.b },
+        autoSampleCorners: true,
         tolerance,
-        hueTolerance: 25,
+        hueTolerance: 28,
         removeShadows,
         choke,
         defringe,
+        addWhiteStroke,
+        strokeWidth,
         mode: bgMode,
         margin: 10,
         fixedCanvasSize,
@@ -312,10 +317,13 @@ export const LineStickerStudio: React.FC = () => {
               <Scissors className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-sm sm:text-base font-bold text-[#000000]">LINE Sticker Studio</h1>
                 <span className="px-2 py-0.5 rounded-full bg-[#06C755]/10 text-[#06C755] border border-[#06C755]/20 text-[10px] font-bold">
                   LINE Creators Standard
+                </span>
+                <span className="px-1.5 py-0.5 rounded-md bg-[#0075de]/10 text-[#0075de] border border-[#0075de]/20 text-[10px] font-mono font-bold">
+                  v2.5 DeepClean Pro
                 </span>
               </div>
               <p className="text-[11px] text-[#615d59] hidden sm:block">
@@ -594,14 +602,14 @@ export const LineStickerStudio: React.FC = () => {
                 <input
                   type="range"
                   min="0"
-                  max="2.5"
+                  max="3.0"
                   step="0.1"
                   value={choke}
                   onChange={(e) => setChoke(parseFloat(e.target.value))}
                   className="w-full accent-[#0075de] cursor-pointer"
                 />
                 <p className="text-[10px] text-[#615d59]">
-                  หดขอบเข้ามาเพื่อตัดขอบม่วง/ขอบสีสะท้อนออกให้เกลี้ยง (แนะนำ: 0.8px)
+                  หดขอบเข้ามากินขอบสีม่วง/ชมพูรอบตัวละครและผมออกให้เกลี้ยง (แนะนำ: 1.2px)
                 </p>
               </div>
 
@@ -619,12 +627,12 @@ export const LineStickerStudio: React.FC = () => {
                   className="w-full accent-[#0075de] cursor-pointer"
                 />
                 <p className="text-[10px] text-[#615d59]">
-                  ค่าเริ่มต้น ~20% ปรับเพิ่มขึ้นหากพื้นหลังยังออกไม่หมด
+                  ค่าเริ่มต้น ~20% ระบบจะดูดสีจาก 4 มุมของแต่ละรูปให้อัตโนมัติ
                 </p>
               </div>
             </div>
 
-            {/* Smart Removal Options & LINE Standard */}
+            {/* Smart Removal Options & White Outline */}
             <div className="p-4 rounded-xl bg-[#faf9f8] border border-[#e6e6e6] space-y-2.5">
               <label className="block text-xs font-bold text-[#000000]">
                 ฟังก์ชันปรับแต่งอัจฉริยะ (Smart Enhancements)
@@ -640,7 +648,7 @@ export const LineStickerStudio: React.FC = () => {
                   />
                   <div>
                     <span className="font-semibold text-[#000000]">ตัดเงาพื้นอัจฉริยะ (Remove Shadows)</span>
-                    <p className="text-[10px] text-[#615d59]">ลบแถบเงาเข้มที่พื้นใต้เท้าตัวการ์ตูน</p>
+                    <p className="text-[10px] text-[#615d59]">ลบแถบเงาเข้มที่พื้นใต้เท้าตัวการ์ตูน 100%</p>
                   </div>
                 </label>
 
@@ -652,10 +660,38 @@ export const LineStickerStudio: React.FC = () => {
                     className="accent-[#06C755] rounded"
                   />
                   <div>
-                    <span className="font-semibold text-[#000000]">ฟอกขอบขาว & ล้างคราบสีตก (Defringe)</span>
-                    <p className="text-[10px] text-[#615d59]">ล้างคราบสีชมพู/ม่วงบนขอบขาวของตัวหนังสือ</p>
+                    <span className="font-semibold text-[#000000]">ล้างคราบสีตก & ขอบม่วง (Defringe)</span>
+                    <p className="text-[10px] text-[#615d59]">ล้างคราบม่วงบนผม หมวก เสื้อผ้า และขอบขาว</p>
                   </div>
                 </label>
+
+                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={addWhiteStroke}
+                    onChange={(e) => setAddWhiteStroke(e.target.checked)}
+                    className="accent-[#0075de] rounded"
+                  />
+                  <div>
+                    <span className="font-semibold text-[#0075de]">เพิ่มขอบขาวสติกเกอร์ LINE (White Stroke)</span>
+                    <p className="text-[10px] text-[#615d59]">เพิ่มเส้นขอบขาวไดคัทรอบตัวการ์ตูนสไตล์ LINE</p>
+                  </div>
+                </label>
+
+                {addWhiteStroke && (
+                  <div className="pl-6 pt-1 flex items-center gap-2 text-xs">
+                    <span className="text-[11px] text-[#615d59]">ความหนาขอบ:</span>
+                    <input
+                      type="range"
+                      min="1"
+                      max="6"
+                      value={strokeWidth}
+                      onChange={(e) => setStrokeWidth(parseInt(e.target.value, 10))}
+                      className="w-24 accent-[#0075de]"
+                    />
+                    <span className="font-mono text-[#0075de] font-bold text-[11px]">{strokeWidth}px</span>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 border-t border-[#e6e6e6] space-y-1.5">
