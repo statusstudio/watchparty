@@ -43,6 +43,7 @@ import { SuperAdminDashboardModal } from './components/SuperAdminDashboardModal.
 import { AdminPortalView } from './components/AdminPortalView.js';
 import { PublicProfileView } from './components/PublicProfileView.js';
 import { AdPopupModal } from './components/AdPopupModal.js';
+import { LineStickerStudio } from './components/LineStickerStudio.js';
 import { SupportModal } from './components/SupportModal.js';
 import { FloatingItem } from './components/FloatingReactions.js';
 import { ToastContainer, ToastItem } from './components/Toast.js';
@@ -59,6 +60,13 @@ function isAdminPath(): boolean {
   return (
     window.location.pathname.startsWith('/admin') ||
     window.location.hash.startsWith('#admin')
+  );
+}
+
+function isLineStudioPath(): boolean {
+  return (
+    window.location.pathname.startsWith('/line') ||
+    window.location.hash.startsWith('#line')
   );
 }
 
@@ -84,7 +92,7 @@ function getProfileHandleFromUrl(): string | null {
 
 function getHashRoomId(): string | null {
   const hash = window.location.hash.replace(/^#/, '').trim();
-  if (!hash || hash.startsWith('admin') || hash.startsWith('@')) {
+  if (!hash || hash.startsWith('admin') || hash.startsWith('@') || hash.startsWith('line')) {
     return null;
   }
   // Check if legacy #room=xxxx format
@@ -99,11 +107,13 @@ function getHashRoomId(): string | null {
 
 export function App() {
   const [isAdminRoute, setIsAdminRoute] = useState<boolean>(() => isAdminPath());
+  const [isLineStudioRoute, setIsLineStudioRoute] = useState<boolean>(() => isLineStudioPath());
   const [profileHandleRoute, setProfileHandleRoute] = useState<string | null>(() => getProfileHandleFromUrl());
 
   useEffect(() => {
     const handleLocationChange = () => {
       setIsAdminRoute(isAdminPath());
+      setIsLineStudioRoute(isLineStudioPath());
       setProfileHandleRoute(getProfileHandleFromUrl());
     };
     window.addEventListener('popstate', handleLocationChange);
@@ -1531,6 +1541,15 @@ export function App() {
   const handleRemoveReaction = (id: string) => {
     setReactions((prev) => prev.filter((r) => r.id !== id));
   };
+
+  if (isLineStudioRoute) {
+    return (
+      <>
+        <LineStickerStudio />
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      </>
+    );
+  }
 
   if (isAdminRoute) {
     return (
