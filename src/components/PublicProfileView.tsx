@@ -18,9 +18,12 @@ import {
   Globe,
   Headphones,
   UserCheck,
+  UserPlus,
+  Trash2,
   Disc,
 } from 'lucide-react';
 import { UserProfile, FavoriteSong, VideoState } from '../types/index.js';
+import { fetchFavorites, removeFavorite, toggleFollow } from '../services/supabase.js';
 
 interface PublicProfileData extends UserProfile {
   activeRoom?: {
@@ -50,20 +53,28 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
   onShowToast,
 }) => {
   const [profile, setProfile] = useState<PublicProfileData | null>(null);
+  const [favorites, setFavorites] = useState<FavoriteSong[]>([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedHandle, setCopiedHandle] = useState(false);
   const [activeTab, setActiveTab] = useState<'favorites' | 'about'>('favorites');
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followLoading, setFollowLoading] = useState(false);
 
   const cleanHandle = handle.replace(/^@/, '').trim();
-  const isOwnProfile =
-    Boolean(currentUser && (
-      (profile && profile.id === currentUser.id) ||
-      (profile && profile.username?.toLowerCase() === currentUser.username?.toLowerCase()) ||
-      (currentUser.username && currentUser.username.toLowerCase() === cleanHandle.toLowerCase()) ||
-      (currentUser.id === cleanHandle)
-    ));
+  const isOwnProfile = Boolean(
+    currentUser &&
+      ((profile && profile.id === currentUser.id) ||
+        (profile &&
+          profile.username &&
+          currentUser.username &&
+          profile.username.toLowerCase() === currentUser.username.toLowerCase()) ||
+        (currentUser.username && currentUser.username.toLowerCase() === cleanHandle.toLowerCase()) ||
+        (currentUser.id === cleanHandle))
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -81,7 +92,30 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
       .then((data: PublicProfileData) => {
         if (isMounted) {
           setProfile(data);
+          setIsFollowing(Boolean(data.isFollowing));
+          setFollowersCount(data.followersCount || 0);
           document.title = `${data.name} (@${data.username || cleanHandle}) – pleng.online`;
+
+          // Fetch favorite songs from database / storage
+          setLoadingFavorites(true);
+          fetchFavorites(data.id)
+            .then((favs) => {
+              if (isMounted) {
+                if (favs && favs.length > 0) {
+                  setFavorites(favs);
+                } else if (data.favoriteSongs && data.favoriteSongs.length > 0) {
+                  setFavorites(data.favoriteSongs);
+                } else {
+                  setFavorites([]);
+                }
+              }
+            })
+            .catch(() => {
+              if (isMounted) setFavorites(data.favoriteSongs || []);
+            })
+            .finally(() => {
+              if (isMounted) setLoadingFavorites(false);
+            });
         }
       })
       .catch((err: any) => {
@@ -95,6 +129,10 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
             setProfile({
               ...currentUser,
               username: currentUser.username || cleanHandle,
+            });
+            setFollowersCount(currentUser.followersCount || 0);
+            fetchFavorites(currentUser.id).then((favs) => {
+              if (isMounted && favs) setFavorites(favs);
             });
           } else {
             setError(err.message || 'ไม่พบผู้ใช้นี้ในระบบ');
@@ -124,6 +162,28 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
     setCopiedHandle(true);
     onShowToast(`คัดลอก ${handleText} แล้ว`, 'info');
     setTimeout(() => setCopiedHandle(false), 2000);
+  };
+
+  const handleToggleFollow = async () => {
+    if (isOwnProfile || !profile) return;
+    if (!currentUser.provider || currentUser.provider === 'guest') {
+      onShowToast('กรุณาเข้าสู่ระบบด้วย Google หรือ Facebook เพื่อติดตามเพื่อน', 'warning');
+      return;
+    }
+    setFollowLoading(true);
+    const newStatus = await toggleFollow(currentUser.id, profile.id);
+    setIsFollowing(newStatus);
+    setFollowersCount((prev) => (newStatus ? prev + 1 : Math.max(0, prev - 1)));
+    setFollowLoading(false);
+    onShowToast(newStatus ? `ติดตาม @${profile.username || cleanHandle} แล้ว` : `เลิกติดตามแล้ว`, 'info');
+  };
+
+  const handleRemoveFavorite = async (songId?: string, videoId?: string) => {
+    if (!videoId && !songId) return;
+    const targetId = songId || videoId!;
+    await removeFavorite(currentUser.id, targetId);
+    setFavorites((prev) => prev.filter((s) => s.videoId !== videoId && s.id !== songId));
+    onShowToast('ลบเพลงออกจากคลังเพลงโปรดแล้ว', 'info');
   };
 
   if (loading) {
@@ -274,13 +334,36 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                   <span>@{profile.username || cleanHandle}</span>
                 </button>
 
-                {isOwnProfile && (
+                {!isOwnProfile ? (
+                  <button
+                    type="button"
+                    disabled={followLoading}
+                    onClick={handleToggleFollow}
+                    className={`px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-60 active:scale-95 ${
+                      isFollowing
+                        ? 'bg-white hover:bg-rose-50 text-[#31302e] hover:text-rose-600 border border-[#e6e6e6]'
+                        : 'bg-[#0075de] hover:bg-[#005bab] text-white'
+                    }`}
+                  >
+                    {isFollowing ? (
+                      <>
+                        <UserCheck className="w-3.5 h-3.5 text-[#1aae39]" />
+                        <span>กำลังติดตาม</span>
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>ติดตาม</span>
+                      </>
+                    )}
+                  </button>
+                ) : (
                   <button
                     onClick={onOpenEditProfile}
-                    className="sm:hidden px-3 py-1.5 rounded-xl bg-[#0075de] text-white text-xs font-semibold flex items-center gap-1.5"
+                    className="px-3.5 py-1.5 rounded-xl bg-[#0075de] hover:bg-[#005bab] text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
-                    <span>แก้ไข</span>
+                    <span>แก้ไขโปรไฟล์</span>
                   </button>
                 )}
               </div>
@@ -300,10 +383,14 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                   </span>
                 )}
 
-                {profile.provider === 'email' && !profile.isSuperAdmin && (
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold flex items-center gap-1">
-                    <UserCheck className="w-3.5 h-3.5" />
-                    <span>สมาชิกพรีเมียม</span>
+                {profile.provider === 'google' && (
+                  <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200 text-xs font-semibold">
+                    Google
+                  </span>
+                )}
+                {profile.provider === 'facebook' && (
+                  <span className="px-2 py-0.5 rounded-full bg-blue-50 text-[#1877F2] border border-blue-200 text-xs font-semibold">
+                    Facebook
                   </span>
                 )}
               </div>
@@ -316,6 +403,22 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                   เข้าร่วมเมื่อ {joinDate}
                 </span>
               </p>
+
+              {/* Stats Bar */}
+              <div className="flex items-center gap-4 py-2 my-2 border-y border-[#e6e6e6] text-xs">
+                <div>
+                  <span className="font-bold text-[#000000] mr-1">{followersCount}</span>
+                  <span className="text-[#615d59]">ผู้ติดตาม</span>
+                </div>
+                <div>
+                  <span className="font-bold text-[#000000] mr-1">{profile.followingCount || 0}</span>
+                  <span className="text-[#615d59]">กำลังติดตาม</span>
+                </div>
+                <div>
+                  <span className="font-bold text-[#0075de] mr-1">{favorites.length}</span>
+                  <span className="text-[#615d59]">เพลงโปรด</span>
+                </div>
+              </div>
 
               {/* Bio */}
               {profile.bio && (
@@ -333,7 +436,7 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                       key={g}
                       className="px-2.5 py-0.5 rounded-lg bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] text-[11px] font-medium"
                     >
-                      {g}
+                      #{g}
                     </span>
                   ))}
                 </div>
@@ -460,7 +563,7 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
             }`}
           >
             <Heart className="w-3.5 h-3.5" />
-            <span>คลังเพลงโปรด ({profile.favoriteSongs?.length || 0})</span>
+            <span>คลังเพลงโปรด ({favorites.length})</span>
           </button>
 
           <button
@@ -479,50 +582,79 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
         {/* TAB 1: FAVORITE SONGS */}
         {activeTab === 'favorites' && (
           <div className="space-y-3">
-            {!profile.favoriteSongs || profile.favoriteSongs.length === 0 ? (
+            {loadingFavorites ? (
+              <div className="text-center py-12 bg-white border border-[#e6e6e6] rounded-2xl p-6 shadow-xs">
+                <div className="w-8 h-8 rounded-full border-2 border-[#0075de]/20 border-t-[#0075de] animate-spin mx-auto mb-3" />
+                <p className="text-xs text-[#615d59]">กำลังโหลดคลังเพลงโปรด...</p>
+              </div>
+            ) : favorites.length === 0 ? (
               <div className="text-center py-16 bg-white border border-[#e6e6e6] rounded-2xl p-6 space-y-3 shadow-xs">
                 <Music className="w-10 h-10 text-[#a39e98] mx-auto opacity-50" />
                 <p className="text-xs font-bold text-[#000000]">ยังไม่มีเพลงโปรดในรายการ</p>
                 <p className="text-[11px] text-[#615d59]">
-                  เมื่อผู้ใช้กด ❤️ เพลงในห้องปาร์ตี้ เพลงจะมาแสดงบนหน้าเพจโปรไฟล์ส่วนตัวนี้อัตโนมัติ
+                  {isOwnProfile
+                    ? 'เมื่อคุณกด ❤️ เพลงในห้องปาร์ตี้ เพลงจะมาแสดงในคลังเพลงโปรดนี้อัตโนมัติ'
+                    : 'สมาชิกคนนี้ยังไม่ได้บันทึกเพลงโปรด'}
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {profile.favoriteSongs.map((song) => (
+                {favorites.map((song) => (
                   <div
                     key={song.id || song.videoId}
                     className="p-3 bg-white border border-[#e6e6e6] hover:border-[#0075de]/40 rounded-2xl flex items-center gap-3 transition-all shadow-xs group"
                   >
-                    <div className="w-16 h-12 rounded-xl bg-gray-900 overflow-hidden shrink-0 relative">
-                      <img src={song.thumbnail} alt={song.title} className="w-full h-full object-cover" />
-                      {onPlaySong && (
-                        <button
-                          onClick={() => onPlaySong(song.videoId, song.title, song.channel)}
-                          className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity cursor-pointer"
-                          title="ฟังเพลงนี้"
-                        >
-                          <Play className="w-5 h-5 fill-current" />
-                        </button>
-                      )}
+                    {/* Thumbnail with click-to-play */}
+                    <div
+                      onClick={() => onPlaySong && onPlaySong(song.videoId, song.title, song.channel)}
+                      className="w-16 h-12 rounded-xl bg-gray-900 overflow-hidden shrink-0 relative cursor-pointer group/thumb shadow-2xs"
+                      title={`เปิดฟังเพลง: ${song.title}`}
+                    >
+                      <img
+                        src={song.thumbnail || `https://i.ytimg.com/vi/${song.videoId}/hqdefault.jpg`}
+                        alt={song.title}
+                        className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center text-white transition-opacity">
+                        <Play className="w-5 h-5 fill-current ml-0.5" />
+                      </div>
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-[#000000] truncate group-hover:text-[#0075de] transition-colors">
+                      <p
+                        onClick={() => onPlaySong && onPlaySong(song.videoId, song.title, song.channel)}
+                        className="text-xs font-bold text-[#000000] truncate group-hover:text-[#0075de] transition-colors cursor-pointer"
+                        title={song.title}
+                      >
                         {song.title}
                       </p>
-                      <p className="text-[11px] text-[#615d59] truncate">{song.channel}</p>
+                      <p className="text-[11px] text-[#615d59] truncate">{song.channel || 'YouTube'}</p>
                     </div>
 
-                    {onPlaySong && (
-                      <button
-                        onClick={() => onPlaySong(song.videoId, song.title, song.channel)}
-                        className="p-2 rounded-xl border border-[#e6e6e6] hover:bg-[#0075de] hover:text-white text-[#615d59] transition-all cursor-pointer shadow-xs shrink-0"
-                        title="เล่นเพลงนี้"
-                      >
-                        <Play className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    {/* Actions */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {onPlaySong && (
+                        <button
+                          type="button"
+                          onClick={() => onPlaySong(song.videoId, song.title, song.channel)}
+                          className="w-8 h-8 rounded-xl bg-[#0075de] hover:bg-[#005bab] text-white flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
+                          title="เปิดเพลงนี้ทันที"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                        </button>
+                      )}
+
+                      {isOwnProfile && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFavorite(song.id, song.videoId)}
+                          className="w-8 h-8 rounded-xl bg-white hover:bg-rose-50 text-[#a39e98] hover:text-rose-600 border border-[#e6e6e6] hover:border-rose-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
+                          title="ลบออกจากเพลงโปรด"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -558,4 +690,5 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
     </div>
   );
 };
+
 export default PublicProfileView;

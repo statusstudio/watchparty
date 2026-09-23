@@ -103,7 +103,16 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [avatarUploadError, setAvatarUploadError] = useState<string | null>(null);
 
   const displayUser = profile || targetUser || currentUser;
-  const isOwnProfile = displayUser.id === currentUser.id;
+  const isOwnProfile = Boolean(
+    currentUser &&
+      (displayUser.id === currentUser.id ||
+        (displayUser.username &&
+          currentUser.username &&
+          displayUser.username.toLowerCase() === currentUser.username.toLowerCase()) ||
+        (displayUser.email &&
+          currentUser.email &&
+          displayUser.email.toLowerCase() === currentUser.email.toLowerCase()))
+  );
 
   const handleAvatarFile = async (file: File) => {
     if (!file) return;
@@ -168,6 +177,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   // Follow / Unfollow handler
   const handleToggleFollow = async () => {
+    if (isOwnProfile) return;
+
     if (!currentUser.provider || currentUser.provider === 'guest') {
       if (onOpenAuth) {
         onOpenAuth();

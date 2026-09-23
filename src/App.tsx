@@ -1247,6 +1247,17 @@ export function App() {
     setIsUserProfileModalOpen(true);
   }, []);
 
+  const handlePlaySongFromProfile = useCallback((videoId: string, title?: string, channel?: string) => {
+    const targetRoom = roomId || 'squad-chill';
+    window.location.hash = `#${targetRoom}`;
+    setProfileHandleRoute(null);
+    setCurrentView('room');
+    handleSelectRoom(targetRoom);
+    handleVideoChange(videoId, title, channel);
+    setIsUserProfileModalOpen(false);
+    showToast(`กำลังเปิดเพลง: ${title || videoId} 🎵`, 'success');
+  }, [roomId, showToast]);
+
   // Stage speak request interactions
   const handleRequestToSpeak = (seatNumber?: number) => {
     if (isStealthInspection) {
@@ -1567,13 +1578,7 @@ export function App() {
             setSelectedUserForProfile(currentUser);
             setIsUserProfileModalOpen(true);
           }}
-          onPlaySong={(videoId, title, channel) => {
-            window.history.pushState({}, '', `/#${roomId}`);
-            setProfileHandleRoute(null);
-            setCurrentView('room');
-            handleVideoChange(videoId, title, channel);
-            showToast(`กำลังเล่น: ${title || videoId} 🎵`, 'success');
-          }}
+          onPlaySong={handlePlaySongFromProfile}
           onShowToast={showToast}
         />
         <UserProfileModal
@@ -1586,14 +1591,7 @@ export function App() {
             saveUser(updated);
             handleSaveProfile(updated);
           }}
-          onPlaySong={(videoId, title, channel) => {
-            window.history.pushState({}, '', `/#${roomId}`);
-            setProfileHandleRoute(null);
-            setCurrentView('room');
-            handleVideoChange(videoId, title, channel);
-            setIsUserProfileModalOpen(false);
-            showToast(`เปิดเพลง: ${title} 🎵`, 'success');
-          }}
+          onPlaySong={handlePlaySongFromProfile}
           onOpenAuth={() => {
             setIsUserProfileModalOpen(false);
             setIsAuthModalOpen(true);
@@ -2285,11 +2283,7 @@ export function App() {
           saveUser(updated);
           handleSaveProfile(updated);
         }}
-        onPlaySong={(videoId, title, channel) => {
-          handleVideoChange(videoId, title, channel);
-          setIsUserProfileModalOpen(false);
-          showToast(`เปิดเพลง: ${title} 🎵`, 'success');
-        }}
+        onPlaySong={handlePlaySongFromProfile}
         onOpenAuth={() => {
           setIsUserProfileModalOpen(false);
           setIsAuthModalOpen(true);

@@ -438,62 +438,82 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                     key={item.id}
                     className="flex items-center gap-2 p-1.5 rounded-xl bg-white hover:bg-[#f6f5f4] border border-[#e6e6e6] transition-colors group shadow-xs"
                   >
-                    <span className="w-5 text-center font-mono text-xs text-[#a39e98]">
+                    <span className="w-5 text-center font-mono text-xs text-[#a39e98] shrink-0">
                       {idx + 1}
                     </span>
 
-                    <div className="w-12 h-8 rounded-lg overflow-hidden shrink-0 bg-black relative shadow-xs">
+                    {/* Thumbnail with quick Play overlay */}
+                    <div
+                      onClick={() => onPlayNow(item.videoId, item.title, item.channel)}
+                      title={`คลิกเพื่อเล่นเพลง: ${item.title}`}
+                      className="w-14 h-9.5 rounded-lg overflow-hidden shrink-0 bg-black relative shadow-2xs group/thumb cursor-pointer border border-[#e6e6e6]/60"
+                    >
                       <img
                         src={item.thumbnail}
                         alt={item.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform"
                       />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center text-white transition-opacity">
+                        <Play className="w-4 h-4 fill-current ml-0.5" />
+                      </div>
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <h5 className="text-xs font-medium text-[#000000] truncate" title={item.title}>
+                    <div className="flex-1 min-w-0 pr-1">
+                      <h5
+                        onClick={() => onPlayNow(item.videoId, item.title, item.channel)}
+                        className="text-xs font-semibold text-[#000000] hover:text-[#0075de] transition-colors truncate cursor-pointer"
+                        title={item.title}
+                      >
                         {item.title}
                       </h5>
-                      <div className="flex items-center gap-2 text-[10px] text-[#615d59]">
+                      <div className="flex items-center gap-1.5 text-[10px] text-[#615d59]">
                         <span className="truncate max-w-[100px]">{item.channel}</span>
                         <span>•</span>
                         <span>{item.duration}</span>
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Actions - Distinct buttons with clear visual separation */}
+                    <div className="flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
+                      {/* Favorite Button */}
                       <button
                         type="button"
                         onClick={() => handleToggleFavoriteItem(item)}
                         title={favIds.has(item.videoId) ? 'ลบออกจากเพลงโปรด' : 'บันทึกเป็นเพลงโปรด ❤️'}
-                        className={`p-1 rounded-md transition-colors cursor-pointer ${
+                        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95 ${
                           favIds.has(item.videoId)
-                            ? 'text-rose-500 hover:text-rose-600'
-                            : 'text-[#a39e98] hover:text-rose-500'
+                            ? 'bg-rose-50 text-rose-500 hover:bg-rose-100 border border-rose-200'
+                            : 'bg-white hover:bg-rose-50 text-[#a39e98] hover:text-rose-500 border border-[#e6e6e6]'
                         }`}
                       >
                         <Heart className={`w-3.5 h-3.5 ${favIds.has(item.videoId) ? 'fill-current text-rose-500' : ''}`} />
                       </button>
 
+                      {/* Play Button - Large Solid Blue (High visibility, impossible to mistake for delete) */}
                       <button
                         type="button"
                         onClick={() => onPlayNow(item.videoId, item.title, item.channel)}
-                        title="เล่นทันที"
-                        className="p-1 rounded-md hover:bg-[#0075de]/10 text-[#0075de] transition-colors cursor-pointer"
+                        title="เล่นเพลงนี้ทันที"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#0075de] hover:bg-[#005bab] text-white flex items-center justify-center transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                       >
-                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
                       </button>
 
+                      {/* Protective Separator Line between Play and Destructive Delete */}
                       {canManagePlaylist && (
-                        <button
-                          type="button"
-                          onClick={() => onRemoveItem(item.id)}
-                          title="ลบออกจากคิว"
-                          className="p-1 rounded-md hover:bg-rose-50 text-rose-600 transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <>
+                          <span className="h-4 w-px bg-[#e6e6e6] mx-0.5 hidden sm:inline-block" />
+
+                          {/* Delete Button - Distinct bordered styling, separated from Play */}
+                          <button
+                            type="button"
+                            onClick={() => onRemoveItem(item.id)}
+                            title="ลบเพลงนี้ออกจากคิว"
+                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white hover:bg-rose-50 text-[#a39e98] hover:text-rose-600 border border-[#e6e6e6] hover:border-rose-300 flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -756,14 +776,14 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
                         onClick={() => onPlayNow(fav.videoId, fav.title, fav.channel)}
                         title="เล่นทันที"
-                        className="p-1.5 rounded-md hover:bg-[#0075de]/10 text-[#0075de] transition-colors cursor-pointer"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#0075de] hover:bg-[#005bab] text-white flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
                       >
-                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
                       </button>
 
                       <button
@@ -784,16 +804,18 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                           onShowToast(`เพิ่ม "${fav.title.substring(0, 25)}..." เข้าคิวแล้ว ❤️`, 'success');
                         }}
                         title="เพิ่มเข้าคิว"
-                        className="p-1.5 rounded-md hover:bg-black/5 text-[#31302e] transition-colors cursor-pointer"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
+
+                      <span className="h-4 w-px bg-[#e6e6e6] mx-0.5 hidden sm:inline-block" />
 
                       <button
                         type="button"
                         onClick={() => handleToggleFavoriteItem(fav)}
                         title="ลบออกจากเพลงโปรด"
-                        className="p-1.5 rounded-md hover:bg-rose-50 text-[#a39e98] hover:text-rose-600 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white hover:bg-rose-50 text-[#a39e98] hover:text-rose-600 border border-[#e6e6e6] hover:border-rose-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

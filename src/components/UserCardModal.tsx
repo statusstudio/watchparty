@@ -60,10 +60,21 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
 
   if (!isOpen || !displayUser) return null;
 
-  const isSelf = displayUser.id === currentUser.id;
+  const isSelf = Boolean(
+    currentUser &&
+      (displayUser.id === currentUser.id ||
+        (displayUser.username &&
+          currentUser.username &&
+          displayUser.username.toLowerCase() === currentUser.username.toLowerCase()) ||
+        (displayUser.email &&
+          currentUser.email &&
+          displayUser.email.toLowerCase() === currentUser.email.toLowerCase()))
+  );
   const userHandle = displayUser.username || `user_${displayUser.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6)}`;
 
   const handleToggleFollow = async () => {
+    if (isSelf) return;
+
     if (!currentUser.provider || currentUser.provider === 'guest') {
       if (onOpenAuth) {
         onOpenAuth();
