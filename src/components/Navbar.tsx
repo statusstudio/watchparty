@@ -17,7 +17,6 @@ import {
   HelpCircle,
   Star,
   ExternalLink,
-  Scissors,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { UserProfile, UserRole } from '../types/index.js';
@@ -285,16 +284,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         )}
 
-        {/* LINE Sticker Tool Link (Desktop) */}
-        <a
-          href="/line"
-          className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#06C755]/10 hover:bg-[#06C755]/20 text-[#06C755] border border-[#06C755]/30 text-xs font-semibold transition-colors cursor-pointer shadow-xs"
-          title="เครื่องมือตัดรูป 2x2 ทำสติกเกอร์ไลน์ครบ 40 รูป"
-        >
-          <Scissors className="w-3.5 h-3.5" />
-          <span>ตัดสติกเกอร์ LINE</span>
-        </a>
-
         {/* Super Admin Dashboard Trigger (Visible ONLY when logged in as Super Admin) */}
         {isSuperAdmin && onOpenSuperAdminDashboard && (
           <button
@@ -506,15 +495,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <span>ระบบหลังบ้าน (Backoffice)</span>
                   </button>
                 )}
-
-                {/* LINE Sticker Tool in Mobile */}
-                <a
-                  href="/line"
-                  className="w-full px-3 py-2 rounded-lg hover:bg-[#06C755]/10 text-left text-xs text-[#06C755] font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
-                >
-                  <Scissors className="w-4 h-4 text-[#06C755]" />
-                  <span>ตัดสติกเกอร์ LINE (40 รูป)</span>
-                </a>
 
                 <div className="h-[1px] bg-[#e6e6e6] my-1" />
 
