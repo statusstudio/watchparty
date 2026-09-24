@@ -37,3 +37,7 @@ lerna-debug.log*
 # Temporary test scripts
 test-*.ts
 test-*.js
+
+# Local database and persistent storage
+server/data/
+server/data/*.json

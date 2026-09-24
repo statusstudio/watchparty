@@ -81,13 +81,12 @@ export class PlatformManager {
   private topTracks: Map<string, TrackPlayStat> = new Map();
   private startTime: number = Date.now();
   private saveTimeout: NodeJS.Timeout | null = null;
+  private isHydrated: boolean = false;
 
   constructor() {
     this.ensureDataDir();
     this.loadStore();
-    this.seedDefaults();
     emailService.setSmtpConfigGetter(() => this.getSmtpConfig());
-    this.initSupabaseSync();
   }
 
   private ensureDataDir() {
@@ -202,41 +201,83 @@ export class PlatformManager {
     }
   }
 
-  /**
-   * Hydrate initial data from Supabase Cloud if available
-   */
-  private async initSupabaseSync() {
-    if (!serverSupabaseService.isConfigured()) return;
+  private dumpData(): StoreSchema {
+    return {
+      users: Array.from(this.users.values()),
+      userAccounts: Array.from(this.userAccounts.values()),
+      adminCredentials: this.adminCredentials,
+      tickets: Array.from(this.tickets.values()),
+      config: this.config,
+      topTracks: Array.from(this.topTracks.values()),
+      smtpConfig: this.smtpConfig,
+    };
+  }
+
+  private saveLocalStore() {
     try {
-      const cloudData = await serverSupabaseService.loadData<StoreSchema>('platform_store');
-      if (cloudData && (cloudData.userAccounts?.length || cloudData.users?.length)) {
-        this.hydrateFromStore(cloudData);
-        this.seedDefaults();
-        console.log(`✅ PlatformManager: Synced ${this.userAccounts.size} user accounts from Supabase Cloud!`);
-      } else {
-        // Seed initial data to Supabase if empty on cloud
-        await this.syncToSupabase();
-      }
+      const data = this.dumpData();
+      fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
-      console.error('❌ PlatformManager: Error during initial Supabase sync:', err);
+      console.error('Failed to save platform_store.json locally:', err);
     }
+  }
+
+  /**
+   * Initialize platform data: hydrate from Supabase Cloud or fallback to local disk
+   */
+  public async init(): Promise<void> {
+    if (this.isHydrated) return;
+
+    if (serverSupabaseService.isConfigured()) {
+      try {
+        console.log('🔄 PlatformManager: Hydrating platform store from Supabase Cloud...');
+        const res = await serverSupabaseService.loadDataResult<StoreSchema>('platform_store');
+
+        if (res.exists && res.data) {
+          this.hydrateFromStore(res.data);
+          this.seedDefaults();
+          this.isHydrated = true;
+          this.saveLocalStore();
+          console.log(
+            `✅ PlatformManager: Synced ${this.userAccounts.size} user accounts and admin "${this.adminCredentials.username}" from Supabase Cloud!`
+          );
+          return;
+        }
+
+        if (res.error) {
+          console.warn(`⚠️ PlatformManager: Supabase load warning: ${res.error}. Retaining local store.`);
+          this.seedDefaults();
+          this.isHydrated = true;
+          return;
+        }
+
+        // Table row does not exist yet (first-ever launch)
+        console.log('ℹ️ PlatformManager: No existing platform_store found in Supabase. Initializing default cloud store...');
+        this.seedDefaults();
+        this.isHydrated = true;
+        this.saveLocalStore();
+        await this.syncToSupabase();
+        return;
+      } catch (err) {
+        console.error('❌ PlatformManager: Error during initial Supabase sync:', err);
+      }
+    }
+
+    this.seedDefaults();
+    this.isHydrated = true;
   }
 
   /**
    * Sync current platform state to Supabase Cloud
    */
   public async syncToSupabase(customData?: StoreSchema): Promise<boolean> {
+    if (!this.isHydrated) {
+      console.warn('[PlatformManager] syncToSupabase skipped: not hydrated yet');
+      return false;
+    }
     if (!serverSupabaseService.isConfigured()) return false;
     try {
-      const data: StoreSchema = customData || {
-        users: Array.from(this.users.values()),
-        userAccounts: Array.from(this.userAccounts.values()),
-        adminCredentials: this.adminCredentials,
-        tickets: Array.from(this.tickets.values()),
-        config: this.config,
-        topTracks: Array.from(this.topTracks.values()),
-        smtpConfig: this.smtpConfig,
-      };
+      const data: StoreSchema = customData || this.dumpData();
       return await serverSupabaseService.saveData('platform_store', data);
     } catch (err) {
       console.error('PlatformManager: syncToSupabase error:', err);
@@ -249,21 +290,17 @@ export class PlatformManager {
   }
 
   public async flushSave(): Promise<void> {
+    if (!this.isHydrated) {
+      console.warn('[PlatformManager] flushSave skipped: not hydrated yet');
+      return;
+    }
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);
       this.saveTimeout = null;
     }
     try {
-      const data: StoreSchema = {
-        users: Array.from(this.users.values()),
-        userAccounts: Array.from(this.userAccounts.values()),
-        adminCredentials: this.adminCredentials,
-        tickets: Array.from(this.tickets.values()),
-        config: this.config,
-        topTracks: Array.from(this.topTracks.values()),
-        smtpConfig: this.smtpConfig,
-      };
-      fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), 'utf-8');
+      const data = this.dumpData();
+      this.saveLocalStore();
       if (serverSupabaseService.isConfigured()) {
         await this.syncToSupabase(data);
       }
@@ -273,19 +310,14 @@ export class PlatformManager {
   }
 
   private scheduleSave() {
+    if (!this.isHydrated) {
+      return;
+    }
     if (this.saveTimeout) clearTimeout(this.saveTimeout);
     this.saveTimeout = setTimeout(() => {
       try {
-        const data: StoreSchema = {
-          users: Array.from(this.users.values()),
-          userAccounts: Array.from(this.userAccounts.values()),
-          adminCredentials: this.adminCredentials,
-          tickets: Array.from(this.tickets.values()),
-          config: this.config,
-          topTracks: Array.from(this.topTracks.values()),
-          smtpConfig: this.smtpConfig,
-        };
-        fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), 'utf-8');
+        const data = this.dumpData();
+        this.saveLocalStore();
         // Asynchronously persist to Supabase Cloud
         this.syncToSupabase(data).catch((e) => {
           console.error('Failed to sync to Supabase in scheduleSave:', e);
@@ -345,8 +377,6 @@ export class PlatformManager {
       };
       this.tickets.set(sampleTicket.id, sampleTicket);
     }
-
-    this.scheduleSave();
   }
 
   // --- Admin Authentication & Management ---
@@ -490,6 +520,7 @@ export class PlatformManager {
     }
 
     this.scheduleSave();
+    this.syncToSupabase().catch((e) => console.error('[PlatformManager] syncToSupabase error in updateAdminCredentials:', e));
     return {
       success: true,
       message: 'อัพเดทข้อมูลบัญชีแอดมินเรียบร้อยแล้ว',
@@ -603,6 +634,7 @@ export class PlatformManager {
     this.userAccounts.set(cleanEmail, account);
     this.users.set(userId, platformUser);
     this.scheduleSave();
+    this.syncToSupabase().catch((e) => console.error('[PlatformManager] syncToSupabase error in registerMember:', e));
 
     return { success: true, user: platformUser };
   }
@@ -685,6 +717,7 @@ export class PlatformManager {
     }
 
     this.scheduleSave();
+    this.syncToSupabase().catch((e) => console.error('[PlatformManager] syncToSupabase error in resetMemberPassword:', e));
 
     let user: PlatformUser | undefined;
     if (account) {
@@ -723,6 +756,7 @@ export class PlatformManager {
       this.adminCredentials.passwordHash = emailService.hashPassword(newPass.trim());
       this.adminCredentials.updatedAt = Date.now();
       this.scheduleSave();
+      this.syncToSupabase().catch((e) => console.error('[PlatformManager] syncToSupabase error in changeMemberPassword (admin):', e));
       return { success: true, message: 'เปลี่ยนรหัสผ่านสำเร็จเรียบร้อยแล้ว 🎉' };
     }
 
@@ -742,6 +776,7 @@ export class PlatformManager {
 
     account.passwordHash = emailService.hashPassword(newPass.trim());
     this.scheduleSave();
+    this.syncToSupabase().catch((e) => console.error('[PlatformManager] syncToSupabase error in changeMemberPassword:', e));
     return { success: true, message: 'เปลี่ยนรหัสผ่านสำเร็จเรียบร้อยแล้ว 🎉' };
   }
 
@@ -888,6 +923,7 @@ export class PlatformManager {
     this.userAccounts.set(cleanEmail, account);
     this.users.set(userId, platformUser);
     this.scheduleSave();
+    this.syncToSupabase().catch((e) => console.error('[PlatformManager] syncToSupabase error in createMemberAdmin:', e));
 
     return { success: true, user: platformUser, message: 'เพิ่มสมาชิกใหม่สำเร็จ' };
   }
@@ -966,6 +1002,7 @@ export class PlatformManager {
     }
 
     this.scheduleSave();
+    this.syncToSupabase().catch((e) => console.error('[PlatformManager] syncToSupabase error in updateMemberAdmin:', e));
     return { success: true, user, message: 'แก้ไขข้อมูลสมาชิกสำเร็จ' };
   }
 
@@ -984,6 +1021,7 @@ export class PlatformManager {
     }
     this.users.delete(userId);
     this.scheduleSave();
+    this.syncToSupabase().catch((e) => console.error('[PlatformManager] syncToSupabase error in deleteMemberAdmin:', e));
 
     return { success: true, message: `ลบสมาชิก "${user.name}" ออกจากระบบเรียบร้อยแล้ว` };
   }

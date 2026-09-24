@@ -195,11 +195,13 @@ export class ServerSupabaseService {
   }
 
   /**
-   * Load JSON document from `app_storage` table
+   * Load JSON document from `app_storage` table with explicit existence & error indicators
    */
-  public async loadData<T>(key: string): Promise<T | null> {
+  public async loadDataResult<T>(
+    key: string
+  ): Promise<{ data: T | null; exists: boolean; error: string | null }> {
     if (!this.isConfigured() || !this.client) {
-      return null;
+      return { data: null, exists: false, error: 'Supabase not configured' };
     }
 
     try {
@@ -210,20 +212,29 @@ export class ServerSupabaseService {
         .maybeSingle();
 
       if (error) {
-        console.warn(`[SupabaseSync] Failed to load data for key "${key}":`, error.message);
-        return null;
+        console.warn(`[SupabaseSync] Failed to query key "${key}":`, error.message);
+        return { data: null, exists: false, error: error.message };
       }
 
-      if (data && data.data) {
-        console.log(`[SupabaseSync] Successfully hydrated "${key}" from Supabase Cloud!`);
-        return data.data as T;
+      if (data && data.data !== undefined && data.data !== null) {
+        console.log(`[SupabaseSync] Successfully retrieved "${key}" from Supabase Cloud!`);
+        return { data: data.data as T, exists: true, error: null };
       }
 
-      return null;
-    } catch (err) {
-      console.error(`[SupabaseSync] Error loading "${key}":`, err);
-      return null;
+      return { data: null, exists: false, error: null };
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      console.error(`[SupabaseSync] Error loading "${key}":`, msg);
+      return { data: null, exists: false, error: msg };
     }
+  }
+
+  /**
+   * Load JSON document from `app_storage` table
+   */
+  public async loadData<T>(key: string): Promise<T | null> {
+    const res = await this.loadDataResult<T>(key);
+    return res.data;
   }
 
   /**

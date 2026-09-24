@@ -60,11 +60,11 @@ export class RoomManager {
   private clients: Map<WebSocket, ClientConnection> = new Map();
   public pendingUsers: Map<WebSocket, UserProfile> = new Map();
   private cleanupInterval: NodeJS.Timeout | null = null;
+  private isHydrated: boolean = false;
 
   constructor() {
-    // 1. Re-hydrate persistent member rooms from disk
+    // 1. Re-hydrate persistent member rooms from local disk fallback
     this.loadPersistentRooms();
-    this.initSupabaseRoomsSync();
 
     // 2. Set up periodic expiration & cleanup interval (runs every 60s)
     this.cleanupInterval = setInterval(() => {
@@ -176,17 +176,25 @@ export class RoomManager {
     }
   }
 
-  private async initSupabaseRoomsSync() {
-    if (!serverSupabaseService.isConfigured()) return;
-    try {
-      const cloudRooms = await serverSupabaseService.loadData<any[]>('persistent_rooms');
-      if (Array.isArray(cloudRooms) && cloudRooms.length > 0) {
-        this.hydratePersistentRooms(cloudRooms);
-        console.log(`✅ [RoomManager] Re-hydrated ${cloudRooms.length} active rooms with playlists & chat from Supabase Cloud!`);
+  public async init(): Promise<void> {
+    if (this.isHydrated) return;
+
+    if (serverSupabaseService.isConfigured()) {
+      try {
+        console.log('🔄 [RoomManager] Hydrating rooms from Supabase Cloud...');
+        const res = await serverSupabaseService.loadDataResult<any[]>('persistent_rooms');
+        if (res.exists && Array.isArray(res.data) && res.data.length > 0) {
+          this.hydratePersistentRooms(res.data);
+          console.log(`✅ [RoomManager] Re-hydrated ${res.data.length} active rooms with playlists & chat from Supabase Cloud!`);
+        } else if (res.error) {
+          console.warn(`⚠️ [RoomManager] Failed to load rooms from Supabase: ${res.error}. Keeping local cache.`);
+        }
+      } catch (e) {
+        console.error('❌ [RoomManager] Error hydrating rooms from Supabase:', e);
       }
-    } catch (e) {
-      console.error('[RoomManager] Failed to load rooms from Supabase:', e);
     }
+
+    this.isHydrated = true;
   }
 
   private getRoomsToPersist(): any[] {
@@ -221,6 +229,10 @@ export class RoomManager {
   }
 
   public savePersistentRooms() {
+    if (!this.isHydrated) {
+      console.warn('[RoomManager] savePersistentRooms skipped: not hydrated yet');
+      return;
+    }
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -239,6 +251,10 @@ export class RoomManager {
   }
 
   public async savePersistentRoomsAsync(): Promise<void> {
+    if (!this.isHydrated) {
+      console.warn('[RoomManager] savePersistentRoomsAsync skipped: not hydrated yet');
+      return;
+    }
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -256,6 +272,7 @@ export class RoomManager {
 
   private saveDebounceTimer: NodeJS.Timeout | null = null;
   public scheduleSave() {
+    if (!this.isHydrated) return;
     if (this.saveDebounceTimer) return;
     this.saveDebounceTimer = setTimeout(() => {
       this.saveDebounceTimer = null;

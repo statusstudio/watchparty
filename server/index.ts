@@ -27,10 +27,14 @@ const isProduction = process.env.NODE_ENV === 'production';
 const SERVER_BOOT_TIME = new Date().toISOString();
 
 async function startServer() {
+  console.log('🔄 Initializing database & cloud synchronization...');
+  await platformManager.init();
+
   const app = express();
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: '/ws' });
   const roomManager = new RoomManager();
+  await roomManager.init();
 
   app.use(express.json());
 
