@@ -1167,18 +1167,19 @@ export function App() {
 
   // Password Gate submit
   const handlePasswordSubmit = (password: string) => {
-    const targetId = pendingPrivateRoomId || roomId;
-    if (!targetId) return;
+  const targetId = pendingPrivateRoomId || roomId;
+  if (!targetId) return;
 
-    socketService.send({
-      type: 'VERIFY_ROOM_PASSWORD',
-      roomId: targetId,
-      password,
-      user: currentUser,
-    });
+  // Send password verification via WebSocket. The server will respond with room join updates.
+  socketService.send({
+    type: 'VERIFY_ROOM_PASSWORD',
+    roomId: targetId,
+    password,
+    user: currentUser,
+  });
 
-    syncRoomState(targetId, password);
-  };
+  // No immediate REST sync here; the WebSocket flow will update client state upon success.
+};
 
   // Moderation actions
   const handleSetAdminRole = (targetUserId: string, role: 'admin' | 'member') => {
