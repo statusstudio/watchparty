@@ -495,8 +495,20 @@ export default function App() {
     }
   };
 
+  // Ensure body and root don't trap scrolling when viewing LineStickerStudio
+  useEffect(() => {
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'auto';
+    document.documentElement.style.overflow = 'auto';
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-['Prompt',sans-serif] selection:bg-emerald-500 selection:text-white">
+    <div className="h-screen w-full bg-slate-950 text-slate-100 flex flex-col font-['Prompt',sans-serif] selection:bg-emerald-500 selection:text-white overflow-y-auto overflow-x-hidden">
       {/* Toast Notification Container */}
       <Toast toast={toast} onClose={() => setToast(null)} />
 
