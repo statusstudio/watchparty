@@ -43,7 +43,7 @@ import { SuperAdminDashboardModal } from './components/SuperAdminDashboardModal.
 import { AdminPortalView } from './components/AdminPortalView.js';
 import { PublicProfileView } from './components/PublicProfileView.js';
 import { AdPopupModal } from './components/AdPopupModal.js';
-import { LineStickerStudio } from './components/LineStickerStudio.js';
+import LineStickerStudio from './components/LineStickerStudio.js';
 import { SupportModal } from './components/SupportModal.js';
 import { FloatingItem } from './components/FloatingReactions.js';
 import { ToastContainer, ToastItem } from './components/Toast.js';
