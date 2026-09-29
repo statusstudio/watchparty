@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, MessageSquare, Clock, Image as ImageIcon, X, Loader2, Trash2, Smile } from 'lucide-react';
 import { ChatMessage, UserProfile } from '../types/index.js';
 import { compressChatImage } from '../services/imageCompressor.js';
-import { CUTE_ANIMATED_STICKERS, parseStickerMessage, AnimatedSticker } from '../data/chatStickers.js';
+import { GRAFFITI_STICKERS, parseStickerMessage, AnimatedSticker } from '../data/chatStickers.js';
 
 interface LiveChatProps {
   messages: ChatMessage[];
@@ -269,10 +269,17 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                   if (sticker) {
                     return (
                       <div className="py-1 inline-block select-none">
-                        <div
-                          className={`w-24 h-24 sm:w-28 sm:h-28 ${sticker.animationClass} cursor-pointer drop-shadow-md transition-transform hover:scale-105 active:scale-95`}
-                          dangerouslySetInnerHTML={{ __html: sticker.svg }}
-                          title="สติกเกอร์ดุ๊กดิ๊ก"
+                        <img
+                          src={sticker.url}
+                          alt={sticker.name}
+                          loading="lazy"
+                          className="w-24 h-24 sm:w-28 sm:h-28 object-contain cursor-pointer transition-transform hover:scale-105 active:scale-95 drop-shadow-md"
+                          title={sticker.name}
+                          onError={(e) => {
+                            if (sticker.gifUrl && e.currentTarget.src !== sticker.gifUrl) {
+                              e.currentTarget.src = sticker.gifUrl;
+                            }
+                          }}
                         />
                       </div>
                     );
@@ -393,7 +400,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
             <button
               type="button"
               onClick={() => setIsStickerPickerOpen(!isStickerPickerOpen)}
-              title="ส่งสติกเกอร์ดุ๊กดิ๊กน่ารักๆ ทั้งหมด 10 ตัว"
+              title="ส่งสติกเกอร์ดุ๊กดิ๊ก Graffiti Art ทั้งหมด 45 แบบ"
               className={`p-2 rounded-full border transition-all cursor-pointer shrink-0 shadow-xs flex items-center justify-center ${
                 isStickerPickerOpen
                   ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
@@ -403,16 +410,16 @@ export const LiveChat: React.FC<LiveChatProps> = ({
               <Smile className={`w-4 h-4 ${isStickerPickerOpen ? 'animate-bounce' : ''}`} />
             </button>
 
-            {/* Sticker Picker Drawer Popup (full width of chat form, shows all 10 stickers in 5x2 grid) */}
+            {/* Sticker Picker Drawer Popup (full width of chat form, scrollable grid of 45 stickers) */}
             {isStickerPickerOpen && (
               <div className="absolute bottom-full mb-2 left-2 right-2 z-50 bg-white border border-[#e6e6e6] rounded-2xl shadow-2xl p-2.5 sm:p-3 animate-scale-up text-[#31302e]">
                 {/* Header */}
                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#f0efed]">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-base leading-none">✨</span>
-                    <h4 className="text-xs font-bold text-[#000000]">สติกเกอร์ดุ๊กดิ๊ก</h4>
+                    <span className="text-base leading-none">🎨</span>
+                    <h4 className="text-xs font-bold text-[#000000]">Graffiti Art Stickers</h4>
                     <span className="text-[10px] font-semibold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                      ทั้งหมด 10 ตัว
+                      ทั้งหมด {GRAFFITI_STICKERS.length} แบบ
                     </span>
                   </div>
                   <button
@@ -424,30 +431,37 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                   </button>
                 </div>
 
-                {/* Grid of 10 Animated Stickers (5 cols x 2 rows, clean and no text labels) */}
-                <div className="grid grid-cols-5 gap-1.5 p-1">
-                  {CUTE_ANIMATED_STICKERS.map((stk) => (
+                {/* Grid of 45 Animated Stickers with smooth scrolling */}
+                <div className="grid grid-cols-5 gap-1.5 p-1 max-h-60 sm:max-h-72 overflow-y-auto">
+                  {GRAFFITI_STICKERS.map((stk) => (
                     <button
                       key={stk.id}
                       type="button"
                       onClick={() => {
                         onSendMessage(`[sticker:${stk.id}]`);
                         setIsStickerPickerOpen(false);
-                        onShowToast(`ส่งสติกเกอร์เรียบร้อย 💖`, 'success');
+                        onShowToast(`ส่งสติกเกอร์ ${stk.name} เรียบร้อย 🔥`, 'success');
                       }}
-                      className="group/stk flex items-center justify-center p-2 rounded-xl hover:bg-amber-50/80 border border-transparent hover:border-amber-300 transition-all cursor-pointer relative"
+                      className="group/stk flex items-center justify-center p-1.5 rounded-xl hover:bg-amber-50/80 border border-transparent hover:border-amber-300 transition-all cursor-pointer relative"
                       title={stk.name}
                     >
-                      <div
-                        className={`w-11 h-11 sm:w-12 sm:h-12 ${stk.animationClass} drop-shadow-xs transition-transform group-hover/stk:scale-115 pointer-events-none`}
-                        dangerouslySetInnerHTML={{ __html: stk.svg }}
+                      <img
+                        src={stk.url}
+                        alt={stk.name}
+                        loading="lazy"
+                        className="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-xs transition-transform group-hover/stk:scale-115 pointer-events-none"
+                        onError={(e) => {
+                          if (stk.gifUrl && e.currentTarget.src !== stk.gifUrl) {
+                            e.currentTarget.src = stk.gifUrl;
+                          }
+                        }}
                       />
                     </button>
                   ))}
                 </div>
 
                 <div className="mt-2 pt-1.5 border-t border-[#f0efed] text-[10px] text-[#a39e98] text-center font-medium">
-                  แตะเพื่อส่งสติกเกอร์ดุ๊กดิ๊กทันที (ไม่มีกรอบข้อความ)
+                  เลื่อนดูได้ 45 แบบ แตะเพื่อส่งทันที (ไม่มีกรอบข้อความ)
                 </div>
               </div>
             )}
