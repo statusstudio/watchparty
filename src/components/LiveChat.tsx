@@ -468,22 +468,25 @@ export const LiveChat: React.FC<LiveChatProps> = ({
           </div>
 
           {/* Text Input */}
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-0">
             <input
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder={selectedImage ? 'ใส่ข้อความบรรยายภาพ (หรือไม่ใส่ก็ได้)...' : 'พิมพ์ข้อความ... หรือใส่เวลา เช่น 01:23'}
-              className="w-full pl-3.5 pr-10 py-2 bg-white border border-[#e6e6e6] focus:border-[#0075de] rounded-full text-base sm:text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none shadow-xs transition-colors"
+              placeholder={selectedImage ? 'ใส่ข้อความบรรยายภาพ...' : 'พิมพ์ข้อความ... หรือใส่เวลา เช่น 01:23'}
+              className="w-full px-3.5 py-2 bg-white border border-[#e6e6e6] focus:border-[#0075de] rounded-full text-base sm:text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none shadow-xs transition-colors h-10 sm:h-9"
             />
-            <button
-              type="submit"
-              disabled={!inputText.trim() && !selectedImage}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-[#0075de] text-white hover:bg-[#005bab] disabled:opacity-30 transition-colors cursor-pointer"
-            >
-              <Send className="w-3.5 h-3.5" />
-            </button>
           </div>
+
+          {/* Send Message Button (Dedicated large button for easy tapping) */}
+          <button
+            type="submit"
+            disabled={!inputText.trim() && !selectedImage}
+            title="ส่งข้อความ (Enter)"
+            className="w-10 h-10 sm:w-9 sm:h-9 rounded-full bg-[#0075de] hover:bg-[#005bab] active:scale-90 text-white flex items-center justify-center shrink-0 shadow-sm disabled:opacity-30 disabled:hover:bg-[#0075de] disabled:cursor-not-allowed transition-all cursor-pointer"
+          >
+            <Send className="w-5 h-5 sm:w-4.5 sm:h-4.5 ml-0.5" />
+          </button>
         </div>
       </form>
 
