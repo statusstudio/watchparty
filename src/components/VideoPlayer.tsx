@@ -15,6 +15,7 @@ interface VideoPlayerProps {
   onPlay: (currentTime: number, duration?: number) => void;
   onPause: (currentTime: number, duration?: number) => void;
   onSeek: (currentTime: number, duration?: number) => void;
+  onTimeUpdate?: (currentTime: number, duration: number) => void;
   onVideoEnd: () => void;
   onNextTrack?: () => void;
   onPrevTrack?: () => void;
@@ -40,6 +41,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onPlay,
   onPause,
   onSeek,
+  onTimeUpdate,
   onVideoEnd,
   onNextTrack,
   onPrevTrack,
@@ -382,6 +384,24 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     return () => clearInterval(interval);
   }, [isPlayerReady, video, onShowToast]);
+
+  // Periodic Local Time & Duration updates for parent scrubber UI (every 500ms)
+  useEffect(() => {
+    if (!isPlayerReady || !onTimeUpdate) return;
+
+    const timeTicker = setInterval(() => {
+      const player = playerRef.current;
+      if (!player || !player.getCurrentTime) return;
+
+      try {
+        const curTime = player.getCurrentTime() || 0;
+        const dur = player.getDuration ? (player.getDuration() || 0) : 0;
+        onTimeUpdate(curTime, dur);
+      } catch (e) {}
+    }, 500);
+
+    return () => clearInterval(timeTicker);
+  }, [isPlayerReady, onTimeUpdate]);
 
   // Audio Ducking: Smoothly lower YouTube volume to 15% when someone on stage is speaking so their voice is loud and clear
   useEffect(() => {

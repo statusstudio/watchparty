@@ -23,7 +23,7 @@ import {
 import { getStoredUser, saveUser, clearUser } from './services/auth.js';
 import { socketService } from './services/socket.js';
 import { WebRTCVoiceEngine } from './services/webrtc.js';
-import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Plus, Radio, RefreshCw, Moon, X, Ghost, LogOut } from 'lucide-react';
+import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Plus, Radio, RefreshCw, Moon, X, Ghost, LogOut, Play, Pause, RotateCcw, RotateCw } from 'lucide-react';
 import { Navbar } from './components/Navbar.js';
 import { VideoPlayer } from './components/VideoPlayer.js';
 import { VoiceStage } from './components/VoiceStage.js';
@@ -198,6 +198,27 @@ export function App() {
   const [activeMobileTab, setActiveMobileTab] = useState<'voice' | 'queue' | 'chat' | 'members'>('voice');
   const [unreadChatCount, setUnreadChatCount] = useState<number>(0);
   const [quickUrlText, setQuickUrlText] = useState('');
+
+  // Playback Progress & Timeline State (Scrubber & Time Display)
+  const [playbackCurrentTime, setPlaybackCurrentTime] = useState<number>(0);
+  const [playbackDuration, setPlaybackDuration] = useState<number>(0);
+  const [isScrubbing, setIsScrubbing] = useState<boolean>(false);
+  const [scrubValue, setScrubValue] = useState<number>(0);
+
+  // Time formatter: mm.ss or hh:mm:ss
+  const formatTime = (seconds: number): string => {
+    if (!seconds || isNaN(seconds) || seconds < 0) return '0.00';
+    const totalSec = Math.floor(seconds);
+    const hrs = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+
+    if (hrs > 0) {
+      return `${hrs}:${pad(mins)}:${pad(secs)}`;
+    }
+    return `${mins}.${pad(secs)}`;
+  };
 
   // Global Platform Config & Announcements
   const [platformConfig, setPlatformConfig] = useState<PlatformConfig>({ ...DEFAULT_PLATFORM_CONFIG });
@@ -1853,6 +1874,14 @@ export function App() {
                 onPlay={handleVideoPlay}
                 onPause={handleVideoPause}
                 onSeek={handleVideoSeek}
+                onTimeUpdate={(cur, dur) => {
+                  if (!isScrubbing) {
+                    setPlaybackCurrentTime(cur);
+                  }
+                  if (dur && dur > 0) {
+                    setPlaybackDuration(dur);
+                  }
+                }}
                 onVideoEnd={handleVideoEnd}
                 onNextTrack={handleNextTrack}
                 onPrevTrack={handlePrevTrack}
@@ -1861,109 +1890,224 @@ export function App() {
             </div>
 
             {/* Current Video Info Banner & Quick Controls - Notion White Surface */}
-            <div className="bg-white border border-[#e6e6e6] rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center justify-between shrink-0 gap-1.5 sm:gap-2 shadow-xs">
-              {/* Video Title & Channel */}
-              <div className="min-w-0 flex-1 pr-2">
-                <h2 className="text-xs sm:text-sm font-bold text-[#000000] truncate" title={video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}>
-                  {video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}
-                </h2>
-                <div className="flex items-center gap-2 text-[11px] text-[#615d59] mt-0.5">
-                  <span className="truncate max-w-[140px] sm:max-w-[200px]">{video.channel || 'pleng.online'}</span>
-                  {playlist.length > 0 && (
-                    <span className="text-[10px] text-[#0075de] font-mono bg-[#0075de]/10 px-1.5 py-0.5 rounded border border-[#0075de]/20 shrink-0">
-                      คิว: {playlist.findIndex((p) => p.videoId === video.videoId) >= 0 ? playlist.findIndex((p) => p.videoId === video.videoId) + 1 : 1}/{playlist.length}
-                    </span>
-                  )}
+            <div className="bg-white border border-[#e6e6e6] rounded-xl px-2.5 py-2 sm:px-3 sm:py-2.5 flex flex-col gap-2 shrink-0 shadow-xs">
+              {/* Top Row: Video Title, Channel, Playlist position & Action Controls */}
+              <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+                {/* Video Title & Channel */}
+                <div className="min-w-0 flex-1 pr-2">
+                  <h2 className="text-xs sm:text-sm font-bold text-[#000000] truncate" title={video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}>
+                    {video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}
+                  </h2>
+                  <div className="flex items-center gap-2 text-[11px] text-[#615d59] mt-0.5">
+                    <span className="truncate max-w-[140px] sm:max-w-[200px]">{video.channel || 'pleng.online'}</span>
+                    {playlist.length > 0 && (
+                      <span className="text-[10px] text-[#0075de] font-mono bg-[#0075de]/10 px-1.5 py-0.5 rounded border border-[#0075de]/20 shrink-0">
+                        คิว: {playlist.findIndex((p) => p.videoId === video.videoId) >= 0 ? playlist.findIndex((p) => p.videoId === video.videoId) + 1 : 1}/{playlist.length}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quick Playback Buttons (Previous, Shuffle, Loop, Next, Screen Saver) */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Prev Track */}
+                  <button
+                    type="button"
+                    onClick={handlePrevTrack}
+                    title="เพลงก่อนหน้า (Previous Track)"
+                    disabled={playlist.length === 0}
+                    className="p-1.5 rounded-md bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] disabled:opacity-30 transition-all cursor-pointer shadow-xs"
+                  >
+                    <SkipBack className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Shuffle Button */}
+                  <button
+                    type="button"
+                    onClick={handleToggleShuffle}
+                    title={isShuffle ? 'สุ่มเพลง: เปิด (คลิกเพื่อปิด)' : 'สุ่มเพลง: ปิด (คลิกเพื่อเปิด)'}
+                    className={`p-1.5 rounded-md border transition-all cursor-pointer shadow-xs ${
+                      isShuffle
+                        ? 'bg-[#0075de]/10 text-[#0075de] border-[#0075de]/30'
+                        : 'bg-white hover:bg-[#f6f5f4] text-[#a39e98] border-[#e6e6e6]'
+                    }`}
+                  >
+                    <Shuffle className={`w-3.5 h-3.5 ${isShuffle ? 'text-[#0075de]' : 'opacity-60'}`} />
+                  </button>
+
+                  {/* Loop Mode Cycle Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextMode: Record<LoopMode, LoopMode> = {
+                        off: 'all',
+                        all: 'single',
+                        single: 'off',
+                      };
+                      handleSetLoopMode(nextMode[loopMode]);
+                    }}
+                    title={`โหมดเล่นวน: ${loopMode}`}
+                    className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1 transition-all cursor-pointer shadow-xs ${
+                      loopMode !== 'off'
+                        ? 'bg-[#1aae39]/10 text-[#1aae39] border-[#1aae39]/30'
+                        : 'bg-white hover:bg-[#f6f5f4] text-[#a39e98] border-[#e6e6e6]'
+                    }`}
+                  >
+                    {loopMode === 'single' ? (
+                      <>
+                        <Repeat1 className="w-3.5 h-3.5 text-[#1aae39]" />
+                        <span className="text-[10px] hidden sm:inline">ซ้ำ 1</span>
+                      </>
+                    ) : loopMode === 'all' ? (
+                      <>
+                        <Repeat className="w-3.5 h-3.5 text-[#1aae39]" />
+                        <span className="text-[10px] hidden sm:inline">วนคิว</span>
+                      </>
+                    ) : (
+                      <>
+                        <Repeat className="w-3.5 h-3.5 opacity-60" />
+                        <span className="text-[10px] hidden sm:inline">รอบเดียว</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Next Track */}
+                  <button
+                    type="button"
+                    onClick={handleNextTrack}
+                    title="เพลงถัดไป (Next Track)"
+                    disabled={playlist.length === 0}
+                    className="p-1.5 rounded-md bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] disabled:opacity-30 transition-all cursor-pointer shadow-xs"
+                  >
+                    <SkipForward className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* OLED Screen Off / Sleep Mode Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOledSleepMode(true);
+                      showToast('เข้าสู่โหมดพักหน้าจอ (OLED Black) แตะหน้าจอเพื่อปลดล็อค 🌙', 'info');
+                    }}
+                    title="โหมดพักหน้าจอประหยัดแบตเตอรี่ (หน้าจอดำสนิท ฟังเพลงไม่ตัด)"
+                    className="px-2 py-1 rounded-md bg-white hover:bg-[#f6f5f4] text-[#615d59] border border-[#e6e6e6] text-xs font-medium transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-xs"
+                  >
+                    <Moon className="w-3.5 h-3.5 text-[#615d59]" />
+                    <span className="text-[10px] hidden sm:inline">พักจอ</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Quick Playback Buttons */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                {/* Prev Track */}
-                <button
-                  type="button"
-                  onClick={handlePrevTrack}
-                  title="เพลงก่อนหน้า (Previous Track)"
-                  disabled={playlist.length === 0}
-                  className="p-1.5 rounded-md bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] disabled:opacity-30 transition-all cursor-pointer shadow-xs"
-                >
-                  <SkipBack className="w-3.5 h-3.5" />
-                </button>
-
-                {/* Shuffle Button */}
-                <button
-                  type="button"
-                  onClick={handleToggleShuffle}
-                  title={isShuffle ? 'สุ่มเพลง: เปิด (คลิกเพื่อปิด)' : 'สุ่มเพลง: ปิด (คลิกเพื่อเปิด)'}
-                  className={`p-1.5 rounded-md border transition-all cursor-pointer shadow-xs ${
-                    isShuffle
-                      ? 'bg-[#0075de]/10 text-[#0075de] border-[#0075de]/30'
-                      : 'bg-white hover:bg-[#f6f5f4] text-[#a39e98] border-[#e6e6e6]'
-                  }`}
-                >
-                  <Shuffle className={`w-3.5 h-3.5 ${isShuffle ? 'text-[#0075de]' : 'opacity-60'}`} />
-                </button>
-
-                {/* Loop Mode Cycle Button */}
+              {/* Bottom Row: Scrubber Timeline, -10s, Play/Pause, +10s, Time Display (3.00/15.00) */}
+              <div className="pt-1.5 border-t border-[#f0efed] flex items-center gap-2 sm:gap-2.5">
+                {/* Play / Pause Toggle Button */}
                 <button
                   type="button"
                   onClick={() => {
-                    const nextMode: Record<LoopMode, LoopMode> = {
-                      off: 'all',
-                      all: 'single',
-                      single: 'off',
-                    };
-                    handleSetLoopMode(nextMode[loopMode]);
+                    if (!video.videoId) return;
+                    if (video.isPlaying) {
+                      handleVideoPause(playbackCurrentTime || video.currentTime || 0, playbackDuration || video.duration || 0);
+                    } else {
+                      handleVideoPlay(playbackCurrentTime || video.currentTime || 0, playbackDuration || video.duration || 0);
+                    }
                   }}
-                  title={`โหมดเล่นวน: ${loopMode}`}
-                  className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1 transition-all cursor-pointer shadow-xs ${
-                    loopMode !== 'off'
-                      ? 'bg-[#1aae39]/10 text-[#1aae39] border-[#1aae39]/30'
-                      : 'bg-white hover:bg-[#f6f5f4] text-[#a39e98] border-[#e6e6e6]'
-                  }`}
+                  disabled={!video.videoId}
+                  title={video.isPlaying ? 'หยุดชั่วคราว (Pause)' : 'เล่นต่อ (Play)'}
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#0075de] hover:bg-[#005bab] active:scale-95 text-white flex items-center justify-center transition-all cursor-pointer disabled:opacity-30 shrink-0 shadow-xs"
                 >
-                  {loopMode === 'single' ? (
-                    <>
-                      <Repeat1 className="w-3.5 h-3.5 text-[#1aae39]" />
-                      <span className="text-[10px] hidden sm:inline">ซ้ำ 1</span>
-                    </>
-                  ) : loopMode === 'all' ? (
-                    <>
-                      <Repeat className="w-3.5 h-3.5 text-[#1aae39]" />
-                      <span className="text-[10px] hidden sm:inline">วนคิว</span>
-                    </>
+                  {video.isPlaying ? (
+                    <Pause className="w-3.5 h-3.5 fill-current" />
                   ) : (
-                    <>
-                      <Repeat className="w-3.5 h-3.5 opacity-60" />
-                      <span className="text-[10px] hidden sm:inline">รอบเดียว</span>
-                    </>
+                    <Play className="w-3.5 h-3.5 fill-current translate-x-0.5" />
                   )}
                 </button>
 
-                {/* Next Track */}
-                <button
-                  type="button"
-                  onClick={handleNextTrack}
-                  title="เพลงถัดไป (Next Track)"
-                  disabled={playlist.length === 0}
-                  className="p-1.5 rounded-md bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] disabled:opacity-30 transition-all cursor-pointer shadow-xs"
-                >
-                  <SkipForward className="w-3.5 h-3.5" />
-                </button>
-
-                {/* OLED Screen Off / Sleep Mode Button */}
+                {/* Rewind 10 Seconds Button */}
                 <button
                   type="button"
                   onClick={() => {
-                    setIsOledSleepMode(true);
-                    showToast('เข้าสู่โหมดพักหน้าจอ (OLED Black) แตะหน้าจอเพื่อปลดล็อค 🌙', 'info');
+                    if (!video.videoId) return;
+                    const maxDur = playbackDuration || video.duration || 0;
+                    const current = isScrubbing ? scrubValue : (playbackCurrentTime || video.currentTime || 0);
+                    const newTarget = Math.max(0, current - 10);
+                    setPlaybackCurrentTime(newTarget);
+                    handleVideoSeek(newTarget, maxDur);
+                    showToast('ย้อนหลัง 10 วินาที ⏪', 'info');
                   }}
-                  title="โหมดพักหน้าจอประหยัดแบตเตอรี่ (หน้าจอดำสนิท ฟังเพลงไม่ตัด)"
-                  className="px-2 py-1 rounded-md bg-white hover:bg-[#f6f5f4] text-[#615d59] border border-[#e6e6e6] text-xs font-medium transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-xs"
+                  disabled={!video.videoId}
+                  title="ย้อนหลัง 10 วินาที (-10s)"
+                  className="p-1.5 rounded-lg bg-white hover:bg-[#f6f5f4] text-[#615d59] hover:text-[#000000] border border-[#e6e6e6] active:scale-95 transition-all cursor-pointer disabled:opacity-30 flex items-center gap-1 shrink-0 shadow-xs"
                 >
-                  <Moon className="w-3.5 h-3.5 text-[#615d59]" />
-                  <span className="text-[10px] hidden sm:inline">พักจอ</span>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-mono font-bold leading-none hidden sm:inline">-10s</span>
                 </button>
+
+                {/* Forward 10 Seconds Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!video.videoId) return;
+                    const maxDur = playbackDuration || video.duration || 0;
+                    const current = isScrubbing ? scrubValue : (playbackCurrentTime || video.currentTime || 0);
+                    const newTarget = maxDur > 0 ? Math.min(maxDur, current + 10) : current + 10;
+                    setPlaybackCurrentTime(newTarget);
+                    handleVideoSeek(newTarget, maxDur);
+                    showToast('ไปข้างหน้า 10 วินาที ⏩', 'info');
+                  }}
+                  disabled={!video.videoId}
+                  title="ไปข้างหน้า 10 วินาที (+10s)"
+                  className="p-1.5 rounded-lg bg-white hover:bg-[#f6f5f4] text-[#615d59] hover:text-[#000000] border border-[#e6e6e6] active:scale-95 transition-all cursor-pointer disabled:opacity-30 flex items-center gap-1 shrink-0 shadow-xs"
+                >
+                  <RotateCw className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-mono font-bold leading-none hidden sm:inline">+10s</span>
+                </button>
+
+                {/* Progress Slider (Scrubber Bar) */}
+                <div className="flex-1 flex items-center min-w-0 px-1">
+                  <input
+                    type="range"
+                    min="0"
+                    max={playbackDuration || video.duration || 100}
+                    step="0.5"
+                    value={isScrubbing ? scrubValue : (playbackCurrentTime || 0)}
+                    disabled={!video.videoId || (playbackDuration === 0 && !video.duration)}
+                    onMouseDown={() => {
+                      setIsScrubbing(true);
+                      setScrubValue(playbackCurrentTime || 0);
+                    }}
+                    onTouchStart={() => {
+                      setIsScrubbing(true);
+                      setScrubValue(playbackCurrentTime || 0);
+                    }}
+                    onChange={(e) => {
+                      setScrubValue(parseFloat(e.target.value));
+                    }}
+                    onMouseUp={(e) => {
+                      setIsScrubbing(false);
+                      const seekTo = parseFloat((e.target as HTMLInputElement).value);
+                      setPlaybackCurrentTime(seekTo);
+                      handleVideoSeek(seekTo, playbackDuration || video.duration || 0);
+                    }}
+                    onTouchEnd={(e) => {
+                      setIsScrubbing(false);
+                      const seekTo = parseFloat((e.target as HTMLInputElement).value);
+                      setPlaybackCurrentTime(seekTo);
+                      handleVideoSeek(seekTo, playbackDuration || video.duration || 0);
+                    }}
+                    className="w-full h-1.5 sm:h-2 bg-[#e6e6e6] rounded-full appearance-none cursor-pointer accent-[#0075de] disabled:opacity-30 transition-all"
+                  />
+                </div>
+
+                {/* Current Time / Total Duration Display (e.g. 3.00/15.00) */}
+                <div className="font-mono text-xs font-semibold text-[#31302e] whitespace-nowrap px-2 py-0.5 bg-[#f6f5f4] rounded-md border border-[#e6e6e6] shrink-0 tracking-tight">
+                  <span className="text-[#0075de] font-bold">
+                    {formatTime(isScrubbing ? scrubValue : playbackCurrentTime)}
+                  </span>
+                  <span className="text-[#a39e98] mx-1">/</span>
+                  <span className="text-[#615d59]">
+                    {formatTime(playbackDuration || video.duration || 0)}
+                  </span>
+                </div>
               </div>
             </div>
 
