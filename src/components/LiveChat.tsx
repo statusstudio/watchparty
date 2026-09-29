@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MessageSquare, Clock, Image as ImageIcon, X, Loader2, Trash2 } from 'lucide-react';
+import { Send, MessageSquare, Clock, Image as ImageIcon, X, Loader2, Trash2, Smile } from 'lucide-react';
 import { ChatMessage, UserProfile } from '../types/index.js';
 import { compressChatImage } from '../services/imageCompressor.js';
+import { CUTE_ANIMATED_STICKERS, parseStickerMessage, AnimatedSticker } from '../data/chatStickers.js';
 
 interface LiveChatProps {
   messages: ChatMessage[];
@@ -34,9 +35,26 @@ export const LiveChat: React.FC<LiveChatProps> = ({
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [confirmModalImage, setConfirmModalImage] = useState<string | null>(null);
   const [confirmModalCaption, setConfirmModalCaption] = useState('');
+  const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
+  const stickerPickerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Close sticker picker on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (stickerPickerRef.current && !stickerPickerRef.current.contains(e.target as Node)) {
+        setIsStickerPickerOpen(false);
+      }
+    };
+    if (isStickerPickerOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [isStickerPickerOpen]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -250,33 +268,54 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                     ? 'bg-[#0075de]/8 text-[#000000] border-[#0075de]/20'
                     : 'bg-white text-[#31302e] border-[#e6e6e6]'
                 }`}>
-                  {msg.imageUrl && (
-                    <div className="relative mb-1.5 inline-block group/img">
-                      <img
-                        src={msg.imageUrl}
-                        alt="แนบรูปภาพ"
-                        className="max-w-[200px] sm:max-w-[260px] max-h-60 rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity border border-black/10 shadow-xs"
-                        onClick={() => setLightboxImage(msg.imageUrl || null)}
-                      />
-                      {onDeleteMessage && isMe && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm('ต้องการลบรูปภาพนี้ใช่หรือไม่? ผู้ใช้อื่นในห้องจะไม่เห็นรูปนี้ทันที')) {
-                              onDeleteMessage(msg.id);
-                            }
-                          }}
-                          className="absolute top-2 right-2 p-1.5 rounded-full bg-black/65 hover:bg-rose-600 text-white transition-colors shadow-md cursor-pointer flex items-center gap-1 text-[10px] font-medium"
-                          title="ลบรูปภาพนี้ทันที"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          <span className="hidden sm:inline">ลบรูป</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {msg.text && renderMessageWithTimestamps(msg.text)}
+                  {/* Animated Sticker Rendering */}
+                  {(() => {
+                    const sticker = parseStickerMessage(msg.text);
+                    if (sticker) {
+                      return (
+                        <div className="py-1">
+                          <div
+                            className={`w-24 h-24 sm:w-28 sm:h-28 ${sticker.animationClass} cursor-pointer drop-shadow-md select-none transition-transform hover:scale-105 active:scale-95`}
+                            dangerouslySetInnerHTML={{ __html: sticker.svg }}
+                            title={`${sticker.name} (สติกเกอร์ดุ๊กดิ๊ก)`}
+                          />
+                          <p className="text-[10px] text-[#a39e98] text-center mt-1 font-medium">{sticker.name}</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <>
+                        {msg.imageUrl && (
+                          <div className="relative mb-1.5 inline-block group/img">
+                            <img
+                              src={msg.imageUrl}
+                              alt="แนบรูปภาพ"
+                              className="max-w-[200px] sm:max-w-[260px] max-h-60 rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity border border-black/10 shadow-xs"
+                              onClick={() => setLightboxImage(msg.imageUrl || null)}
+                            />
+                            {onDeleteMessage && isMe && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm('ต้องการลบรูปภาพนี้ใช่หรือไม่? ผู้ใช้อื่นในห้องจะไม่เห็นรูปนี้ทันที')) {
+                                    onDeleteMessage(msg.id);
+                                  }
+                                }}
+                                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/65 hover:bg-rose-600 text-white transition-colors shadow-md cursor-pointer flex items-center gap-1 text-[10px] font-medium"
+                                title="ลบรูปภาพนี้ทันที"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span className="hidden sm:inline">ลบรูป</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        {msg.text && renderMessageWithTimestamps(msg.text)}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -351,6 +390,74 @@ export const LiveChat: React.FC<LiveChatProps> = ({
               </button>
             </>
           )}
+
+          {/* Cute Animated Sticker Picker Button */}
+          <div className="relative" ref={stickerPickerRef}>
+            <button
+              type="button"
+              onClick={() => setIsStickerPickerOpen(!isStickerPickerOpen)}
+              title="ส่งสติกเกอร์ดุ๊กดิ๊กน่ารักๆ (Animated Stickers)"
+              className={`p-2 rounded-full border transition-all cursor-pointer shrink-0 shadow-xs flex items-center justify-center ${
+                isStickerPickerOpen
+                  ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                  : 'text-[#615d59] hover:text-amber-500 hover:bg-amber-500/10 border-[#e6e6e6]'
+              }`}
+            >
+              <Smile className={`w-4 h-4 ${isStickerPickerOpen ? 'animate-bounce' : ''}`} />
+            </button>
+
+            {/* Sticker Picker Drawer Popup */}
+            {isStickerPickerOpen && (
+              <div className="absolute bottom-full mb-2 left-0 sm:left-auto sm:right-0 z-50 w-72 sm:w-80 bg-white border border-[#e6e6e6] rounded-2xl shadow-2xl p-3 animate-scale-up text-[#31302e]">
+                {/* Header */}
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#f0efed]">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base leading-none">✨</span>
+                    <h4 className="text-xs font-bold text-[#000000]">สติกเกอร์ดุ๊กดิ๊ก 10 ตัว</h4>
+                    <span className="text-[10px] font-medium text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/20">
+                      น่ารัก
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsStickerPickerOpen(false)}
+                    className="p-1 rounded-full text-[#a39e98] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Grid of 10 Animated Stickers */}
+                <div className="grid grid-cols-5 gap-2 max-h-56 overflow-y-auto p-1">
+                  {CUTE_ANIMATED_STICKERS.map((stk) => (
+                    <button
+                      key={stk.id}
+                      type="button"
+                      onClick={() => {
+                        onSendMessage(`[sticker:${stk.id}]`);
+                        setIsStickerPickerOpen(false);
+                        onShowToast(`ส่งสติกเกอร์ ${stk.name} เรียบร้อย 💖`, 'success');
+                      }}
+                      className="group/stk flex flex-col items-center justify-center p-1.5 rounded-xl hover:bg-amber-50/70 border border-transparent hover:border-amber-300 transition-all cursor-pointer relative"
+                      title={`${stk.name} (${stk.category})`}
+                    >
+                      <div
+                        className={`w-11 h-11 ${stk.animationClass} drop-shadow-xs transition-transform group-hover/stk:scale-110 pointer-events-none`}
+                        dangerouslySetInnerHTML={{ __html: stk.svg }}
+                      />
+                      <span className="text-[9px] text-[#615d59] group-hover/stk:text-amber-800 font-medium truncate w-full text-center mt-1 leading-tight">
+                        {stk.name.replace(/^(น้อง|ลูก)/, '')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-2 pt-1.5 border-t border-[#f0efed] text-[10px] text-[#a39e98] text-center font-medium">
+                  แตะที่สติกเกอร์เพื่อส่งในแชททันที 🐾
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Text Input */}
           <div className="relative flex-1">
