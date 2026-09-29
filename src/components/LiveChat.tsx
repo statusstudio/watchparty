@@ -263,60 +263,57 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                   )}
                 </div>
 
-                <div className={`text-xs rounded-2xl rounded-tl-sm px-3 py-2 inline-block max-w-full break-words leading-relaxed border shadow-xs ${
-                  isMe
-                    ? 'bg-[#0075de]/8 text-[#000000] border-[#0075de]/20'
-                    : 'bg-white text-[#31302e] border-[#e6e6e6]'
-                }`}>
-                  {/* Animated Sticker Rendering */}
-                  {(() => {
-                    const sticker = parseStickerMessage(msg.text);
-                    if (sticker) {
-                      return (
-                        <div className="py-1">
-                          <div
-                            className={`w-24 h-24 sm:w-28 sm:h-28 ${sticker.animationClass} cursor-pointer drop-shadow-md select-none transition-transform hover:scale-105 active:scale-95`}
-                            dangerouslySetInnerHTML={{ __html: sticker.svg }}
-                            title={`${sticker.name} (สติกเกอร์ดุ๊กดิ๊ก)`}
-                          />
-                          <p className="text-[10px] text-[#a39e98] text-center mt-1 font-medium">{sticker.name}</p>
-                        </div>
-                      );
-                    }
-
+                {/* Animated Sticker or Normal Message Bubble */}
+                {(() => {
+                  const sticker = parseStickerMessage(msg.text);
+                  if (sticker) {
                     return (
-                      <>
-                        {msg.imageUrl && (
-                          <div className="relative mb-1.5 inline-block group/img">
-                            <img
-                              src={msg.imageUrl}
-                              alt="แนบรูปภาพ"
-                              className="max-w-[200px] sm:max-w-[260px] max-h-60 rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity border border-black/10 shadow-xs"
-                              onClick={() => setLightboxImage(msg.imageUrl || null)}
-                            />
-                            {onDeleteMessage && isMe && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (window.confirm('ต้องการลบรูปภาพนี้ใช่หรือไม่? ผู้ใช้อื่นในห้องจะไม่เห็นรูปนี้ทันที')) {
-                                    onDeleteMessage(msg.id);
-                                  }
-                                }}
-                                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/65 hover:bg-rose-600 text-white transition-colors shadow-md cursor-pointer flex items-center gap-1 text-[10px] font-medium"
-                                title="ลบรูปภาพนี้ทันที"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                                <span className="hidden sm:inline">ลบรูป</span>
-                              </button>
-                            )}
-                          </div>
-                        )}
-                        {msg.text && renderMessageWithTimestamps(msg.text)}
-                      </>
+                      <div className="py-1 inline-block select-none">
+                        <div
+                          className={`w-24 h-24 sm:w-28 sm:h-28 ${sticker.animationClass} cursor-pointer drop-shadow-md transition-transform hover:scale-105 active:scale-95`}
+                          dangerouslySetInnerHTML={{ __html: sticker.svg }}
+                          title="สติกเกอร์ดุ๊กดิ๊ก"
+                        />
+                      </div>
                     );
-                  })()}
-                </div>
+                  }
+
+                  return (
+                    <div className={`text-xs rounded-2xl rounded-tl-sm px-3 py-2 inline-block max-w-full break-words leading-relaxed border shadow-xs ${
+                      isMe
+                        ? 'bg-[#0075de]/8 text-[#000000] border-[#0075de]/20'
+                        : 'bg-white text-[#31302e] border-[#e6e6e6]'
+                    }`}>
+                      {msg.imageUrl && (
+                        <div className="relative mb-1.5 inline-block group/img">
+                          <img
+                            src={msg.imageUrl}
+                            alt="แนบรูปภาพ"
+                            className="max-w-[200px] sm:max-w-[260px] max-h-60 rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity border border-black/10 shadow-xs"
+                            onClick={() => setLightboxImage(msg.imageUrl || null)}
+                          />
+                          {onDeleteMessage && isMe && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm('ต้องการลบรูปภาพนี้ใช่หรือไม่? ผู้ใช้อื่นในห้องจะไม่เห็นรูปนี้ทันที')) {
+                                  onDeleteMessage(msg.id);
+                                }
+                              }}
+                              className="absolute top-2 right-2 p-1.5 rounded-full bg-black/65 hover:bg-rose-600 text-white transition-colors shadow-md cursor-pointer flex items-center gap-1 text-[10px] font-medium"
+                              title="ลบรูปภาพนี้ทันที"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span className="hidden sm:inline">ลบรูป</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {msg.text && renderMessageWithTimestamps(msg.text)}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           );
@@ -348,7 +345,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
       )}
 
       {/* Input Area with Profile Avatar in front */}
-      <form onSubmit={handleSend} className="p-2 sm:p-3 bg-white border-t border-[#e6e6e6] shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <form onSubmit={handleSend} className="p-2 sm:p-3 bg-white border-t border-[#e6e6e6] shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))] relative">
         <div className="flex items-center gap-2">
           {/* User Profile Avatar in front of chat input */}
           <button
@@ -392,11 +389,11 @@ export const LiveChat: React.FC<LiveChatProps> = ({
           )}
 
           {/* Cute Animated Sticker Picker Button */}
-          <div className="relative" ref={stickerPickerRef}>
+          <div ref={stickerPickerRef} className="shrink-0">
             <button
               type="button"
               onClick={() => setIsStickerPickerOpen(!isStickerPickerOpen)}
-              title="ส่งสติกเกอร์ดุ๊กดิ๊กน่ารักๆ (Animated Stickers)"
+              title="ส่งสติกเกอร์ดุ๊กดิ๊กน่ารักๆ ทั้งหมด 10 ตัว"
               className={`p-2 rounded-full border transition-all cursor-pointer shrink-0 shadow-xs flex items-center justify-center ${
                 isStickerPickerOpen
                   ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
@@ -406,16 +403,16 @@ export const LiveChat: React.FC<LiveChatProps> = ({
               <Smile className={`w-4 h-4 ${isStickerPickerOpen ? 'animate-bounce' : ''}`} />
             </button>
 
-            {/* Sticker Picker Drawer Popup */}
+            {/* Sticker Picker Drawer Popup (full width of chat form, shows all 10 stickers in 5x2 grid) */}
             {isStickerPickerOpen && (
-              <div className="absolute bottom-full mb-2 left-0 sm:left-auto sm:right-0 z-50 w-72 sm:w-80 bg-white border border-[#e6e6e6] rounded-2xl shadow-2xl p-3 animate-scale-up text-[#31302e]">
+              <div className="absolute bottom-full mb-2 left-2 right-2 z-50 bg-white border border-[#e6e6e6] rounded-2xl shadow-2xl p-2.5 sm:p-3 animate-scale-up text-[#31302e]">
                 {/* Header */}
                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#f0efed]">
                   <div className="flex items-center gap-1.5">
                     <span className="text-base leading-none">✨</span>
-                    <h4 className="text-xs font-bold text-[#000000]">สติกเกอร์ดุ๊กดิ๊ก 10 ตัว</h4>
-                    <span className="text-[10px] font-medium text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/20">
-                      น่ารัก
+                    <h4 className="text-xs font-bold text-[#000000]">สติกเกอร์ดุ๊กดิ๊ก</h4>
+                    <span className="text-[10px] font-semibold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                      ทั้งหมด 10 ตัว
                     </span>
                   </div>
                   <button
@@ -427,8 +424,8 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                   </button>
                 </div>
 
-                {/* Grid of 10 Animated Stickers */}
-                <div className="grid grid-cols-5 gap-2 max-h-56 overflow-y-auto p-1">
+                {/* Grid of 10 Animated Stickers (5 cols x 2 rows, clean and no text labels) */}
+                <div className="grid grid-cols-5 gap-1.5 p-1">
                   {CUTE_ANIMATED_STICKERS.map((stk) => (
                     <button
                       key={stk.id}
@@ -436,24 +433,21 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                       onClick={() => {
                         onSendMessage(`[sticker:${stk.id}]`);
                         setIsStickerPickerOpen(false);
-                        onShowToast(`ส่งสติกเกอร์ ${stk.name} เรียบร้อย 💖`, 'success');
+                        onShowToast(`ส่งสติกเกอร์เรียบร้อย 💖`, 'success');
                       }}
-                      className="group/stk flex flex-col items-center justify-center p-1.5 rounded-xl hover:bg-amber-50/70 border border-transparent hover:border-amber-300 transition-all cursor-pointer relative"
-                      title={`${stk.name} (${stk.category})`}
+                      className="group/stk flex items-center justify-center p-2 rounded-xl hover:bg-amber-50/80 border border-transparent hover:border-amber-300 transition-all cursor-pointer relative"
+                      title={stk.name}
                     >
                       <div
-                        className={`w-11 h-11 ${stk.animationClass} drop-shadow-xs transition-transform group-hover/stk:scale-110 pointer-events-none`}
+                        className={`w-11 h-11 sm:w-12 sm:h-12 ${stk.animationClass} drop-shadow-xs transition-transform group-hover/stk:scale-115 pointer-events-none`}
                         dangerouslySetInnerHTML={{ __html: stk.svg }}
                       />
-                      <span className="text-[9px] text-[#615d59] group-hover/stk:text-amber-800 font-medium truncate w-full text-center mt-1 leading-tight">
-                        {stk.name.replace(/^(น้อง|ลูก)/, '')}
-                      </span>
                     </button>
                   ))}
                 </div>
 
                 <div className="mt-2 pt-1.5 border-t border-[#f0efed] text-[10px] text-[#a39e98] text-center font-medium">
-                  แตะที่สติกเกอร์เพื่อส่งในแชททันที 🐾
+                  แตะเพื่อส่งสติกเกอร์ดุ๊กดิ๊กทันที (ไม่มีกรอบข้อความ)
                 </div>
               </div>
             )}
