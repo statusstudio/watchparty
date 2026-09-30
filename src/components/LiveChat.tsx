@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, MessageSquare, Clock, Image as ImageIcon, X, Loader2, Trash2, Smile } from 'lucide-react';
 import { ChatMessage, UserProfile } from '../types/index.js';
 import { compressChatImage } from '../services/imageCompressor.js';
-import { GRAFFITI_STICKERS, parseStickerMessage, AnimatedSticker } from '../data/chatStickers.js';
+import { ANIMATED_EMOJIS, GRAFFITI_STICKERS, ALL_CHAT_STICKERS, parseStickerMessage, AnimatedSticker } from '../data/chatStickers.js';
 
 interface LiveChatProps {
   messages: ChatMessage[];
@@ -36,6 +36,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
   const [confirmModalImage, setConfirmModalImage] = useState<string | null>(null);
   const [confirmModalCaption, setConfirmModalCaption] = useState('');
   const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
+  const [activeStickerTab, setActiveStickerTab] = useState<'emoji' | 'graffiti'>('emoji');
   const stickerPickerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -400,7 +401,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
             <button
               type="button"
               onClick={() => setIsStickerPickerOpen(!isStickerPickerOpen)}
-              title="ส่งสติกเกอร์ดุ๊กดิ๊ก Graffiti Art ทั้งหมด 45 แบบ"
+              title="ส่งสติกเกอร์และอีโมจิดุ๊กดิ๊ก (99 แบบ)"
               className={`p-2 rounded-full border transition-all cursor-pointer shrink-0 shadow-xs flex items-center justify-center ${
                 isStickerPickerOpen
                   ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
@@ -410,58 +411,94 @@ export const LiveChat: React.FC<LiveChatProps> = ({
               <Smile className={`w-4 h-4 ${isStickerPickerOpen ? 'animate-bounce' : ''}`} />
             </button>
 
-            {/* Sticker Picker Drawer Popup (full width of chat form, scrollable grid of 45 stickers) */}
+            {/* Sticker Picker Drawer Popup (full width of chat form, scrollable grid with category tabs) */}
             {isStickerPickerOpen && (
               <div className="absolute bottom-full mb-2 left-2 right-2 z-50 bg-white border border-[#e6e6e6] rounded-2xl shadow-2xl p-2.5 sm:p-3 animate-scale-up text-[#31302e]">
-                {/* Header */}
+                {/* Header with Category Tabs */}
                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#f0efed]">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-base leading-none">🎨</span>
-                    <h4 className="text-xs font-bold text-[#000000]">Graffiti Art Stickers</h4>
-                    <span className="text-[10px] font-semibold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                      ทั้งหมด {GRAFFITI_STICKERS.length} แบบ
-                    </span>
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                    <button
+                      type="button"
+                      onClick={() => setActiveStickerTab('emoji')}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                        activeStickerTab === 'emoji'
+                          ? 'bg-amber-500 text-white shadow-xs'
+                          : 'bg-black/5 text-[#615d59] hover:bg-black/10'
+                      }`}
+                    >
+                      <span>😀 Emojis</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        activeStickerTab === 'emoji' ? 'bg-white/25 text-white' : 'bg-black/10 text-[#615d59]'
+                      }`}>
+                        {ANIMATED_EMOJIS.length}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveStickerTab('graffiti')}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                        activeStickerTab === 'graffiti'
+                          ? 'bg-amber-500 text-white shadow-xs'
+                          : 'bg-black/5 text-[#615d59] hover:bg-black/10'
+                      }`}
+                    >
+                      <span>🎨 Graffiti</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        activeStickerTab === 'graffiti' ? 'bg-white/25 text-white' : 'bg-black/10 text-[#615d59]'
+                      }`}>
+                        {GRAFFITI_STICKERS.length}
+                      </span>
+                    </button>
                   </div>
+
                   <button
                     type="button"
                     onClick={() => setIsStickerPickerOpen(false)}
-                    className="p-1 rounded-full text-[#a39e98] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer"
+                    className="p-1 rounded-full text-[#a39e98] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer shrink-0 ml-1"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
-                {/* Grid of 45 Animated Stickers with smooth scrolling */}
-                <div className="grid grid-cols-5 gap-1.5 p-1 max-h-60 sm:max-h-72 overflow-y-auto">
-                  {GRAFFITI_STICKERS.map((stk) => (
-                    <button
-                      key={stk.id}
-                      type="button"
-                      onClick={() => {
-                        onSendMessage(`[sticker:${stk.id}]`);
-                        setIsStickerPickerOpen(false);
-                        onShowToast(`ส่งสติกเกอร์ ${stk.name} เรียบร้อย 🔥`, 'success');
-                      }}
-                      className="group/stk flex items-center justify-center p-1.5 rounded-xl hover:bg-amber-50/80 border border-transparent hover:border-amber-300 transition-all cursor-pointer relative"
-                      title={stk.name}
-                    >
-                      <img
-                        src={stk.url}
-                        alt={stk.name}
-                        loading="lazy"
-                        className="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-xs transition-transform group-hover/stk:scale-115 pointer-events-none"
-                        onError={(e) => {
-                          if (stk.gifUrl && e.currentTarget.src !== stk.gifUrl) {
-                            e.currentTarget.src = stk.gifUrl;
-                          }
-                        }}
-                      />
-                    </button>
-                  ))}
-                </div>
+                {/* Grid of Animated Stickers / Emojis with smooth scrolling */}
+                {(() => {
+                  const currentStickers = activeStickerTab === 'emoji' ? ANIMATED_EMOJIS : GRAFFITI_STICKERS;
+                  return (
+                    <div className="grid grid-cols-5 gap-1.5 p-1 max-h-60 sm:max-h-72 overflow-y-auto">
+                      {currentStickers.map((stk) => (
+                        <button
+                          key={stk.id}
+                          type="button"
+                          onClick={() => {
+                            onSendMessage(`[sticker:${stk.id}]`);
+                            setIsStickerPickerOpen(false);
+                            onShowToast(`ส่ง ${stk.name} เรียบร้อย ✨`, 'success');
+                          }}
+                          className="group/stk flex items-center justify-center p-1.5 rounded-xl hover:bg-amber-50/80 border border-transparent hover:border-amber-300 transition-all cursor-pointer relative"
+                          title={stk.name}
+                        >
+                          <img
+                            src={stk.url}
+                            alt={stk.name}
+                            loading="lazy"
+                            className="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-xs transition-transform group-hover/stk:scale-115 pointer-events-none"
+                            onError={(e) => {
+                              if (stk.gifUrl && e.currentTarget.src !== stk.gifUrl) {
+                                e.currentTarget.src = stk.gifUrl;
+                              }
+                            }}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 <div className="mt-2 pt-1.5 border-t border-[#f0efed] text-[10px] text-[#a39e98] text-center font-medium">
-                  เลื่อนดูได้ 45 แบบ แตะเพื่อส่งทันที (ไม่มีกรอบข้อความ)
+                  {activeStickerTab === 'emoji'
+                    ? 'อีโมจิดุ๊กดิ๊ก 3D ทั้งหมด 54 แบบ แตะเพื่อส่งทันที (ไม่มีกรอบข้อความ)'
+                    : 'สติกเกอร์กราฟฟิตี้ 45 แบบ แตะเพื่อส่งทันที (ไม่มีกรอบข้อความ)'}
                 </div>
               </div>
             )}
