@@ -9,6 +9,7 @@ export interface AnimatedSticker {
   pack: 'emoji' | 'graffiti';
   url: string;
   gifUrl: string;
+  thumbUrl?: string;
 }
 
 export const ANIMATED_EMOJIS: AnimatedSticker[] = [
@@ -826,3 +827,10 @@ export function parseStickerMessage(text: string): AnimatedSticker | null {
   const stickerId = match[1];
   return ALL_CHAT_STICKERS.find((s) => s.id === stickerId) || null;
 }
+
+// Helper to get static lightweight preview thumbnail URL (~10-15KB WebP)
+export function getStickerThumbUrl(stk: AnimatedSticker): string {
+  if (stk.thumbUrl) return stk.thumbUrl;
+  return `https://cdnl.iconscout.com/lottie/premium/thumb/${stk.id}.png?w=128&f=webp`;
+}
+

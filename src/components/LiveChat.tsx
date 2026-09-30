@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, MessageSquare, Clock, Image as ImageIcon, X, Loader2, Trash2, Smile } from 'lucide-react';
 import { ChatMessage, UserProfile } from '../types/index.js';
 import { compressChatImage } from '../services/imageCompressor.js';
-import { ANIMATED_EMOJIS, GRAFFITI_STICKERS, ALL_CHAT_STICKERS, parseStickerMessage, AnimatedSticker } from '../data/chatStickers.js';
+import { ANIMATED_EMOJIS, GRAFFITI_STICKERS, ALL_CHAT_STICKERS, parseStickerMessage, AnimatedSticker, getStickerThumbUrl } from '../data/chatStickers.js';
 
 interface LiveChatProps {
   messages: ChatMessage[];
@@ -40,7 +40,9 @@ export const LiveChat: React.FC<LiveChatProps> = ({
   const [confirmModalImage, setConfirmModalImage] = useState<string | null>(null);
   const [confirmModalCaption, setConfirmModalCaption] = useState('');
   const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
-  const [activeStickerTab, setActiveStickerTab] = useState<'emoji' | 'graffiti'>('emoji');
+  const [activeStickerTab, setActiveStickerTab] = useState<'emoji' | 'graffiti' | 'all'>('emoji');
+  const [hoveredStickerId, setHoveredStickerId] = useState<string | null>(null);
+  const [animateAllStickers, setAnimateAllStickers] = useState(false);
   const stickerPickerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -491,22 +493,22 @@ export const LiveChat: React.FC<LiveChatProps> = ({
 
             {/* Sticker Picker Drawer Popup (full width of chat form, scrollable grid with category tabs) */}
             {isStickerPickerOpen && (
-              <div className="absolute bottom-full mb-2 left-2 right-2 z-50 bg-white border border-[#e6e6e6] rounded-2xl shadow-2xl p-2.5 sm:p-3 animate-scale-up text-[#31302e]">
-                {/* Header with Category Tabs */}
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#f0efed]">
-                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <div className="absolute bottom-full mb-2 left-1 right-1 sm:left-2 sm:right-2 z-50 bg-white border border-[#e6e6e6] rounded-2xl shadow-2xl p-2 sm:p-3 animate-scale-up text-[#31302e]">
+                {/* Header with Segmented Category Tabs and Close Button */}
+                <div className="flex items-center justify-between gap-1.5 pb-2 mb-2 border-b border-[#f0efed]">
+                  <div className="grid grid-cols-2 gap-1 flex-1 bg-[#f0efed] p-1 rounded-xl">
                     <button
                       type="button"
                       onClick={() => setActiveStickerTab('emoji')}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         activeStickerTab === 'emoji'
-                          ? 'bg-amber-500 text-white shadow-xs'
-                          : 'bg-black/5 text-[#615d59] hover:bg-black/10'
+                          ? 'bg-white text-amber-600 shadow-xs'
+                          : 'text-[#615d59] hover:text-[#000000]'
                       }`}
                     >
-                      <span>😀 Emojis</span>
+                      <span>😀 อีโมจิ</span>
                       <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                        activeStickerTab === 'emoji' ? 'bg-white/25 text-white' : 'bg-black/10 text-[#615d59]'
+                        activeStickerTab === 'emoji' ? 'bg-amber-100 text-amber-700' : 'bg-black/5 text-[#888]'
                       }`}>
                         {ANIMATED_EMOJIS.length}
                       </span>
@@ -515,15 +517,15 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                     <button
                       type="button"
                       onClick={() => setActiveStickerTab('graffiti')}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         activeStickerTab === 'graffiti'
-                          ? 'bg-amber-500 text-white shadow-xs'
-                          : 'bg-black/5 text-[#615d59] hover:bg-black/10'
+                          ? 'bg-white text-amber-600 shadow-xs'
+                          : 'text-[#615d59] hover:text-[#000000]'
                       }`}
                     >
-                      <span>🎨 Graffiti</span>
+                      <span>🎨 กราฟฟิตี้</span>
                       <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                        activeStickerTab === 'graffiti' ? 'bg-white/25 text-white' : 'bg-black/10 text-[#615d59]'
+                        activeStickerTab === 'graffiti' ? 'bg-amber-100 text-amber-700' : 'bg-black/5 text-[#888]'
                       }`}>
                         {GRAFFITI_STICKERS.length}
                       </span>
@@ -533,52 +535,74 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsStickerPickerOpen(false)}
-                    className="p-1 rounded-full text-[#a39e98] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer shrink-0 ml-1"
+                    className="p-1.5 rounded-full text-[#a39e98] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer shrink-0 ml-0.5"
+                    title="ปิด"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                {/* Grid of Animated Stickers / Emojis with smooth scrolling */}
+                {/* Grid of Animated Stickers / Emojis (optimized for 60fps lag-free opening) */}
                 {(() => {
                   const currentStickers = activeStickerTab === 'emoji' ? ANIMATED_EMOJIS : GRAFFITI_STICKERS;
                   return (
-                    <div className="grid grid-cols-5 gap-1.5 p-1 max-h-60 sm:max-h-72 overflow-y-auto">
-                      {currentStickers.map((stk) => (
-                        <button
-                          key={stk.id}
-                          type="button"
-                          onClick={() => {
-                            onSendMessage(`[sticker:${stk.id}]`);
-                            setIsStickerPickerOpen(false);
-                            isNearBottomRef.current = true;
-                            setTimeout(() => scrollToBottom('smooth'), 50);
-                            onShowToast(`ส่ง ${stk.name} เรียบร้อย ✨`, 'success');
-                          }}
-                          className="group/stk flex items-center justify-center p-1.5 rounded-xl hover:bg-amber-50/80 border border-transparent hover:border-amber-300 transition-all cursor-pointer relative"
-                          title={stk.name}
-                        >
-                          <img
-                            src={stk.url}
-                            alt={stk.name}
-                            loading="lazy"
-                            className="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-xs transition-transform group-hover/stk:scale-115 pointer-events-none"
-                            onError={(e) => {
-                              if (stk.gifUrl && e.currentTarget.src !== stk.gifUrl) {
-                                e.currentTarget.src = stk.gifUrl;
-                              }
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5 p-1 max-h-56 sm:max-h-68 overflow-y-auto overscroll-contain">
+                      {currentStickers.map((stk) => {
+                        const isHovered = hoveredStickerId === stk.id;
+                        const shouldAnimate = animateAllStickers || isHovered;
+                        const imageSrc = shouldAnimate ? stk.url : getStickerThumbUrl(stk);
+
+                        return (
+                          <button
+                            key={stk.id}
+                            type="button"
+                            onMouseEnter={() => setHoveredStickerId(stk.id)}
+                            onMouseLeave={() => setHoveredStickerId(null)}
+                            onClick={() => {
+                              onSendMessage(`[sticker:${stk.id}]`);
+                              setIsStickerPickerOpen(false);
+                              isNearBottomRef.current = true;
+                              setTimeout(() => scrollToBottom('smooth'), 50);
+                              onShowToast(`ส่ง ${stk.name} เรียบร้อย ✨`, 'success');
                             }}
-                          />
-                        </button>
-                      ))}
+                            className="group/stk flex flex-col items-center justify-center p-1.5 rounded-xl hover:bg-amber-50/90 border border-transparent hover:border-amber-300 transition-all cursor-pointer relative active:scale-95"
+                            title={stk.name}
+                          >
+                            <img
+                              src={imageSrc}
+                              alt={stk.name}
+                              loading="lazy"
+                              decoding="async"
+                              className="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-xs transition-transform group-hover/stk:scale-115 pointer-events-none"
+                              onError={(e) => {
+                                if (stk.gifUrl && e.currentTarget.src !== stk.gifUrl) {
+                                  e.currentTarget.src = stk.gifUrl;
+                                }
+                              }}
+                            />
+                            <span className="text-[9px] text-[#888] truncate max-w-full mt-0.5 group-hover/stk:text-amber-700">
+                              {stk.name}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   );
                 })()}
 
-                <div className="mt-2 pt-1.5 border-t border-[#f0efed] text-[10px] text-[#a39e98] text-center font-medium">
-                  {activeStickerTab === 'emoji'
-                    ? 'อีโมจิดุ๊กดิ๊ก 3D ทั้งหมด 54 แบบ แตะเพื่อส่งทันที (ไม่มีกรอบข้อความ)'
-                    : 'สติกเกอร์กราฟฟิตี้ 45 แบบ แตะเพื่อส่งทันที (ไม่มีกรอบข้อความ)'}
+                {/* Footer with Performance Mode Toggle */}
+                <div className="mt-2 pt-1.5 border-t border-[#f0efed] flex items-center justify-between text-[10px] text-[#a39e98] px-1">
+                  <span>
+                    {activeStickerTab === 'emoji' ? 'อีโมจิ 3D 54 แบบ' : 'สติกเกอร์กราฟฟิตี้ 45 แบบ'} (แตะเพื่อส่ง)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setAnimateAllStickers(!animateAllStickers)}
+                    className="text-[#0075de] hover:underline font-medium cursor-pointer"
+                    title={animateAllStickers ? 'สลับเป็นโหมดประหยัดพลังงาน (ไม่ค้าง)' : 'เล่นอนิเมชั่นทั้งหมดพร้อมกัน'}
+                  >
+                    {animateAllStickers ? '⚡ โหมดลื่นไหล' : '✨ ขยับทั้งหมด'}
+                  </button>
                 </div>
               </div>
             )}
