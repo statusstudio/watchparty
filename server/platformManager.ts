@@ -44,6 +44,9 @@ export interface StoredUserAccount {
   bio?: string;
   favoriteGenres?: string[];
   socialLinks?: UserSocialLinks;
+  listeningTimeMinutes?: number;
+  xp?: number;
+  level?: number;
   createdAt: number;
   lastLoginAt: number;
 }
@@ -694,21 +697,39 @@ export class PlatformManager {
     account.lastLoginAt = now;
     if (user) {
       user.lastActiveAt = now;
+      if (account.avatar && !user.avatar) user.avatar = account.avatar;
+      if (user.avatar && account.avatar !== user.avatar) account.avatar = user.avatar;
+      if (typeof account.xp === 'number') user.xp = Math.max(user.xp || 0, account.xp);
+      if (typeof user.xp === 'number') account.xp = Math.max(account.xp || 0, user.xp);
+      if (typeof account.level === 'number') user.level = Math.max(user.level || 1, account.level);
+      if (typeof user.level === 'number') account.level = Math.max(account.level || 1, user.level);
+      if (typeof account.listeningTimeMinutes === 'number') user.listeningTimeMinutes = Math.max(user.listeningTimeMinutes || 0, account.listeningTimeMinutes);
+      if (typeof user.listeningTimeMinutes === 'number') account.listeningTimeMinutes = Math.max(account.listeningTimeMinutes || 0, user.listeningTimeMinutes);
     }
     this.scheduleSave();
 
-    return { success: true, user: user || {
+    const finalUser: PlatformUser = user || {
       id: account.id,
       name: account.name,
+      username: account.username || account.id,
       email: account.email,
       avatar: account.avatar,
+      bannerUrl: account.bannerUrl,
       color: account.color,
+      bio: account.bio,
+      favoriteGenres: account.favoriteGenres,
+      socialLinks: account.socialLinks,
+      xp: account.xp || 0,
+      level: account.level || 1,
+      listeningTimeMinutes: account.listeningTimeMinutes || 0,
       provider: 'email',
       isSuperAdmin: false,
       isSuspended: false,
       createdAt: account.createdAt,
       lastActiveAt: now,
-    } };
+    };
+
+    return { success: true, user: finalUser };
   }
 
   public findUserByEmail(email: string): PlatformUser | undefined {
@@ -820,13 +841,45 @@ export class PlatformManager {
     const now = Date.now();
 
     if (existing) {
-      existing.name = user.name || existing.name;
-      existing.avatar = user.avatar || existing.avatar;
-      existing.color = user.color || existing.color;
+      if (user.avatar && user.avatar !== existing.avatar) {
+        existing.avatar = user.avatar;
+      }
+      if (user.name) existing.name = user.name;
+      if (user.color) existing.color = user.color;
       if (user.email) existing.email = user.email;
       if (user.provider) existing.provider = user.provider;
+      if (user.bio) existing.bio = user.bio;
+      if (typeof user.xp === 'number' && user.xp > (existing.xp || 0)) {
+        existing.xp = user.xp;
+      }
+      if (typeof user.level === 'number' && user.level > (existing.level || 1)) {
+        existing.level = user.level;
+      }
+      if (typeof user.listeningTimeMinutes === 'number' && user.listeningTimeMinutes > (existing.listeningTimeMinutes || 0)) {
+        existing.listeningTimeMinutes = user.listeningTimeMinutes;
+      }
       existing.lastActiveAt = now;
       if (currentRoomId) existing.currentRoomId = currentRoomId;
+
+      // Ensure caller and room state inherit canonical latest avatar, xp, level
+      user.avatar = existing.avatar || user.avatar;
+      user.name = existing.name || user.name;
+      user.xp = Math.max(user.xp || 0, existing.xp || 0);
+      user.level = Math.max(user.level || 1, existing.level || 1);
+      user.listeningTimeMinutes = Math.max(user.listeningTimeMinutes || 0, existing.listeningTimeMinutes || 0);
+
+      // Sync to userAccount if present
+      if (existing.email) {
+        const acc = this.userAccounts.get(existing.email.toLowerCase());
+        if (acc) {
+          if (existing.avatar) acc.avatar = existing.avatar;
+          if (existing.name) acc.name = existing.name;
+          if (typeof existing.xp === 'number') acc.xp = existing.xp;
+          if (typeof existing.level === 'number') acc.level = existing.level;
+          if (typeof existing.listeningTimeMinutes === 'number') acc.listeningTimeMinutes = existing.listeningTimeMinutes;
+        }
+      }
+
       this.scheduleSave();
       return existing;
     }
@@ -840,6 +893,9 @@ export class PlatformManager {
       provider: user.provider || 'guest',
       isSuperAdmin: user.id === 'admin',
       isSuspended: false,
+      xp: user.xp || 0,
+      level: user.level || 1,
+      listeningTimeMinutes: user.listeningTimeMinutes || 0,
       createdAt: now,
       lastActiveAt: now,
       currentRoomId,
@@ -1078,7 +1134,8 @@ export class PlatformManager {
   }
 
   public getUserByHandle(handle: string): PlatformUser | undefined {
-    const clean = handle.trim().replace(/^@/, '').toLowerCase();
+    const raw = handle.trim().replace(/^@/, '');
+    const clean = raw.toLowerCase();
     if (!clean) return undefined;
 
     // 1. Admin check
@@ -1103,16 +1160,18 @@ export class PlatformManager {
       );
     }
 
-    // 2. Match by username
+    // 2. Exact match by ID (both raw and case-insensitive)
+    if (this.users.has(raw)) return this.users.get(raw);
+    for (const [id, u] of this.users.entries()) {
+      if (id.toLowerCase() === clean) return u;
+    }
+
+    // 3. Match by username
     for (const u of this.users.values()) {
       if (u.username?.toLowerCase() === clean) {
         return u;
       }
     }
-
-    // 3. Match by ID
-    const byId = this.users.get(clean);
-    if (byId) return byId;
 
     // 4. Match by name
     for (const u of this.users.values()) {
@@ -1121,11 +1180,31 @@ export class PlatformManager {
       }
     }
 
-    // 5. Match by account username / id
+    // 5. Match by account username / id / name
     for (const acc of this.userAccounts.values()) {
-      if (acc.username?.toLowerCase() === clean || acc.id === clean || acc.name.toLowerCase() === clean) {
+      if (acc.username?.toLowerCase() === clean || acc.id === raw || acc.id.toLowerCase() === clean || acc.name.toLowerCase() === clean) {
         const u = this.users.get(acc.id);
         if (u) return u;
+        return {
+          id: acc.id,
+          name: acc.name,
+          username: acc.username || acc.id,
+          email: acc.email,
+          avatar: acc.avatar,
+          bannerUrl: acc.bannerUrl,
+          color: acc.color,
+          bio: acc.bio,
+          favoriteGenres: acc.favoriteGenres,
+          socialLinks: acc.socialLinks,
+          xp: acc.xp || 0,
+          level: acc.level || 1,
+          listeningTimeMinutes: acc.listeningTimeMinutes || 0,
+          provider: 'email',
+          isSuperAdmin: false,
+          isSuspended: false,
+          createdAt: acc.createdAt,
+          lastActiveAt: acc.lastLoginAt,
+        };
       }
     }
 
@@ -1142,6 +1221,35 @@ export class PlatformManager {
     if (userId === 'admin') {
       if (!user) {
         user = this.adminLogin('admin', MASTER_PASSCODE).user;
+      }
+    }
+
+    if (!user) {
+      for (const acc of this.userAccounts.values()) {
+        if (acc.id === userId || (data.email && acc.email.toLowerCase() === data.email.toLowerCase())) {
+          user = {
+            id: acc.id,
+            name: acc.name,
+            username: acc.username || acc.id,
+            email: acc.email,
+            avatar: acc.avatar,
+            bannerUrl: acc.bannerUrl,
+            color: acc.color,
+            bio: acc.bio,
+            favoriteGenres: acc.favoriteGenres,
+            socialLinks: acc.socialLinks,
+            xp: acc.xp || 0,
+            level: acc.level || 1,
+            listeningTimeMinutes: acc.listeningTimeMinutes || 0,
+            provider: 'email',
+            isSuperAdmin: false,
+            isSuspended: false,
+            createdAt: acc.createdAt,
+            lastActiveAt: Date.now(),
+          };
+          this.users.set(acc.id, user);
+          break;
+        }
       }
     }
 
@@ -1174,20 +1282,32 @@ export class PlatformManager {
     if (data.favoriteGenres) user.favoriteGenres = data.favoriteGenres;
     if (data.socialLinks) user.socialLinks = data.socialLinks;
     if (data.favoriteSongs) user.favoriteSongs = data.favoriteSongs;
+    if (typeof data.xp === 'number') user.xp = Math.max(user.xp || 0, data.xp);
+    if (typeof data.level === 'number') user.level = Math.max(user.level || 1, data.level);
+    if (typeof data.listeningTimeMinutes === 'number') user.listeningTimeMinutes = Math.max(user.listeningTimeMinutes || 0, data.listeningTimeMinutes);
 
     // Sync to StoredUserAccount if present
-    if (user.email) {
-      const acc = this.userAccounts.get(user.email.toLowerCase());
-      if (acc) {
-        acc.name = user.name;
-        if (user.username) acc.username = user.username;
-        if (user.avatar) acc.avatar = user.avatar;
-        if (user.bannerUrl) acc.bannerUrl = user.bannerUrl;
-        if (user.color) acc.color = user.color;
-        if (user.bio) acc.bio = user.bio;
-        if (user.favoriteGenres) acc.favoriteGenres = user.favoriteGenres;
-        if (user.socialLinks) acc.socialLinks = user.socialLinks;
+    let acc = user.email ? this.userAccounts.get(user.email.toLowerCase()) : undefined;
+    if (!acc) {
+      for (const a of this.userAccounts.values()) {
+        if (a.id === userId || (user.email && a.email.toLowerCase() === user.email.toLowerCase())) {
+          acc = a;
+          break;
+        }
       }
+    }
+    if (acc) {
+      acc.name = user.name;
+      if (user.username) acc.username = user.username;
+      if (user.avatar) acc.avatar = user.avatar;
+      if (user.bannerUrl) acc.bannerUrl = user.bannerUrl;
+      if (user.color) acc.color = user.color;
+      if (user.bio) acc.bio = user.bio;
+      if (user.favoriteGenres) acc.favoriteGenres = user.favoriteGenres;
+      if (user.socialLinks) acc.socialLinks = user.socialLinks;
+      if (typeof user.xp === 'number') acc.xp = user.xp;
+      if (typeof user.level === 'number') acc.level = user.level;
+      if (typeof user.listeningTimeMinutes === 'number') acc.listeningTimeMinutes = user.listeningTimeMinutes;
     }
 
     user.lastActiveAt = Date.now();
@@ -1224,18 +1344,24 @@ export class PlatformManager {
     followerId: string,
     followingId: string
   ): { isFollowing: boolean; followersCount: number; followingCount: number } {
-    if (!followerId || !followingId || followerId === followingId) {
+    if (!followerId || !followingId || followerId.toLowerCase() === followingId.toLowerCase()) {
       return this.getFollowStats(followingId, followerId);
     }
 
-    const key = `${followerId}_${followingId}`;
-    let isFollowing = false;
+    let existingKey: string | null = null;
+    for (const [k, f] of this.follows.entries()) {
+      if (f.followerId.toLowerCase() === followerId.toLowerCase() && f.followingId.toLowerCase() === followingId.toLowerCase()) {
+        existingKey = k;
+        break;
+      }
+    }
 
-    if (this.follows.has(key)) {
-      this.follows.delete(key);
+    let isFollowing = false;
+    if (existingKey) {
+      this.follows.delete(existingKey);
       isFollowing = false;
     } else {
-      this.follows.set(key, {
+      this.follows.set(`${followerId}_${followingId}`, {
         followerId,
         followingId,
         createdAt: Date.now(),
@@ -1261,13 +1387,13 @@ export class PlatformManager {
     let isFollowing = false;
 
     for (const f of this.follows.values()) {
-      if (f.followingId === userId) {
+      if (f.followingId.toLowerCase() === userId.toLowerCase()) {
         followersCount++;
       }
-      if (f.followerId === userId) {
+      if (f.followerId.toLowerCase() === userId.toLowerCase()) {
         followingCount++;
       }
-      if (currentUserId && f.followerId === currentUserId && f.followingId === userId) {
+      if (currentUserId && f.followerId.toLowerCase() === currentUserId.toLowerCase() && f.followingId.toLowerCase() === userId.toLowerCase()) {
         isFollowing = true;
       }
     }

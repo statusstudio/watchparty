@@ -448,6 +448,56 @@ export function App() {
     }
   }, [showToast]);
 
+  // Synchronize latest user profile, avatar, xp & level across devices
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    const refreshMyProfile = async () => {
+      try {
+        const query = `?currentUserId=${encodeURIComponent(currentUser.id)}`;
+        const res = await fetch(`/api/users/profile/${encodeURIComponent(currentUser.id)}${query}`);
+        if (res.ok) {
+          const fresh = await res.json();
+          if (fresh && fresh.id) {
+            setCurrentUser((prev) => {
+              const hasAvatarDiff = fresh.avatar && fresh.avatar !== prev.avatar;
+              const hasLevelDiff = typeof fresh.level === 'number' && fresh.level !== prev.level;
+              const hasXpDiff = typeof fresh.xp === 'number' && fresh.xp !== prev.xp;
+              const hasNameDiff = fresh.name && fresh.name !== prev.name;
+              const hasColorDiff = fresh.color && fresh.color !== prev.color;
+
+              if (hasAvatarDiff || hasLevelDiff || hasXpDiff || hasNameDiff || hasColorDiff) {
+                const updated: UserProfile = {
+                  ...prev,
+                  ...fresh,
+                  avatar: fresh.avatar || prev.avatar,
+                  xp: Math.max(prev.xp || 0, fresh.xp || 0),
+                  level: Math.max(prev.level || 1, fresh.level || 1),
+                  listeningTimeMinutes: Math.max(prev.listeningTimeMinutes || 0, fresh.listeningTimeMinutes || 0),
+                };
+                saveUser(updated);
+                return updated;
+              }
+              return prev;
+            });
+          }
+        }
+      } catch (e) {
+        // silent
+      }
+    };
+
+    refreshMyProfile();
+
+    const handleFocus = () => {
+      refreshMyProfile();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [currentUser?.id]);
+
   // Check if current video is in favorites
   useEffect(() => {
     if (!video.videoId) {
@@ -530,6 +580,25 @@ export function App() {
         };
 
         saveUser(updated);
+
+        // Sync to server via WebSocket
+        socketService.send({
+          type: 'UPDATE_PROFILE',
+          user: updated,
+        });
+
+        // Sync to server via REST
+        fetch('/api/users/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: updated.id,
+            xp: newXp,
+            level: newLevel,
+            listeningTimeMinutes: newMins,
+          }),
+        }).catch(() => {});
+
         return updated;
       });
     }, 60000);
@@ -1010,6 +1079,21 @@ export function App() {
           if (msg.state.pendingStageRequests) {
             setPendingStageRequests(msg.state.pendingStageRequests);
           }
+          if (msg.user) {
+            const serverUser = msg.user;
+            setCurrentUser((prev) => {
+              const updated = {
+                ...prev,
+                ...serverUser,
+                avatar: serverUser.avatar || prev.avatar,
+                xp: Math.max(prev.xp || 0, serverUser.xp || 0),
+                level: Math.max(prev.level || 1, serverUser.level || 1),
+                listeningTimeMinutes: Math.max(prev.listeningTimeMinutes || 0, serverUser.listeningTimeMinutes || 0),
+              };
+              saveUser(updated);
+              return updated;
+            });
+          }
           break;
         }
 
@@ -1339,13 +1423,22 @@ export function App() {
   };
 
   // Profile Save
-  const handleSaveProfile = (updated: UserProfile) => {
+  const handleSaveProfile = async (updated: UserProfile) => {
     setCurrentUser(updated);
     saveUser(updated);
     socketService.send({
       type: 'UPDATE_PROFILE',
       user: updated,
     });
+    try {
+      await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: updated.id, ...updated }),
+      });
+    } catch (e) {
+      console.warn('Failed to sync profile to server:', e);
+    }
     showToast('อัพเดทโปรไฟล์สำเร็จ!', 'success');
   };
 

@@ -81,7 +81,8 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
     setLoading(true);
     setError(null);
 
-    fetch(`/api/users/profile/${encodeURIComponent(cleanHandle)}`)
+    const currentUserIdParam = currentUser?.id ? `?currentUserId=${encodeURIComponent(currentUser.id)}` : '';
+    fetch(`/api/users/profile/${encodeURIComponent(cleanHandle)}${currentUserIdParam}`)
       .then(async (res) => {
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
@@ -169,7 +170,9 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
     setFollowLoading(true);
     const newStatus = await toggleFollow(currentUser.id, profile.id);
     setIsFollowing(newStatus);
-    setFollowersCount((prev) => (newStatus ? prev + 1 : Math.max(0, prev - 1)));
+    const updatedCount = newStatus ? followersCount + 1 : Math.max(0, followersCount - 1);
+    setFollowersCount(updatedCount);
+    setProfile((prev) => (prev ? { ...prev, isFollowing: newStatus, followersCount: updatedCount } : prev));
     setFollowLoading(false);
     onShowToast(newStatus ? `ติดตาม @${profile.username || cleanHandle} แล้ว` : `เลิกติดตามแล้ว`, 'info');
   };

@@ -237,7 +237,7 @@ export type WSServerMessage =
   | { type: 'PASSWORD_ERROR'; message: string }
   | { type: 'YOU_WERE_KICKED'; reason: string }
   | { type: 'YOU_WERE_BANNED'; reason: string }
-  | { type: 'ROOM_INIT'; state: RoomState; myUserId: string }
+  | { type: 'ROOM_INIT'; state: RoomState; myUserId: string; user?: UserProfile }
   | { type: 'ROOM_METADATA_UPDATED'; metadata: RoomMetadata }
   | { type: 'MEMBERS_UPDATED'; members: RoomMember[]; onlineCount: number }
   | { type: 'USER_JOINED'; user: UserProfile; onlineCount: number }
@@ -274,6 +274,9 @@ export interface PlatformUser {
   favoriteGenres?: string[];
   socialLinks?: UserSocialLinks;
   favoriteSongs?: FavoriteSong[];
+  listeningTimeMinutes?: number;
+  xp?: number;
+  level?: number;
   createdAt: number;
   lastActiveAt: number;
   currentRoomId?: string;

@@ -791,6 +791,7 @@ export class RoomManager {
       type: 'ROOM_INIT',
       state: roomState,
       myUserId: user.id,
+      user,
     });
 
     // Instant sync verification for video and playlist
@@ -854,6 +855,7 @@ export class RoomManager {
     if (!client) return;
 
     client.user = updatedUser;
+    platformManager.updateUserProfile(updatedUser.id, updatedUser);
     const room = this.getOrCreateRoom(client.roomId);
 
     let seatChanged = false;

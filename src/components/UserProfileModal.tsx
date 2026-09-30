@@ -194,7 +194,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     setFollowLoading(true);
     const newStatus = await toggleFollow(currentUser.id, displayUser.id);
     setIsFollowing(newStatus);
-    setFollowersCount((prev) => (newStatus ? prev + 1 : Math.max(0, prev - 1)));
+    const updatedCount = newStatus ? followersCount + 1 : Math.max(0, followersCount - 1);
+    setFollowersCount(updatedCount);
+    setProfile((prev) => (prev ? { ...prev, isFollowing: newStatus, followersCount: updatedCount } : prev));
     setFollowLoading(false);
   };
 

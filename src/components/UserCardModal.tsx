@@ -78,7 +78,9 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
     setFollowLoading(true);
     const newStatus = await toggleFollow(currentUser.id, displayUser.id);
     setIsFollowing(newStatus);
-    setFollowersCount((prev) => (newStatus ? prev + 1 : Math.max(0, prev - 1)));
+    const updatedCount = newStatus ? followersCount + 1 : Math.max(0, followersCount - 1);
+    setFollowersCount(updatedCount);
+    setProfile((prev) => (prev ? { ...prev, isFollowing: newStatus, followersCount: updatedCount } : prev));
     setFollowLoading(false);
   };
 
@@ -278,7 +280,8 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
               type="button"
               onClick={() => {
                 onClose();
-                window.location.href = `/@${userHandle}`;
+                window.history.pushState({}, '', `/@${userHandle}`);
+                window.dispatchEvent(new Event('popstate'));
               }}
               className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#0075de] to-blue-600 hover:from-[#005bab] hover:to-blue-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-98"
             >
@@ -290,7 +293,11 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
               type="button"
               onClick={() => {
                 onClose();
-                onViewFullProfile(displayUser);
+                onViewFullProfile({
+                  ...displayUser,
+                  isFollowing,
+                  followersCount,
+                });
               }}
               className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-[#f6f5f4] border border-[#e6e6e6] text-[#31302e] font-semibold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer active:scale-98"
               title="เปิดดูการ์ดเพลงโปรดและประวัติ"
