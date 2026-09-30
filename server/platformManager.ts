@@ -77,12 +77,16 @@ export class PlatformManager {
   };
   private smtpConfig: SmtpConfig = {
     ...DEFAULT_SMTP_CONFIG,
+    provider: (process.env.MAIL_PROVIDER as any) || (process.env.RESEND_API_KEY ? 'resend' : 'smtp'),
+    resendApiKey: process.env.RESEND_API_KEY || '',
     host: process.env.SMTP_HOST || DEFAULT_SMTP_CONFIG.host,
     port: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587,
+    secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
     user: process.env.SMTP_USER || '',
     pass: process.env.SMTP_PASS || '',
-    fromEmail: process.env.SMTP_FROM || 'admin@pleng.online',
-    enabled: !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
+    fromName: process.env.SMTP_FROM_NAME || DEFAULT_SMTP_CONFIG.fromName,
+    fromEmail: process.env.SMTP_FROM || process.env.SMTP_USER || 'admin@pleng.online',
+    enabled: !!(process.env.RESEND_API_KEY || (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)),
   };
   private tickets: Map<string, SupportTicket> = new Map();
   private config: PlatformConfig = { ...DEFAULT_PLATFORM_CONFIG };
@@ -192,7 +196,10 @@ export class PlatformManager {
     if (data.smtpConfig) {
       this.smtpConfig = {
         ...DEFAULT_SMTP_CONFIG,
+        ...this.smtpConfig,
         ...data.smtpConfig,
+        pass: data.smtpConfig.pass || this.smtpConfig.pass,
+        resendApiKey: data.smtpConfig.resendApiKey || this.smtpConfig.resendApiKey,
       };
     }
 
@@ -557,6 +564,8 @@ export class PlatformManager {
   public getPublicSmtpConfig(): Omit<SmtpConfig, 'pass'> & { hasPass: boolean } {
     return {
       enabled: this.smtpConfig.enabled,
+      provider: this.smtpConfig.provider || (this.smtpConfig.resendApiKey ? 'resend' : 'smtp'),
+      resendApiKey: this.smtpConfig.resendApiKey || '',
       host: this.smtpConfig.host,
       port: this.smtpConfig.port,
       secure: this.smtpConfig.secure,
@@ -578,6 +587,13 @@ export class PlatformManager {
       updated.pass = this.smtpConfig.pass;
     } else {
       updated.pass = newConfig.pass.trim();
+    }
+
+    // If new resendApiKey is not provided or empty string, preserve existing key
+    if (newConfig.resendApiKey === undefined || newConfig.resendApiKey === '') {
+      updated.resendApiKey = this.smtpConfig.resendApiKey;
+    } else {
+      updated.resendApiKey = newConfig.resendApiKey.trim();
     }
 
     this.smtpConfig = updated;
