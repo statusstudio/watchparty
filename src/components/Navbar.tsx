@@ -149,7 +149,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, [isMobileMenuOpen]);
 
   return (
-    <header className="relative h-14 shrink-0 bg-white/95 backdrop-blur-md border-b border-[#e6e6e6] px-2.5 sm:px-4 flex items-center justify-between z-40 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+    <header className="sticky top-0 h-14 shrink-0 bg-white/95 backdrop-blur-md border-b border-[#e6e6e6] px-2.5 sm:px-4 flex items-center justify-between z-40 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
       {/* Left: Brand Logo & Room Info */}
       <div className="flex items-center gap-1.5 xs:gap-2.5 sm:gap-3 min-w-0">
         {/* Brand (Acts as Home button & Stealth Admin Easter Egg on 5 clicks) */}

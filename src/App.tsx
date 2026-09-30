@@ -1257,12 +1257,14 @@ export function App() {
       isPlaying: false,
       lastUpdated: Date.now(),
     });
+    window.scrollTo(0, 0);
     window.location.hash = '';
     setCurrentView('home');
     fetchPublicRooms();
   };
 
   const handleSelectRoom = (targetRoomId: string, isStealth: boolean = false) => {
+    window.scrollTo(0, 0);
     if (targetRoomId !== roomId) {
       setChat([]);
     }
@@ -1279,6 +1281,7 @@ export function App() {
       return;
     }
 
+    window.scrollTo(0, 0);
     window.location.hash = `#${targetRoomId}`;
     setRoomId(targetRoomId);
     setIsStealthInspection(isStealth);

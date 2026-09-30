@@ -72,12 +72,16 @@ export const LiveChat: React.FC<LiveChatProps> = ({
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTo({
-        top: chatContainerRef.current.scrollHeight,
-        behavior,
-      });
+      const container = chatContainerRef.current;
+      if (behavior === 'auto') {
+        container.scrollTop = container.scrollHeight;
+      } else {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth',
+        });
+      }
     }
-    messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
 
   // Auto-scroll to bottom when new messages arrive:
@@ -493,118 +497,126 @@ export const LiveChat: React.FC<LiveChatProps> = ({
 
             {/* Sticker Picker Drawer Popup (full width of chat form, scrollable grid with category tabs) */}
             {isStickerPickerOpen && (
-              <div className="absolute bottom-full mb-2 left-1 right-1 sm:left-2 sm:right-2 z-50 bg-white border border-[#e6e6e6] rounded-2xl shadow-2xl p-2 sm:p-3 animate-scale-up text-[#31302e]">
-                {/* Header with Segmented Category Tabs and Close Button */}
-                <div className="flex items-center justify-between gap-1.5 pb-2 mb-2 border-b border-[#f0efed]">
-                  <div className="grid grid-cols-2 gap-1 flex-1 bg-[#f0efed] p-1 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setActiveStickerTab('emoji')}
-                      className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                        activeStickerTab === 'emoji'
-                          ? 'bg-white text-amber-600 shadow-xs'
-                          : 'text-[#615d59] hover:text-[#000000]'
-                      }`}
-                    >
-                      <span>😀 อีโมจิ</span>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                        activeStickerTab === 'emoji' ? 'bg-amber-100 text-amber-700' : 'bg-black/5 text-[#888]'
-                      }`}>
-                        {ANIMATED_EMOJIS.length}
-                      </span>
-                    </button>
+              <>
+                {/* Mobile Backdrop to tap outside and dismiss cleanly */}
+                <div
+                  className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[1px] sm:hidden animate-fade-in"
+                  onClick={() => setIsStickerPickerOpen(false)}
+                />
+
+                <div className="fixed inset-x-2 bottom-2 z-50 max-h-[72vh] sm:absolute sm:inset-x-2 sm:bottom-full sm:mb-2 sm:max-h-[380px] bg-white border border-[#e6e6e6] rounded-2xl shadow-2xl p-2.5 sm:p-3 animate-scale-up text-[#31302e] flex flex-col overflow-hidden">
+                  {/* Header with Segmented Category Tabs and Close Button */}
+                  <div className="flex items-center justify-between gap-1.5 pb-2 mb-2 border-b border-[#f0efed] shrink-0">
+                    <div className="grid grid-cols-2 gap-1 flex-1 bg-[#f0efed] p-1 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setActiveStickerTab('emoji')}
+                        className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                          activeStickerTab === 'emoji'
+                            ? 'bg-white text-amber-600 shadow-xs'
+                            : 'text-[#615d59] hover:text-[#000000]'
+                        }`}
+                      >
+                        <span>😀 อีโมจิ</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                          activeStickerTab === 'emoji' ? 'bg-amber-100 text-amber-700' : 'bg-black/5 text-[#888]'
+                        }`}>
+                          {ANIMATED_EMOJIS.length}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveStickerTab('graffiti')}
+                        className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                          activeStickerTab === 'graffiti'
+                            ? 'bg-white text-amber-600 shadow-xs'
+                            : 'text-[#615d59] hover:text-[#000000]'
+                        }`}
+                      >
+                        <span>🎨 กราฟฟิตี้</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                          activeStickerTab === 'graffiti' ? 'bg-amber-100 text-amber-700' : 'bg-black/5 text-[#888]'
+                        }`}>
+                          {GRAFFITI_STICKERS.length}
+                        </span>
+                      </button>
+                    </div>
 
                     <button
                       type="button"
-                      onClick={() => setActiveStickerTab('graffiti')}
-                      className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                        activeStickerTab === 'graffiti'
-                          ? 'bg-white text-amber-600 shadow-xs'
-                          : 'text-[#615d59] hover:text-[#000000]'
-                      }`}
+                      onClick={() => setIsStickerPickerOpen(false)}
+                      className="p-1.5 rounded-full text-[#a39e98] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer shrink-0 ml-0.5"
+                      title="ปิด"
                     >
-                      <span>🎨 กราฟฟิตี้</span>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                        activeStickerTab === 'graffiti' ? 'bg-amber-100 text-amber-700' : 'bg-black/5 text-[#888]'
-                      }`}>
-                        {GRAFFITI_STICKERS.length}
-                      </span>
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setIsStickerPickerOpen(false)}
-                    className="p-1.5 rounded-full text-[#a39e98] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer shrink-0 ml-0.5"
-                    title="ปิด"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
+                  {/* Grid of Animated Stickers / Emojis (optimized for 60fps lag-free opening) */}
+                  {(() => {
+                    const currentStickers = activeStickerTab === 'emoji' ? ANIMATED_EMOJIS : GRAFFITI_STICKERS;
+                    return (
+                      <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5 p-1 flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                        {currentStickers.map((stk) => {
+                          const isHovered = hoveredStickerId === stk.id;
+                          const shouldAnimate = animateAllStickers || isHovered;
+                          const imageSrc = shouldAnimate ? stk.url : getStickerThumbUrl(stk);
 
-                {/* Grid of Animated Stickers / Emojis (optimized for 60fps lag-free opening) */}
-                {(() => {
-                  const currentStickers = activeStickerTab === 'emoji' ? ANIMATED_EMOJIS : GRAFFITI_STICKERS;
-                  return (
-                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5 p-1 max-h-56 sm:max-h-68 overflow-y-auto overscroll-contain">
-                      {currentStickers.map((stk) => {
-                        const isHovered = hoveredStickerId === stk.id;
-                        const shouldAnimate = animateAllStickers || isHovered;
-                        const imageSrc = shouldAnimate ? stk.url : getStickerThumbUrl(stk);
-
-                        return (
-                          <button
-                            key={stk.id}
-                            type="button"
-                            onMouseEnter={() => setHoveredStickerId(stk.id)}
-                            onMouseLeave={() => setHoveredStickerId(null)}
-                            onClick={() => {
-                              onSendMessage(`[sticker:${stk.id}]`);
-                              setIsStickerPickerOpen(false);
-                              isNearBottomRef.current = true;
-                              setTimeout(() => scrollToBottom('smooth'), 50);
-                              onShowToast(`ส่ง ${stk.name} เรียบร้อย ✨`, 'success');
-                            }}
-                            className="group/stk flex flex-col items-center justify-center p-1.5 rounded-xl hover:bg-amber-50/90 border border-transparent hover:border-amber-300 transition-all cursor-pointer relative active:scale-95"
-                            title={stk.name}
-                          >
-                            <img
-                              src={imageSrc}
-                              alt={stk.name}
-                              loading="lazy"
-                              decoding="async"
-                              className="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-xs transition-transform group-hover/stk:scale-115 pointer-events-none"
-                              onError={(e) => {
-                                if (stk.gifUrl && e.currentTarget.src !== stk.gifUrl) {
-                                  e.currentTarget.src = stk.gifUrl;
-                                }
+                          return (
+                            <button
+                              key={stk.id}
+                              type="button"
+                              onMouseEnter={() => setHoveredStickerId(stk.id)}
+                              onMouseLeave={() => setHoveredStickerId(null)}
+                              onClick={() => {
+                                onSendMessage(`[sticker:${stk.id}]`);
+                                setIsStickerPickerOpen(false);
+                                isNearBottomRef.current = true;
+                                setTimeout(() => scrollToBottom('smooth'), 50);
+                                onShowToast(`ส่ง ${stk.name} เรียบร้อย ✨`, 'success');
                               }}
-                            />
-                            <span className="text-[9px] text-[#888] truncate max-w-full mt-0.5 group-hover/stk:text-amber-700">
-                              {stk.name}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
+                              className="group/stk flex flex-col items-center justify-center p-1.5 rounded-xl hover:bg-amber-50/90 border border-transparent hover:border-amber-300 transition-all cursor-pointer relative active:scale-95"
+                              title={stk.name}
+                            >
+                              <img
+                                src={imageSrc}
+                                alt={stk.name}
+                                loading="lazy"
+                                decoding="async"
+                                className="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-xs transition-transform group-hover/stk:scale-115 pointer-events-none"
+                                onError={(e) => {
+                                  if (stk.gifUrl && e.currentTarget.src !== stk.gifUrl) {
+                                    e.currentTarget.src = stk.gifUrl;
+                                  }
+                                }}
+                              />
+                              <span className="text-[9px] text-[#888] truncate max-w-full mt-0.5 group-hover/stk:text-amber-700">
+                                {stk.name}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
 
-                {/* Footer with Performance Mode Toggle */}
-                <div className="mt-2 pt-1.5 border-t border-[#f0efed] flex items-center justify-between text-[10px] text-[#a39e98] px-1">
-                  <span>
-                    {activeStickerTab === 'emoji' ? 'อีโมจิ 3D 54 แบบ' : 'สติกเกอร์กราฟฟิตี้ 45 แบบ'} (แตะเพื่อส่ง)
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setAnimateAllStickers(!animateAllStickers)}
-                    className="text-[#0075de] hover:underline font-medium cursor-pointer"
-                    title={animateAllStickers ? 'สลับเป็นโหมดประหยัดพลังงาน (ไม่ค้าง)' : 'เล่นอนิเมชั่นทั้งหมดพร้อมกัน'}
-                  >
-                    {animateAllStickers ? '⚡ โหมดลื่นไหล' : '✨ ขยับทั้งหมด'}
-                  </button>
+                  {/* Footer with Performance Mode Toggle */}
+                  <div className="mt-2 pt-1.5 border-t border-[#f0efed] flex items-center justify-between text-[10px] text-[#a39e98] px-1 shrink-0">
+                    <span>
+                      {activeStickerTab === 'emoji' ? 'อีโมจิ 3D 54 แบบ' : 'สติกเกอร์กราฟฟิตี้ 45 แบบ'} (แตะเพื่อส่ง)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setAnimateAllStickers(!animateAllStickers)}
+                      className="text-[#0075de] hover:underline font-medium cursor-pointer"
+                      title={animateAllStickers ? 'สลับเป็นโหมดประหยัดพลังงาน (ไม่ค้าง)' : 'เล่นอนิเมชั่นทั้งหมดพร้อมกัน'}
+                    >
+                      {animateAllStickers ? '⚡ โหมดลื่นไหล' : '✨ ขยับทั้งหมด'}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
 
