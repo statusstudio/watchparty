@@ -1174,7 +1174,27 @@ export function App() {
           break;
 
         case 'NEW_CHAT':
-          setChat((prev) => [...prev, msg.message]);
+          setChat((prev) => {
+            const isDuplicate = prev.some(
+              (m) =>
+                m.id === msg.message.id ||
+                (m.id.startsWith('msg-opt-') &&
+                  m.sender?.id === msg.message.sender?.id &&
+                  m.text === msg.message.text &&
+                  Math.abs(m.timestamp - msg.message.timestamp) < 5000)
+            );
+            if (isDuplicate) {
+              return prev.map((m) =>
+                m.id.startsWith('msg-opt-') &&
+                m.sender?.id === msg.message.sender?.id &&
+                m.text === msg.message.text &&
+                Math.abs(m.timestamp - msg.message.timestamp) < 5000
+                  ? msg.message
+                  : m
+              );
+            }
+            return [...prev, msg.message];
+          });
           // Increment unread counter if message is from someone else and user is not currently in chat
           if (msg.message.sender.id !== currentUser.id) {
             const isDesktop = window.innerWidth >= 1024;
@@ -1739,9 +1759,22 @@ export function App() {
 
   // Chat message
   const handleSendMessage = (text: string, imageUrl?: string) => {
+    const trimmed = (text || '').trim();
+    if (!trimmed && !imageUrl) return;
+
+    // Optimistically append message immediately to chat stream
+    const optimisticMessage: ChatMessage = {
+      id: 'msg-opt-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+      sender: currentUser,
+      text: trimmed,
+      imageUrl,
+      timestamp: Date.now(),
+    };
+    setChat((prev) => [...prev, optimisticMessage]);
+
     socketService.send({
       type: 'SEND_CHAT',
-      text,
+      text: trimmed,
       imageUrl,
     });
   };

@@ -353,16 +353,17 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                   const sticker = parseStickerMessage(msg.text);
                   if (sticker) {
                     return (
-                      <div className="py-1 inline-block select-none">
+                      <div className="py-1 inline-block select-none min-w-[80px] min-h-[80px]">
                         <img
-                          src={sticker.url}
+                          src={sticker.url || getStickerThumbUrl(sticker)}
                           alt={sticker.name}
-                          loading="lazy"
+                          decoding="async"
                           className="w-24 h-24 sm:w-28 sm:h-28 object-contain cursor-pointer transition-transform hover:scale-105 active:scale-95 drop-shadow-md"
                           title={sticker.name}
                           onError={(e) => {
-                            if (sticker.gifUrl && e.currentTarget.src !== sticker.gifUrl) {
-                              e.currentTarget.src = sticker.gifUrl;
+                            const fallback = getStickerThumbUrl(sticker);
+                            if (e.currentTarget.src !== fallback) {
+                              e.currentTarget.src = fallback;
                             }
                           }}
                         />

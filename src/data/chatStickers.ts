@@ -822,10 +822,10 @@ export const CUTE_ANIMATED_STICKERS = ALL_CHAT_STICKERS;
 // Helper to check if a message text is a sticker token e.g. [sticker:clapping-emoji-animation-gif-download-10454280]
 export function parseStickerMessage(text: string): AnimatedSticker | null {
   if (!text) return null;
-  const match = text.trim().match(/^\[sticker:([a-zA-Z0-9_-]+)\]$/);
+  const match = text.trim().match(/^\[sticker:([a-zA-Z0-9_.-]+)\]$/i);
   if (!match) return null;
-  const stickerId = match[1];
-  return ALL_CHAT_STICKERS.find((s) => s.id === stickerId) || null;
+  const stickerId = match[1].toLowerCase();
+  return ALL_CHAT_STICKERS.find((s) => s.id.toLowerCase() === stickerId) || null;
 }
 
 // Helper to get static lightweight preview thumbnail URL (~10-15KB WebP)
