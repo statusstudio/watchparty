@@ -543,6 +543,7 @@ export function App() {
   const touchStartYRef = useRef(0);
   const touchStartXRef = useRef(0);
   const isPullingRef = useRef(false);
+  const syncRoomStateRef = useRef<(targetRoomId: string, providedPassword?: string) => void>(() => {});
 
   // Unified Refresh (Home Lobby or Room) - Silent refresh without noisy popups
   const handleRefresh = useCallback(() => {
@@ -559,12 +560,15 @@ export function App() {
     } else {
       const currentRoom = roomId || getHashRoomId();
       if (currentRoom) {
+        const savedPwd = sessionStorage.getItem(`room_pwd_${currentRoom}`) || undefined;
         socketService.send({
           type: 'JOIN_ROOM',
           roomId: currentRoom,
           user: currentUser,
+          password: savedPwd,
           isStealth: isStealthInspectionRef.current,
         });
+        syncRoomStateRef.current(currentRoom, savedPwd);
       }
       fetchPublicRooms();
 
@@ -574,10 +578,12 @@ export function App() {
     }
   }, [isRefreshing, currentView, roomId, currentUser, fetchPublicRooms]);
 
-  // Pull-to-refresh listener on touch devices (Supported on both Home and Room)
+  // Pull-to-refresh listener on touch devices (Supported on Home view only - disabled inside rooms to avoid accidental reload when scrolling chat)
   useEffect(() => {
+    if (currentView !== 'home') return;
+
     const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
+      if (currentView !== 'home' || e.touches.length !== 1) return;
       const touch = e.touches[0];
       touchStartYRef.current = touch.clientY;
       touchStartXRef.current = touch.clientX;
@@ -585,15 +591,17 @@ export function App() {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length !== 1 || isRefreshing) return;
+      if (currentView !== 'home' || e.touches.length !== 1 || isRefreshing) return;
       const touch = e.touches[0];
       const deltaY = touch.clientY - touchStartYRef.current;
       const deltaX = touch.clientX - touchStartXRef.current;
 
+      // Ignore if touching inside form inputs, buttons, or designated non-refresh areas
+      let target = e.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, button, [data-no-pull-refresh], #live-chat-messages, [data-chat-scroll]')) return;
+
       // Detect downward drag when page is scrolled to top
       if (deltaY > 15 && deltaY > Math.abs(deltaX) * 1.2) {
-        // If touching inside a scrollable container (e.g. chat messages or queue) that is scrolled down, do not trigger pull-to-refresh
-        let target = e.target as HTMLElement | null;
         let isInnerScrolled = false;
         while (target && target !== document.body) {
           if (target.scrollTop > 5) {
@@ -604,11 +612,8 @@ export function App() {
         }
         if (isInnerScrolled) return;
 
-        const mainEl = document.querySelector('main');
         const homeEl = document.getElementById('home-view-scroll');
-        const currentScrollTop = currentView === 'home'
-          ? (homeEl ? homeEl.scrollTop : window.scrollY || 0)
-          : (mainEl ? mainEl.scrollTop : 0);
+        const currentScrollTop = homeEl ? homeEl.scrollTop : window.scrollY || 0;
 
         if (currentScrollTop <= 5) {
           isPullingRef.current = true;
@@ -619,6 +624,11 @@ export function App() {
     };
 
     const handleTouchEnd = () => {
+      if (currentView !== 'home') {
+        isPullingRef.current = false;
+        setPullDistance(0);
+        return;
+      }
       if (isPullingRef.current) {
         if (pullDistance >= 50) {
           handleRefresh();
@@ -639,7 +649,7 @@ export function App() {
       window.removeEventListener('touchend', handleTouchEnd);
       window.removeEventListener('touchcancel', handleTouchEnd);
     };
-  }, [isRefreshing, pullDistance, handleRefresh]);
+  }, [isRefreshing, pullDistance, handleRefresh, currentView]);
 
   // OLED Sleep Mode state (โหมดพักหน้าจอประหยัดแบตเตอรี่)
   const [isOledSleepMode, setIsOledSleepMode] = useState(false);
@@ -720,12 +730,13 @@ export function App() {
 
   // Instant Room State Sync via REST API (Dual-Channel with WebSocket)
   const syncRoomState = useCallback((targetRoomId: string, providedPassword?: string) => {
+    const pwd = providedPassword || sessionStorage.getItem(`room_pwd_${targetRoomId}`) || undefined;
     const queryParams = new URLSearchParams();
     if (currentUserRef.current?.id) {
       queryParams.set('userId', currentUserRef.current.id);
     }
-    if (providedPassword) {
-      queryParams.set('password', providedPassword);
+    if (pwd) {
+      queryParams.set('password', pwd);
     }
     if (isStealthInspectionRef.current) {
       queryParams.set('isStealth', 'true');
@@ -738,6 +749,7 @@ export function App() {
       })
       .then((state: RoomState & { requiresPassword?: boolean }) => {
         if (state.requiresPassword) {
+          sessionStorage.removeItem(`room_pwd_${targetRoomId}`);
           setPendingPrivateRoomId(targetRoomId);
           setPasswordGateRoomName(state.metadata?.name || 'ห้องส่วนตัว');
           setPasswordGateError(null);
@@ -792,6 +804,7 @@ export function App() {
         console.warn('Failed to fetch room state via REST:', err);
       });
   }, []);
+  syncRoomStateRef.current = syncRoomState;
 
   // Handle URL Hash change (Room vs Home)
   useEffect(() => {
@@ -801,8 +814,9 @@ export function App() {
         const roomMeta = roomsListRef.current?.find((r) => r.id === targetRoom);
         const isPrivate = roomMeta?.isPrivate || roomMeta?.hasPassword;
         const isMine = roomMeta?.ownerId === currentUserRef.current.id;
+        const savedPwd = sessionStorage.getItem(`room_pwd_${targetRoom}`) || undefined;
 
-        if (!isStealthInspectionRef.current && !isMine && isPrivate) {
+        if (!isStealthInspectionRef.current && !isMine && isPrivate && !savedPwd) {
           setPendingPrivateRoomId(targetRoom);
           setPasswordGateRoomName(roomMeta?.name || 'ห้องส่วนตัว');
           setPasswordGateError(null);
@@ -813,16 +827,23 @@ export function App() {
 
         setRoomId(targetRoom);
         setCurrentView('room');
-        syncRoomState(targetRoom);
+        syncRoomState(targetRoom, savedPwd);
         socketService.send({
           type: 'JOIN_ROOM',
           roomId: targetRoom,
           user: currentUserRef.current,
+          password: savedPwd,
           isStealth: isStealthInspectionRef.current,
         });
       } else {
+        const prevRoom = roomIdRef.current;
+        if (prevRoom) {
+          sessionStorage.removeItem(`room_pwd_${prevRoom}`);
+        }
         socketService.send({ type: 'LEAVE_ROOM' });
+        setChat([]);
         setMembers([]);
+        setPlaylist([]);
         setCurrentView('home');
         fetchPublicRooms();
       }
@@ -837,13 +858,15 @@ export function App() {
     const unregisterOnConnect = socketService.registerOnConnect(() => {
       const activeRoom = getHashRoomId() || (currentViewRef.current === 'room' ? roomIdRef.current : null);
       if (activeRoom) {
+        const savedPwd = sessionStorage.getItem(`room_pwd_${activeRoom}`) || undefined;
         socketService.send({
           type: 'JOIN_ROOM',
           roomId: activeRoom,
           user: currentUserRef.current,
+          password: savedPwd,
           isStealth: isStealthInspectionRef.current,
         });
-        syncRoomState(activeRoom);
+        syncRoomState(activeRoom, savedPwd);
       } else {
         socketService.send({ type: 'GET_ROOMS' });
       }
@@ -854,7 +877,8 @@ export function App() {
     // Immediate initial sync if starting directly inside a room
     const initialHashRoom = getHashRoomId();
     if (initialHashRoom) {
-      syncRoomState(initialHashRoom);
+      const savedPwd = sessionStorage.getItem(`room_pwd_${initialHashRoom}`) || undefined;
+      syncRoomState(initialHashRoom, savedPwd);
     }
 
     const unsubscribe = socketService.subscribe((msg: WSServerMessage) => {
@@ -863,7 +887,17 @@ export function App() {
           setRoomsList(msg.rooms);
           break;
 
-        case 'PASSWORD_REQUIRED':
+        case 'PASSWORD_REQUIRED': {
+          const savedPwd = sessionStorage.getItem(`room_pwd_${msg.roomId}`);
+          if (savedPwd) {
+            socketService.send({
+              type: 'VERIFY_ROOM_PASSWORD',
+              roomId: msg.roomId,
+              password: savedPwd,
+              user: currentUserRef.current,
+            });
+            break;
+          }
           setIsPasswordGateOpen(true);
           setPasswordGateRoomName(msg.roomName);
           setPasswordGateError(null);
@@ -882,13 +916,23 @@ export function App() {
           setChat([]);
           setMembers([]);
           break;
+        }
 
         case 'PASSWORD_ERROR':
+          if (pendingPrivateRoomId) {
+            sessionStorage.removeItem(`room_pwd_${pendingPrivateRoomId}`);
+          }
+          if (roomId) {
+            sessionStorage.removeItem(`room_pwd_${roomId}`);
+          }
           setPasswordGateError(msg.message);
+          setIsPasswordGateOpen(true);
           break;
 
         case 'YOU_WERE_KICKED':
+          if (roomId) sessionStorage.removeItem(`room_pwd_${roomId}`);
           showToast(msg.reason, 'warning');
+          setChat([]);
           setIsPasswordGateOpen(false);
           setIsAdminPanelOpen(false);
           window.location.hash = '';
@@ -897,7 +941,9 @@ export function App() {
           break;
 
         case 'YOU_WERE_BANNED':
+          if (roomId) sessionStorage.removeItem(`room_pwd_${roomId}`);
           showToast(msg.reason, 'warning');
+          setChat([]);
           setIsPasswordGateOpen(false);
           setIsAdminPanelOpen(false);
           window.location.hash = '';
@@ -906,7 +952,9 @@ export function App() {
           break;
 
         case 'YOU_WERE_SUSPENDED':
+          if (roomId) sessionStorage.removeItem(`room_pwd_${roomId}`);
           showToast(msg.reason, 'warning');
+          setChat([]);
           setIsPasswordGateOpen(false);
           setIsAdminPanelOpen(false);
           setIsSuperAdminModalOpen(false);
@@ -916,7 +964,9 @@ export function App() {
           break;
 
         case 'ROOM_FORCE_CLOSED':
+          if (roomId) sessionStorage.removeItem(`room_pwd_${roomId}`);
           showToast(msg.reason, 'warning');
+          setChat([]);
           setIsPasswordGateOpen(false);
           setIsAdminPanelOpen(false);
           window.location.hash = '';
@@ -1101,19 +1151,38 @@ export function App() {
     setPasswordGateError(null);
     setPendingPrivateRoomId(null);
     setIsStealthInspection(false);
+    const activeRoom = roomId || getHashRoomId();
+    if (activeRoom) {
+      sessionStorage.removeItem(`room_pwd_${activeRoom}`);
+    }
     socketService.send({ type: 'LEAVE_ROOM' });
+    setChat([]);
     setMembers([]);
+    setPlaylist([]);
+    setVideo({
+      videoId: '',
+      title: '',
+      channel: '',
+      duration: 0,
+      currentTime: 0,
+      isPlaying: false,
+      lastUpdated: Date.now(),
+    });
     window.location.hash = '';
     setCurrentView('home');
     fetchPublicRooms();
   };
 
   const handleSelectRoom = (targetRoomId: string, isStealth: boolean = false) => {
+    if (targetRoomId !== roomId) {
+      setChat([]);
+    }
     const targetRoomSummary = roomsListRef.current?.find((r) => r.id === targetRoomId);
     const isPrivate = targetRoomSummary?.isPrivate || targetRoomSummary?.hasPassword;
     const isMine = targetRoomSummary?.ownerId === currentUserRef.current.id;
+    const savedPwd = sessionStorage.getItem(`room_pwd_${targetRoomId}`) || undefined;
 
-    if (!isStealth && !isMine && isPrivate) {
+    if (!isStealth && !isMine && isPrivate && !savedPwd) {
       setPendingPrivateRoomId(targetRoomId);
       setPasswordGateRoomName(targetRoomSummary?.name || 'ห้องส่วนตัว');
       setPasswordGateError(null);
@@ -1125,11 +1194,12 @@ export function App() {
     setRoomId(targetRoomId);
     setIsStealthInspection(isStealth);
     setCurrentView('room');
-    syncRoomState(targetRoomId);
+    syncRoomState(targetRoomId, savedPwd);
     socketService.send({
       type: 'JOIN_ROOM',
       roomId: targetRoomId,
       user: currentUserRef.current,
+      password: savedPwd,
       isStealth,
     });
   };
@@ -1178,6 +1248,9 @@ export function App() {
       });
       const data = await res.json();
       if (data.success && data.roomId) {
+        if (form.password) {
+          sessionStorage.setItem(`room_pwd_${data.roomId}`, form.password);
+        }
         showToast(`สร้างห้อง "${form.name}" สำเร็จ! 🎉`, 'success');
         handleSelectRoom(data.roomId);
       }
@@ -1188,19 +1261,22 @@ export function App() {
 
   // Password Gate submit
   const handlePasswordSubmit = (password: string) => {
-  const targetId = pendingPrivateRoomId || roomId;
-  if (!targetId) return;
+    const targetId = pendingPrivateRoomId || roomId;
+    if (!targetId) return;
 
-  // Send password verification via WebSocket. The server will respond with room join updates.
-  socketService.send({
-    type: 'VERIFY_ROOM_PASSWORD',
-    roomId: targetId,
-    password,
-    user: currentUser,
-  });
+    sessionStorage.setItem(`room_pwd_${targetId}`, password);
 
-  // No immediate REST sync here; the WebSocket flow will update client state upon success.
-};
+    // Send password verification via WebSocket. The server will respond with room join updates.
+    socketService.send({
+      type: 'VERIFY_ROOM_PASSWORD',
+      roomId: targetId,
+      password,
+      user: currentUser,
+    });
+
+    // Also sync via REST so state is loaded instantly
+    syncRoomState(targetId, password);
+  };
 
   // Moderation actions
   const handleSetAdminRole = (targetUserId: string, role: 'admin' | 'member') => {
@@ -1742,8 +1818,8 @@ export function App() {
         </div>
       )}
 
-      {/* Pull-to-refresh floating indicator (Active on both Home and Room) */}
-      {(pullDistance > 0 || isRefreshing) && (
+      {/* Pull-to-refresh floating indicator (Active on Home only) */}
+      {currentView === 'home' && (pullDistance > 0 || isRefreshing) && (
         <div
           className="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-transform duration-75 ease-out"
           style={{

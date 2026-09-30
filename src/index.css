@@ -13,6 +13,7 @@
     background-color: #f6f5f4;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    overscroll-behavior-y: none;
   }
 
   /* Prevent auto-zoom on iOS Safari when focusing form inputs */

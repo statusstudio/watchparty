@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, MessageSquare, Clock, Image as ImageIcon, X, Loader2, Trash2, Smile } from 'lucide-react';
 import { ChatMessage, UserProfile } from '../types/index.js';
 import { compressChatImage } from '../services/imageCompressor.js';
@@ -41,6 +41,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
 
   // Close sticker picker on outside click
   useEffect(() => {
@@ -57,10 +58,55 @@ export const LiveChat: React.FC<LiveChatProps> = ({
     };
   }, [isStickerPickerOpen]);
 
-  // Auto-scroll to bottom when new messages arrive
+  const handleScroll = () => {
+    if (!chatContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < 120;
+  };
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior,
+      });
+    }
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  }, []);
+
+  // Auto-scroll to bottom when new messages arrive:
+  // Scroll if user is near bottom, or the message is from current user, or on initial messages load
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    const latestMsg = messages[messages.length - 1];
+    const isFromMe = latestMsg?.sender?.id === currentUser.id;
+    if (isNearBottomRef.current || isFromMe || messages.length <= 1) {
+      scrollToBottom('smooth');
+    }
+  }, [messages, currentUser.id, scrollToBottom]);
+
+  // Keep scrolled to bottom on initial mount and when chat tab becomes visible or keyboard opens
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    scrollToBottom('auto');
+    const timer = setTimeout(() => scrollToBottom('auto'), 80);
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        if (container.clientHeight > 0 && isNearBottomRef.current) {
+          scrollToBottom('auto');
+        }
+      });
+      resizeObserver.observe(container);
+    }
+
+    return () => {
+      clearTimeout(timer);
+      resizeObserver?.disconnect();
+    };
+  }, [scrollToBottom]);
 
   const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -87,6 +133,8 @@ export const LiveChat: React.FC<LiveChatProps> = ({
     setConfirmModalCaption('');
     setInputText('');
     setSelectedImage(null);
+    isNearBottomRef.current = true;
+    setTimeout(() => scrollToBottom('smooth'), 50);
     onShowToast('ส่งรูปภาพเรียบร้อย 📷', 'success');
   };
 
@@ -97,6 +145,8 @@ export const LiveChat: React.FC<LiveChatProps> = ({
     onSendMessage(inputText.trim(), selectedImage || undefined);
     setInputText('');
     setSelectedImage(null);
+    isNearBottomRef.current = true;
+    setTimeout(() => scrollToBottom('smooth'), 50);
   };
 
   // Parses timestamps like "01:23", "2:45", "1:15:30" into clickable buttons
@@ -155,7 +205,14 @@ export const LiveChat: React.FC<LiveChatProps> = ({
       </div>
 
       {/* Messages Scroll Area */}
-      <div ref={chatContainerRef} className="flex-1 min-h-0 p-3 sm:p-4 overflow-y-auto space-y-3 bg-[#f6f5f4]/50">
+      <div
+        ref={chatContainerRef}
+        id="live-chat-messages"
+        data-chat-scroll="true"
+        onScroll={handleScroll}
+        className="flex-1 min-h-0 p-3 sm:p-4 overflow-y-auto space-y-3 bg-[#f6f5f4]/50 overscroll-contain select-text"
+        style={{ overscrollBehaviorY: 'contain' }}
+      >
         {messages.map((msg) => {
           const isMe = msg.sender.id === currentUser.id;
           const isSystem = msg.sender.id === 'system';
@@ -473,6 +530,8 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                           onClick={() => {
                             onSendMessage(`[sticker:${stk.id}]`);
                             setIsStickerPickerOpen(false);
+                            isNearBottomRef.current = true;
+                            setTimeout(() => scrollToBottom('smooth'), 50);
                             onShowToast(`ส่ง ${stk.name} เรียบร้อย ✨`, 'success');
                           }}
                           className="group/stk flex items-center justify-center p-1.5 rounded-xl hover:bg-amber-50/80 border border-transparent hover:border-amber-300 transition-all cursor-pointer relative"
