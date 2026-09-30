@@ -30,6 +30,7 @@ import { VoiceStage } from './components/VoiceStage.js';
 import { LiveChat } from './components/LiveChat.js';
 import { SidebarQueue } from './components/SidebarQueue.js';
 import { HomeView } from './components/HomeView.js';
+import { MinimizedRoomCard } from './components/MinimizedRoomCard.js';
 import { ProfileModal } from './components/ProfileModal.js';
 import { AuthModal } from './components/AuthModal.js';
 import { UserProfileModal } from './components/UserProfileModal.js';
@@ -1234,8 +1235,22 @@ export function App() {
     };
   }, [syncRoomState, showToast]);
 
-  // Navigate actions
-  const handleNavigateHome = () => {
+  // Minimize Room (Keep connected, audio continues playing in background, dock to bottom-left)
+  const handleMinimizeRoom = useCallback(() => {
+    window.scrollTo(0, 0);
+    setCurrentView('home');
+    fetchPublicRooms();
+    showToast('ย่อห้องปาร์ตี้ไว้ที่มุมล่างซ้ายแล้ว 🎵 แตะเพื่อเปิดกลับมาได้ตลอดเวลา', 'info');
+  }, [fetchPublicRooms, showToast]);
+
+  // Restore Room from Minimized Card
+  const handleRestoreRoom = useCallback(() => {
+    window.scrollTo(0, 0);
+    setCurrentView('room');
+  }, []);
+
+  // Leave Room completely (Disconnect socket, stop audio, clear room state)
+  const handleLeaveRoom = useCallback(() => {
     setIsPasswordGateOpen(false);
     setPasswordGateError(null);
     setPendingPrivateRoomId(null);
@@ -1245,6 +1260,7 @@ export function App() {
       sessionStorage.removeItem(`room_pwd_${activeRoom}`);
     }
     socketService.send({ type: 'LEAVE_ROOM' });
+    setRoomId('');
     setChat([]);
     setMembers([]);
     setPlaylist([]);
@@ -1261,13 +1277,37 @@ export function App() {
     window.location.hash = '';
     setCurrentView('home');
     fetchPublicRooms();
+    showToast('ออกจากห้องปาร์ตี้เรียบร้อย 👋', 'info');
+  }, [roomId, fetchPublicRooms, showToast]);
+
+  // Navigate actions (Tapping logo or Home)
+  const handleNavigateHome = () => {
+    if (currentView === 'room' || roomId) {
+      handleMinimizeRoom();
+    } else {
+      window.scrollTo(0, 0);
+      setCurrentView('home');
+      fetchPublicRooms();
+    }
   };
 
   const handleSelectRoom = (targetRoomId: string, isStealth: boolean = false) => {
     window.scrollTo(0, 0);
-    if (targetRoomId !== roomId) {
-      setChat([]);
+    if (targetRoomId === roomId) {
+      handleRestoreRoom();
+      return;
     }
+
+    if (roomId && targetRoomId !== roomId) {
+      const activeRoom = roomId || getHashRoomId();
+      if (activeRoom) {
+        sessionStorage.removeItem(`room_pwd_${activeRoom}`);
+      }
+      socketService.send({ type: 'LEAVE_ROOM' });
+      setChat([]);
+      setPlaylist([]);
+    }
+
     const targetRoomSummary = roomsListRef.current?.find((r) => r.id === targetRoomId);
     const isPrivate = targetRoomSummary?.isPrivate || targetRoomSummary?.hasPassword;
     const isMine = targetRoomSummary?.ownerId === currentUserRef.current.id;
@@ -1861,6 +1901,8 @@ export function App() {
         onToggleFavoriteRoom={handleToggleFavoriteCurrentRoom}
         onRefreshRoom={handleRefresh}
         onToggleOledSleep={() => setIsOledSleepMode(true)}
+        onMinimizeRoom={handleMinimizeRoom}
+        onLeaveRoom={handleLeaveRoom}
         onNavigateHome={handleNavigateHome}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onOpenFullProfile={() => {
@@ -2027,15 +2069,23 @@ export function App() {
         )}
 
       {/* Main View Router */}
-      {currentView === 'home' ? (
+      {currentView === 'home' && (
         <HomeView
           rooms={roomsList}
           currentUser={currentUser}
           onSelectRoom={handleSelectRoom}
           onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
         />
-      ) : (
-        <main className="flex-1 min-h-0 max-w-[1920px] w-full mx-auto p-2 sm:p-3 lg:p-3.5 flex flex-col lg:grid lg:grid-cols-12 gap-2 sm:gap-3 lg:gap-3.5 overflow-hidden bg-[#f6f5f4]">
+      )}
+
+      {(currentView === 'room' || Boolean(roomId)) && (
+        <main
+          className={`flex-1 min-h-0 max-w-[1920px] w-full mx-auto p-2 sm:p-3 lg:p-3.5 flex flex-col lg:grid lg:grid-cols-12 gap-2 sm:gap-3 lg:gap-3.5 overflow-hidden bg-[#f6f5f4] ${
+            currentView === 'room'
+              ? ''
+              : 'fixed -left-[9999px] top-0 w-1 h-1 opacity-0 pointer-events-none overflow-hidden'
+          }`}
+        >
           {/* Left Column: Synchronized Video Player & Open Voice Bar (Desktop: 8 cols) */}
           <div className="w-full lg:col-span-8 flex flex-col shrink-0 lg:shrink lg:h-full min-h-0 gap-2 sm:gap-2.5">
             {/* Synchronized YouTube Video Player */}
@@ -2606,6 +2656,25 @@ export function App() {
             </div>
           </div>
         </main>
+      )}
+
+      {/* Minimized Floating Room Card (Bottom-Left) */}
+      {currentView === 'home' && Boolean(roomId) && (
+        <MinimizedRoomCard
+          roomId={roomId}
+          roomName={roomMetadata.name}
+          video={video}
+          onlineCount={onlineCount}
+          onMaximize={handleRestoreRoom}
+          onTogglePlayPause={() => {
+            if (video.isPlaying) {
+              handleVideoPause(playbackCurrentTime, playbackDuration);
+            } else {
+              handleVideoPlay(playbackCurrentTime, playbackDuration);
+            }
+          }}
+          onLeaveRoom={handleLeaveRoom}
+        />
       )}
 
       {/* Modals */}

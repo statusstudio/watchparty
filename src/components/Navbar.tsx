@@ -17,6 +17,7 @@ import {
   HelpCircle,
   Star,
   ExternalLink,
+  Minimize2,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { UserProfile, UserRole } from '../types/index.js';
@@ -35,6 +36,8 @@ interface NavbarProps {
   onToggleFavoriteRoom?: () => void;
   onRefreshRoom: () => void;
   onToggleOledSleep: () => void;
+  onMinimizeRoom?: () => void;
+  onLeaveRoom?: () => void;
   onNavigateHome: () => void;
   onOpenProfile: () => void;
   onOpenFullProfile?: () => void;
@@ -61,6 +64,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleFavoriteRoom,
   onRefreshRoom,
   onToggleOledSleep,
+  onMinimizeRoom,
+  onLeaveRoom,
   onNavigateHome,
   onOpenProfile,
   onOpenFullProfile,
@@ -104,7 +109,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
     logoClickTimeoutRef.current = setTimeout(() => {
       if (logoClickCountRef.current === 1) {
-        onNavigateHome();
+        if (currentView === 'room' && onMinimizeRoom) {
+          onMinimizeRoom();
+        } else {
+          onNavigateHome();
+        }
       }
       logoClickCountRef.current = 0;
     }, 350);
@@ -156,7 +165,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           onClick={handleLogoClick}
           className="cursor-pointer group shrink-0 focus:outline-none flex items-center select-none"
-          title="pleng.online - หน้าหลัก"
+          title={currentView === 'room' ? 'ย่อห้องปาร์ตี้ไว้มุมล่างซ้าย (ไปหน้าหลัก)' : 'pleng.online - หน้าหลัก'}
         >
           <PlengLogo size="sm" animated={true} />
         </button>
@@ -267,6 +276,32 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <Shield className="w-3.5 h-3.5 text-[#391c57]" />
                 )}
                 <span>จัดการห้อง</span>
+              </button>
+            )}
+
+            {/* Minimize Room Button */}
+            {onMinimizeRoom && (
+              <button
+                type="button"
+                onClick={onMinimizeRoom}
+                className="hidden md:flex px-2.5 py-1 rounded-md bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] text-xs font-medium transition-all cursor-pointer items-center gap-1.5 shrink-0 shadow-xs"
+                title="ย่อห้องปาร์ตี้ไว้มุมล่างซ้าย (ไปดูหน้าหลัก)"
+              >
+                <Minimize2 className="w-3.5 h-3.5 text-[#0075de]" />
+                <span>ย่อห้อง</span>
+              </button>
+            )}
+
+            {/* Leave Room Button */}
+            {onLeaveRoom && (
+              <button
+                type="button"
+                onClick={onLeaveRoom}
+                className="hidden md:flex px-2.5 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-medium transition-all cursor-pointer items-center gap-1.5 shrink-0 shadow-xs"
+                title="ออกจากห้องปาร์ตี้"
+              >
+                <LogOut className="w-3.5 h-3.5 text-rose-500" />
+                <span>ออกจากห้อง</span>
               </button>
             )}
           </>
@@ -463,6 +498,34 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <Shield className="w-4 h-4 text-[#391c57]" />
                         )}
                         <span>จัดการห้อง (สิทธิ์ผู้ดูแล)</span>
+                      </button>
+                    )}
+
+                    {/* Minimize Room */}
+                    {onMinimizeRoom && (
+                      <button
+                        onClick={() => {
+                          onMinimizeRoom();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full px-3 py-2 rounded-lg hover:bg-[#f6f5f4] text-left text-xs text-[#0075de] font-medium flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <Minimize2 className="w-4 h-4 text-[#0075de]" />
+                        <span>ย่อห้องไว้มุมจอ (ไปหน้าหลัก)</span>
+                      </button>
+                    )}
+
+                    {/* Leave Room */}
+                    {onLeaveRoom && (
+                      <button
+                        onClick={() => {
+                          onLeaveRoom();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full px-3 py-2 rounded-lg hover:bg-rose-50 text-left text-xs text-rose-600 font-medium flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4 text-rose-500" />
+                        <span>ออกจากห้องปาร์ตี้</span>
                       </button>
                     )}
                   </>
