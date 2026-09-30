@@ -166,10 +166,6 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
 
   const handleToggleFollow = async () => {
     if (isOwnProfile || !profile) return;
-    if (!currentUser.provider || currentUser.provider === 'guest') {
-      onShowToast('กรุณาเข้าสู่ระบบด้วย Google หรือ Facebook เพื่อติดตามเพื่อน', 'warning');
-      return;
-    }
     setFollowLoading(true);
     const newStatus = await toggleFollow(currentUser.id, profile.id);
     setIsFollowing(newStatus);

@@ -75,15 +75,6 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
   const handleToggleFollow = async () => {
     if (isSelf) return;
 
-    if (!currentUser.provider || currentUser.provider === 'guest') {
-      if (onOpenAuth) {
-        onOpenAuth();
-      } else {
-        alert('กรุณาเข้าสู่ระบบด้วย Google หรือ Facebook เพื่อติดตามเพื่อน');
-      }
-      return;
-    }
-
     setFollowLoading(true);
     const newStatus = await toggleFollow(currentUser.id, displayUser.id);
     setIsFollowing(newStatus);

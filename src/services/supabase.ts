@@ -85,66 +85,93 @@ export async function signOut() {
  * Fetch member profile by user ID or username
  */
 export async function fetchProfile(userId: string, currentUserId?: string): Promise<UserProfile | null> {
-  if (!supabase) {
-    // Fallback from localStorage
-    const local = localStorage.getItem(`profile_${userId}`);
-    if (local) {
-      try {
-        return JSON.parse(local);
-      } catch (e) {}
-    }
-    return null;
-  }
-
+  // 1. Try backend server API first (centralized real-time storage, always accurate across all devices)
   try {
-    // 1. Get profile data
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (error || !profile) {
-      return null;
+    const query = currentUserId ? `?currentUserId=${encodeURIComponent(currentUserId)}` : '';
+    const res = await fetch(`/api/users/profile/${encodeURIComponent(userId)}${query}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.id) {
+        return {
+          ...data,
+          followersCount: data.followersCount || 0,
+          followingCount: data.followingCount || 0,
+          isFollowing: Boolean(data.isFollowing),
+        };
+      }
     }
-
-    // 2. Count followers and following
-    const [followersRes, followingRes, isFollowingRes] = await Promise.all([
-      supabase.from('follows').select('id', { count: 'exact', head: true }).eq('following_id', userId),
-      supabase.from('follows').select('id', { count: 'exact', head: true }).eq('follower_id', userId),
-      currentUserId && currentUserId !== userId
-        ? supabase
-            .from('follows')
-            .select('id')
-            .eq('follower_id', currentUserId)
-            .eq('following_id', userId)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-    ]);
-
-    const followersCount = followersRes.count || 0;
-    const followingCount = followingRes.count || 0;
-    const isFollowing = Boolean(isFollowingRes?.data);
-
-    return {
-      id: profile.id,
-      name: profile.display_name || 'Music Lover',
-      username: profile.username || `user_${profile.id.slice(0, 5)}`,
-      avatar: profile.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.id}`,
-      bannerUrl: profile.banner_url || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
-      color: '#ec4899',
-      bio: profile.bio || 'เพลิดเพลินกับเสียงดนตรีบน pleng.online 🎧',
-      favoriteGenres: profile.favorite_genres || ['Lofi', 'Pop', 'Acoustic'],
-      socialLinks: profile.social_links || {},
-      followersCount,
-      followingCount,
-      isFollowing,
-      createdAt: new Date(profile.created_at).getTime(),
-    };
-  } catch (err) {
-    console.error('fetchProfile error:', err);
-    return null;
+  } catch (e) {
+    // server unreachable, fall through to Supabase / Local
   }
+
+  // 2. Try Supabase if configured
+  if (supabase) {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!error && profile) {
+        const [followersRes, followingRes, isFollowingRes] = await Promise.all([
+          supabase.from('follows').select('id', { count: 'exact', head: true }).eq('following_id', userId),
+          supabase.from('follows').select('id', { count: 'exact', head: true }).eq('follower_id', userId),
+          currentUserId && currentUserId !== userId
+            ? supabase
+                .from('follows')
+                .select('id')
+                .eq('follower_id', currentUserId)
+                .eq('following_id', userId)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+        ]);
+
+        return {
+          id: profile.id,
+          name: profile.display_name || 'Music Lover',
+          username: profile.username || `user_${profile.id.slice(0, 5)}`,
+          avatar: profile.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.id}`,
+          bannerUrl: profile.banner_url || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
+          color: '#ec4899',
+          bio: profile.bio || 'เพลิดเพลินกับเสียงดนตรีบน pleng.online 🎧',
+          favoriteGenres: profile.favorite_genres || ['Lofi', 'Pop', 'Acoustic'],
+          socialLinks: profile.social_links || {},
+          followersCount: followersRes.count || 0,
+          followingCount: followingRes.count || 0,
+          isFollowing: Boolean(isFollowingRes?.data),
+          createdAt: new Date(profile.created_at).getTime(),
+        };
+      }
+    } catch (err) {
+      console.error('Supabase fetchProfile error:', err);
+    }
+  }
+
+  // 3. Fallback from localStorage
+  const local = localStorage.getItem(`profile_${userId}`);
+  const isFollowed = currentUserId ? localStorage.getItem(`follow_${currentUserId}_${userId}`) === '1' : false;
+  if (local) {
+    try {
+      const parsed = JSON.parse(local);
+      return {
+        ...parsed,
+        isFollowing: isFollowed,
+        followersCount: isFollowed ? (parsed.followersCount || 0) + 1 : (parsed.followersCount || 0),
+      };
+    } catch (e) {}
+  }
+
+  return {
+    id: userId,
+    name: 'Music Lover',
+    username: `user_${userId.slice(0, 5)}`,
+    avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
+    color: '#ec4899',
+    followersCount: isFollowed ? 1 : 0,
+    followingCount: 0,
+    isFollowing: isFollowed,
+  };
 }
 
 /**
@@ -201,46 +228,68 @@ export async function updateProfile(
  * Toggle follow/unfollow a user
  */
 export async function toggleFollow(currentUserId: string, targetUserId: string): Promise<boolean> {
-  if (currentUserId === targetUserId) return false;
+  if (!currentUserId || !targetUserId || currentUserId === targetUserId) return false;
 
-  if (!supabase) {
-    // Local fallback
-    const key = `follow_${currentUserId}_${targetUserId}`;
-    const isFollowed = localStorage.getItem(key) === '1';
-    if (isFollowed) {
-      localStorage.removeItem(key);
-      return false;
-    } else {
-      localStorage.setItem(key, '1');
-      return true;
-    }
+  const key = `follow_${currentUserId}_${targetUserId}`;
+  const wasFollowed = localStorage.getItem(key) === '1';
+  const optimisticStatus = !wasFollowed;
+
+  if (optimisticStatus) {
+    localStorage.setItem(key, '1');
+  } else {
+    localStorage.removeItem(key);
   }
 
+  // 1. Sync with backend server API (persisted across all users & devices)
   try {
-    // Check if currently following
-    const { data: existing } = await supabase
-      .from('follows')
-      .select('id')
-      .eq('follower_id', currentUserId)
-      .eq('following_id', targetUserId)
-      .maybeSingle();
-
-    if (existing) {
-      // Unfollow
-      await supabase.from('follows').delete().eq('id', existing.id);
-      return false;
-    } else {
-      // Follow
-      await supabase.from('follows').insert({
-        follower_id: currentUserId,
-        following_id: targetUserId,
-      });
-      return true;
+    const res = await fetch('/api/users/follow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ followerId: currentUserId, followingId: targetUserId }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (typeof data.isFollowing === 'boolean') {
+        if (data.isFollowing) {
+          localStorage.setItem(key, '1');
+        } else {
+          localStorage.removeItem(key);
+        }
+        return data.isFollowing;
+      }
     }
   } catch (err) {
-    console.error('toggleFollow error:', err);
-    return false;
+    console.warn('Backend follow sync error:', err);
   }
+
+  // 2. Sync with Supabase if configured
+  if (supabase) {
+    try {
+      const { data: existing } = await supabase
+        .from('follows')
+        .select('id')
+        .eq('follower_id', currentUserId)
+        .eq('following_id', targetUserId)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase.from('follows').delete().eq('id', existing.id);
+        localStorage.removeItem(key);
+        return false;
+      } else {
+        await supabase.from('follows').insert({
+          follower_id: currentUserId,
+          following_id: targetUserId,
+        });
+        localStorage.setItem(key, '1');
+        return true;
+      }
+    } catch (err) {
+      console.error('Supabase toggleFollow error:', err);
+    }
+  }
+
+  return optimisticStatus;
 }
 
 // ============================================================

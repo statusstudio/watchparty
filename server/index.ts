@@ -638,15 +638,28 @@ async function startServer() {
   app.get('/api/users/profile/:handleOrId', (req, res) => {
     try {
       const handleOrId = req.params.handleOrId;
-      const user = platformManager.getUserByHandle(handleOrId);
+      const currentUserId = (req.query.currentUserId as string) || '';
+      let user = platformManager.getUserByHandle(handleOrId);
       if (!user) {
-        return res.status(404).json({ error: 'ไม่พบโปรไฟล์ผู้ใช้นี้ในระบบ' });
+        user = {
+          id: handleOrId,
+          name: 'ผู้ใช้',
+          username: handleOrId.replace(/^@/, ''),
+          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(handleOrId)}`,
+          color: '#8b5cf6',
+          provider: 'guest',
+          isSuperAdmin: false,
+          isSuspended: false,
+          createdAt: Date.now(),
+          lastActiveAt: Date.now(),
+        };
       }
 
       // Check if user is currently online in a room
       const activeRoom = roomManager.findUserActiveRoom(user.id);
+      const followStats = platformManager.getFollowStats(user.id, currentUserId);
 
-      // Return sanitized public profile
+      // Return sanitized public profile with accurate follow stats
       const publicProfile = {
         id: user.id,
         name: user.name,
@@ -660,6 +673,9 @@ async function startServer() {
         favoriteGenres: user.favoriteGenres || ['Lofi', 'Pop'],
         socialLinks: user.socialLinks || {},
         favoriteSongs: user.favoriteSongs || [],
+        followersCount: followStats.followersCount,
+        followingCount: followStats.followingCount,
+        isFollowing: followStats.isFollowing,
         createdAt: user.createdAt,
         lastActiveAt: user.lastActiveAt,
         activeRoom: activeRoom || null,
@@ -669,6 +685,48 @@ async function startServer() {
     } catch (err: any) {
       console.error('Error fetching user profile:', err);
       res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลโปรไฟล์' });
+    }
+  });
+
+  // Follow / Unfollow User endpoint
+  app.post('/api/users/follow', (req, res) => {
+    try {
+      const { followerId, followingId, currentUserId, targetUserId } = req.body;
+      const actualFollowerId = followerId || currentUserId;
+      const actualFollowingId = followingId || targetUserId;
+
+      if (!actualFollowerId || !actualFollowingId) {
+        return res.status(400).json({ error: 'Missing followerId or followingId' });
+      }
+
+      const result = platformManager.toggleFollow(actualFollowerId, actualFollowingId);
+      res.json({
+        success: true,
+        isFollowing: result.isFollowing,
+        followersCount: result.followersCount,
+        followingCount: result.followingCount,
+      });
+    } catch (err: any) {
+      console.error('Error toggling follow:', err);
+      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการติดตาม' });
+    }
+  });
+
+  // Follow Status check endpoint
+  app.get('/api/users/:id/follow-status', (req, res) => {
+    try {
+      const userId = req.params.id;
+      const currentUserId = (req.query.currentUserId as string) || '';
+      const stats = platformManager.getFollowStats(userId, currentUserId);
+      res.json({
+        success: true,
+        isFollowing: stats.isFollowing,
+        followersCount: stats.followersCount,
+        followingCount: stats.followingCount,
+      });
+    } catch (err: any) {
+      console.error('Error checking follow status:', err);
+      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการตรวจสอบสถานะการติดตาม' });
     }
   });
 

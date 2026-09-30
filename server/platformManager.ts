@@ -48,6 +48,12 @@ export interface StoredUserAccount {
   lastLoginAt: number;
 }
 
+export interface FollowRecord {
+  followerId: string;
+  followingId: string;
+  createdAt: number;
+}
+
 interface StoreSchema {
   users: PlatformUser[];
   tickets: SupportTicket[];
@@ -56,11 +62,13 @@ interface StoreSchema {
   adminCredentials?: AdminCredentials;
   userAccounts?: StoredUserAccount[];
   smtpConfig?: SmtpConfig;
+  follows?: FollowRecord[];
 }
 
 export class PlatformManager {
   private users: Map<string, PlatformUser> = new Map();
   private userAccounts: Map<string, StoredUserAccount> = new Map();
+  private follows: Map<string, FollowRecord> = new Map();
   private adminCredentials: AdminCredentials = {
     username: 'admin',
     passwordHash: emailService.hashPassword('admin888'),
@@ -187,6 +195,14 @@ export class PlatformManager {
         ...data.smtpConfig,
       };
     }
+
+    if (Array.isArray(data.follows)) {
+      data.follows.forEach((f) => {
+        if (f.followerId && f.followingId) {
+          this.follows.set(`${f.followerId}_${f.followingId}`, f);
+        }
+      });
+    }
   }
 
   private loadStore() {
@@ -210,6 +226,7 @@ export class PlatformManager {
       config: this.config,
       topTracks: Array.from(this.topTracks.values()),
       smtpConfig: this.smtpConfig,
+      follows: Array.from(this.follows.values()),
     };
   }
 
@@ -1185,6 +1202,61 @@ export class PlatformManager {
     user.favoriteSongs = user.favoriteSongs.filter((s) => s.videoId !== videoId);
     this.scheduleSave();
     return user.favoriteSongs;
+  }
+
+  public toggleFollow(
+    followerId: string,
+    followingId: string
+  ): { isFollowing: boolean; followersCount: number; followingCount: number } {
+    if (!followerId || !followingId || followerId === followingId) {
+      return this.getFollowStats(followingId, followerId);
+    }
+
+    const key = `${followerId}_${followingId}`;
+    let isFollowing = false;
+
+    if (this.follows.has(key)) {
+      this.follows.delete(key);
+      isFollowing = false;
+    } else {
+      this.follows.set(key, {
+        followerId,
+        followingId,
+        createdAt: Date.now(),
+      });
+      isFollowing = true;
+    }
+
+    this.scheduleSave();
+    const stats = this.getFollowStats(followingId, followerId);
+    return {
+      isFollowing,
+      followersCount: stats.followersCount,
+      followingCount: stats.followingCount,
+    };
+  }
+
+  public getFollowStats(
+    userId: string,
+    currentUserId?: string
+  ): { followersCount: number; followingCount: number; isFollowing: boolean } {
+    let followersCount = 0;
+    let followingCount = 0;
+    let isFollowing = false;
+
+    for (const f of this.follows.values()) {
+      if (f.followingId === userId) {
+        followersCount++;
+      }
+      if (f.followerId === userId) {
+        followingCount++;
+      }
+      if (currentUserId && f.followerId === currentUserId && f.followingId === userId) {
+        isFollowing = true;
+      }
+    }
+
+    return { followersCount, followingCount, isFollowing };
   }
 
   public createTicket(
