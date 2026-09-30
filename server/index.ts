@@ -1064,6 +1064,9 @@ async function startServer() {
           case 'DELETE_CHAT_MESSAGE':
             roomManager.handleDeleteChatMessage(ws, msg.messageId);
             break;
+          case 'CLEAR_CHAT':
+            roomManager.handleClearChat(ws);
+            break;
           case 'CLOSE_ROOM':
             roomManager.handleCloseRoom(ws);
             break;

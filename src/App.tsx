@@ -1106,6 +1106,11 @@ export function App() {
           setChat((prev) => prev.filter((m) => m.id !== msg.messageId));
           break;
 
+        case 'CHAT_CLEARED':
+          setChat(msg.chat || []);
+          showToast('ล้างข้อความแชทในห้องเรียบร้อย 🧹', 'info');
+          break;
+
         case 'EMOJI_REACTION': {
           const item: FloatingItem = {
             id: 'react-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
@@ -1617,6 +1622,13 @@ export function App() {
     socketService.send({
       type: 'DELETE_CHAT_MESSAGE',
       messageId,
+    });
+  };
+
+  // Clear all chat in room (Owner / Admin)
+  const handleClearChat = () => {
+    socketService.send({
+      type: 'CLEAR_CHAT',
     });
   };
 
@@ -2389,6 +2401,8 @@ export function App() {
                 messages={chat}
                 currentUser={currentUser}
                 enableChatImages={roomMetadata.widgets?.enableChatImages !== false}
+                canClearChat={myRole === 'owner' || myRole === 'admin' || isSuperAdmin}
+                onClearChat={handleClearChat}
                 onSendMessage={handleSendMessage}
                 onSendReaction={handleSendReaction}
                 onSeekTo={handleVideoSeek}

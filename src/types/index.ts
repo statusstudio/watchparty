@@ -225,6 +225,7 @@ export type WSClientMessage =
   | { type: 'SET_SHUFFLE'; isShuffle: boolean }
   | { type: 'SEND_CHAT'; text: string; imageUrl?: string }
   | { type: 'DELETE_CHAT_MESSAGE'; messageId: string }
+  | { type: 'CLEAR_CHAT' }
   | { type: 'CLOSE_ROOM' }
   | { type: 'EMOJI_REACTION'; emoji: string }
   | { type: 'PLAY_SOUND'; soundId: string; soundName: string }
@@ -247,6 +248,7 @@ export type WSServerMessage =
   | { type: 'PLAYLIST_UPDATED'; playlist: PlaylistItem[]; loopMode: LoopMode; isShuffle: boolean }
   | { type: 'NEW_CHAT'; message: ChatMessage }
   | { type: 'CHAT_MESSAGE_DELETED'; messageId: string }
+  | { type: 'CHAT_CLEARED'; chat: ChatMessage[] }
   | { type: 'EMOJI_REACTION'; emoji: string; sender: UserProfile }
   | { type: 'PLAY_SOUND'; soundId: string; soundName: string; playedBy: UserProfile }
   | { type: 'SIGNAL_DATA'; senderId: string; data: any }

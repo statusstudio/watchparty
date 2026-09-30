@@ -81,6 +81,24 @@ export class RoomManager {
     }));
   }
 
+  public createDefaultChat(metadata?: Partial<RoomMetadata>): ChatMessage[] {
+    const roomName = metadata?.name || 'ห้องปาร์ตี้';
+    return [
+      {
+        id: 'msg-welcome-' + Date.now(),
+        sender: {
+          id: 'system',
+          name: 'WatchParty Bot 🤖',
+          avatar:
+            'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%238b5cf6"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2zM7.5 13a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm9 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>',
+          color: '#8b5cf6',
+        },
+        text: `ยินดีต้อนรับสู่ห้อง "${roomName}"! เริ่มต้นพูดคุยแชทสดกันได้เลย 🎉`,
+        timestamp: Date.now(),
+      },
+    ];
+  }
+
   private hydratePersistentRooms(savedList: any[]) {
     if (!Array.isArray(savedList)) return;
     const now = Date.now();
@@ -116,23 +134,8 @@ export class RoomManager {
         }
       }
 
-      // Restore chat messages (preserve up to 150 recent messages)
-      const restoredChat: ChatMessage[] = Array.isArray(r.chat) && r.chat.length > 0
-        ? r.chat
-        : [
-            {
-              id: 'msg-welcome',
-              sender: {
-                id: 'system',
-                name: 'WatchParty Bot 🤖',
-                avatar:
-                  'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%238b5cf6"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2zM7.5 13a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm9 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>',
-                color: '#8b5cf6',
-              },
-              text: `ยินดีต้อนรับกลับสู่ห้อง "${r.metadata?.name || 'ห้องปาร์ตี้'}"! เพลย์ลิสต์และประวัติแชทได้รับการกู้คืนเรียบร้อยแล้ว 🎵`,
-              timestamp: Date.now(),
-            },
-          ];
+      // Chat is ephemeral per session - initialize room with fresh welcome chat
+      const restoredChat: ChatMessage[] = this.createDefaultChat(r.metadata);
 
         let isMember = !!r.isMemberRoom;
         if (!isMember && r.metadata?.ownerId) {
@@ -216,7 +219,7 @@ export class RoomManager {
           metadata: room.metadata,
           video: room.video,
           playlist: room.playlist,
-          chat: (room.chat || []).slice(-150), // Save last 150 chat messages!
+          chat: this.createDefaultChat(room.metadata), // Chat is ephemeral per session - never persist old chat logs
           loopMode: room.loopMode,
           isShuffle: room.isShuffle,
           stageAccessMode: room.stageAccessMode,
@@ -410,19 +413,7 @@ export class RoomManager {
       stageAccessMode,
       approvedSpeakerIds: new Set<string>([creator.id]),
       pendingStageRequests: new Map<string, StageRequest>(),
-      chat: [
-        {
-          id: 'msg-welcome',
-          sender: {
-            id: 'system',
-            name: 'WatchParty Bot 🤖',
-            avatar: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%238b5cf6"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2zM7.5 13a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm9 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>',
-            color: '#8b5cf6',
-          },
-          text: `ยินดีต้อนรับสู่ห้อง "${settings.name}"! เจ้าของห้องคือคุณ ${creator.name} 🎉`,
-          timestamp: Date.now(),
-        },
-      ],
+      chat: this.createDefaultChat({ name: settings.name || `ห้องปาร์ตี้ #${roomId}` }),
       adminIds: new Set<string>(),
       bannedUsers: new Map<string, BannedUser>(),
       isMemberRoom: isMember,
@@ -675,6 +666,13 @@ export class RoomManager {
           type: 'SEATS_UPDATED',
           seats: room.seats,
         });
+      }
+
+      // If room has no active users left, reset chat immediately so the next session starts completely fresh
+      const remainingClients = this.getRoomClients(oldRoomId, false);
+      if (remainingClients.length === 0) {
+        room.chat = this.createDefaultChat(room.metadata);
+        this.scheduleSave();
       }
 
       if (!wasStealth) {
@@ -2249,6 +2247,13 @@ export class RoomManager {
         });
       }
 
+      // If room has no active users left, reset chat immediately so the next session starts completely fresh
+      const remainingClients = this.getRoomClients(roomId, false);
+      if (remainingClients.length === 0) {
+        room.chat = this.createDefaultChat(room.metadata);
+        this.scheduleSave();
+      }
+
       if (!isStealth) {
         const clients = this.getRoomClients(roomId, false);
         const onlineCount = clients.length;
@@ -2267,6 +2272,36 @@ export class RoomManager {
         });
       }
     }
+  }
+
+  public handleClearChat(ws: WebSocket) {
+    const client = this.clients.get(ws);
+    if (!client) return;
+
+    const room = this.rooms.get(client.roomId);
+    if (!room) return;
+
+    const isOwner = client.user.id === room.metadata.ownerId;
+    const isAdmin = room.adminIds.has(client.user.id);
+    const isSuperAdmin = platformManager.isSuperAdmin(client.user.id);
+
+    if (!isOwner && !isAdmin && !isSuperAdmin) {
+      this.sendToClient(ws, {
+        type: 'SYNC_TOAST',
+        message: 'เฉพาะเจ้าของห้องหรือผู้ดูแลเท่านั้นที่สามารถล้างแชทได้',
+        toastType: 'warning',
+      });
+      return;
+    }
+
+    room.chat = this.createDefaultChat(room.metadata);
+    room.lastActiveTime = Date.now();
+    this.scheduleSave();
+
+    this.broadcastToRoom(client.roomId, {
+      type: 'CHAT_CLEARED',
+      chat: room.chat,
+    });
   }
 
   public findUserActiveRoom(userId: string): { roomId: string; roomName: string; video?: VideoState } | null {
