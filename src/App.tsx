@@ -2122,7 +2122,7 @@ export function App() {
           {/* Left Column: Synchronized Video Player & Open Voice Bar (Desktop: 8 cols) */}
           <div className="w-full lg:col-span-8 flex flex-col shrink-0 lg:shrink lg:h-full min-h-0 gap-2 sm:gap-2.5">
             {/* Synchronized YouTube Video Player */}
-            <div className="w-full aspect-video max-h-[25vh] sm:max-h-[34vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black rounded-xl overflow-hidden border border-[#e6e6e6] shadow-[0_4px_12px_rgba(0,0,0,0.06)] relative shrink-0">
+            <div className="w-full aspect-video max-h-[25vh] sm:max-h-[30vh] md:max-h-[32vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black rounded-xl overflow-hidden border border-[#e6e6e6] shadow-[0_4px_12px_rgba(0,0,0,0.06)] relative shrink-0">
               <VideoPlayer
                 video={video}
                 reactions={isReactionsEnabled ? reactions : []}
