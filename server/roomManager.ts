@@ -93,7 +93,7 @@ export class RoomManager {
 
   public createDefaultChat(metadata?: Partial<RoomMetadata>): ChatMessage[] {
     const roomName = metadata?.name || 'ห้องปาร์ตี้';
-    return [
+    const list: ChatMessage[] = [
       {
         id: 'msg-welcome-' + Date.now(),
         sender: {
@@ -107,6 +107,22 @@ export class RoomManager {
         timestamp: Date.now(),
       },
     ];
+
+    if (metadata?.announcement?.trim()) {
+      list.push({
+        id: 'msg-announcement-' + Date.now(),
+        sender: {
+          id: 'room-announcement',
+          name: '📢 ประกาศประจำห้อง',
+          avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=announcement',
+          color: '#f59e0b',
+        },
+        text: metadata.announcement.trim(),
+        timestamp: Date.now() + 1,
+      });
+    }
+
+    return list;
   }
 
   private hydratePersistentRooms(savedList: any[]) {
@@ -810,6 +826,24 @@ export class RoomManager {
       this.scheduleSave();
     }
 
+    // Ensure room announcement is present in chat for new/re-joining users
+    if (room.metadata.announcement?.trim()) {
+      const hasAnnouncementMsg = room.chat.some((m) => m.sender.id === 'room-announcement');
+      if (!hasAnnouncementMsg) {
+        room.chat.push({
+          id: 'msg-announcement-' + Date.now(),
+          sender: {
+            id: 'room-announcement',
+            name: '📢 ประกาศประจำห้อง',
+            avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=announcement',
+            color: '#f59e0b',
+          },
+          text: room.metadata.announcement.trim(),
+          timestamp: Date.now(),
+        });
+      }
+    }
+
     const roomState = this.getRoomState(roomId, user.id, isStealth);
 
     // Send initial room state
@@ -937,6 +971,7 @@ export class RoomManager {
       onlyAdminManagePlaylist: boolean;
       stageAccessMode?: StageAccessMode;
       widgets?: RoomWidgetsConfig;
+      announcement?: string;
     }
   ) {
     const client = this.clients.get(ws);
@@ -963,6 +998,9 @@ export class RoomManager {
     if (settings.category) room.metadata.category = settings.category;
     if (settings.coverImage !== undefined) room.metadata.coverImage = settings.coverImage;
     room.metadata.onlyAdminManagePlaylist = settings.onlyAdminManagePlaylist;
+    if (settings.announcement !== undefined) {
+      room.metadata.announcement = settings.announcement.trim() || undefined;
+    }
     if (settings.widgets) {
       room.metadata.widgets = {
         ...(room.metadata.widgets || { ...DEFAULT_ROOM_WIDGETS }),
@@ -1015,6 +1053,100 @@ export class RoomManager {
       message: 'เจ้าของห้องได้อัพเดทการตั้งค่าห้องแล้ว ⚙️',
       toastType: 'success',
     });
+  }
+
+  public handleSetRoomAnnouncement(ws: WebSocket, announcement: string) {
+    const client = this.clients.get(ws);
+    if (!client) return;
+
+    const room = this.rooms.get(client.roomId);
+    if (!room) return;
+
+    const isOwner = client.user.id === room.metadata.ownerId;
+    const isAdmin = room.adminIds.has(client.user.id);
+    const isSuperAdmin = platformManager.isSuperAdmin(client.user.id) || client.user.id === 'admin';
+
+    if (!isOwner && !isAdmin && !isSuperAdmin) {
+      this.sendToClient(ws, {
+        type: 'SYNC_TOAST',
+        message: 'เฉพาะเจ้าของห้องหรือผู้ดูแลห้องเท่านั้นที่สามารถตั้งประกาศได้ 🛡️',
+        toastType: 'warning',
+      });
+      return;
+    }
+
+    const clean = (announcement || '').trim();
+    const hadAnnouncement = Boolean(room.metadata.announcement?.trim());
+    room.metadata.announcement = clean || undefined;
+
+    // Broadcast updated metadata to all participants so pinned announcement bar updates instantly
+    this.broadcastToRoom(client.roomId, {
+      type: 'ROOM_METADATA_UPDATED',
+      metadata: {
+        ...room.metadata,
+        password: undefined,
+      },
+    });
+
+    if (clean) {
+      // Remove any previous announcement message in chat to avoid duplicates
+      room.chat = room.chat.filter((m) => m.sender.id !== 'room-announcement');
+
+      // Post announcement message into chat
+      const announceMsg: ChatMessage = {
+        id: 'announcement-' + Date.now(),
+        sender: {
+          id: 'room-announcement',
+          name: '📢 ประกาศประจำห้อง',
+          avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=announcement',
+          color: '#f59e0b',
+        },
+        text: clean,
+        timestamp: Date.now(),
+      };
+      room.chat.push(announceMsg);
+      if (room.chat.length > 200) room.chat.shift();
+      this.broadcastToRoom(client.roomId, {
+        type: 'NEW_CHAT',
+        message: announceMsg,
+      });
+
+      this.broadcastToRoom(client.roomId, {
+        type: 'SYNC_TOAST',
+        message: '📢 อัปเดตประกาศประจำห้องเรียบร้อย',
+        toastType: 'success',
+      });
+    } else if (hadAnnouncement) {
+      // Remove announcement messages from chat
+      room.chat = room.chat.filter((m) => m.sender.id !== 'room-announcement');
+
+      const removeNoticeMsg: ChatMessage = {
+        id: 'announcement-del-' + Date.now(),
+        sender: {
+          id: 'room-announcement',
+          name: '📢 ประกาศประจำห้อง',
+          avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=announcement',
+          color: '#ef4444',
+        },
+        text: `${client.user.name} ได้ลบประกาศประจำห้องแล้ว`,
+        timestamp: Date.now(),
+      };
+      room.chat.push(removeNoticeMsg);
+      if (room.chat.length > 200) room.chat.shift();
+      this.broadcastToRoom(client.roomId, {
+        type: 'NEW_CHAT',
+        message: removeNoticeMsg,
+      });
+
+      this.broadcastToRoom(client.roomId, {
+        type: 'SYNC_TOAST',
+        message: 'ลบประกาศประจำห้องเรียบร้อย',
+        toastType: 'info',
+      });
+    }
+
+    room.lastActiveTime = Date.now();
+    this.scheduleSave();
   }
 
   public handleUpdateRoomWidgets(ws: WebSocket, widgets: Partial<RoomWidgetsConfig>) {

@@ -39,6 +39,7 @@ interface AdminPanelModalProps {
   onUpdateSettings: (settings: {
     name: string;
     description: string;
+    announcement?: string;
     isPrivate: boolean;
     password?: string;
     category?: RoomCategory;
@@ -75,6 +76,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   // Room Settings State
   const [roomName, setRoomName] = useState(metadata.name || '');
   const [roomDesc, setRoomDesc] = useState(metadata.description || '');
+  const [announcement, setAnnouncement] = useState(metadata.announcement || '');
   const [category, setCategory] = useState<RoomCategory>(metadata.category || 'general');
   const [coverImage, setCoverImage] = useState(metadata.coverImage || '');
   const [isPrivate, setIsPrivate] = useState(metadata.isPrivate || false);
@@ -91,6 +93,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     if (isOpen) {
       setRoomName(metadata.name || '');
       setRoomDesc(metadata.description || '');
+      setAnnouncement(metadata.announcement || '');
       setCategory(metadata.category || 'general');
       setCoverImage(metadata.coverImage || '');
       setIsPrivate(metadata.isPrivate || false);
@@ -114,6 +117,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     onUpdateSettings({
       name: roomName.trim(),
       description: roomDesc.trim(),
+      announcement: announcement.trim() || undefined,
       category,
       coverImage: coverImage.trim() || undefined,
       isPrivate,
@@ -358,6 +362,27 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   onChange={(e) => setRoomDesc(e.target.value)}
                   className="w-full px-3.5 py-2 bg-white border border-[#e6e6e6] rounded-xl text-sm text-[#000000] focus:outline-none focus:border-[#0075de] shadow-xs"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#31302e] mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <span>📢</span> ประกาศประจำห้อง (Room Announcement)
+                  </span>
+                  <span className="text-[10px] text-[#615d59] font-normal">
+                    {announcement.length}/500 ตัวอักษร
+                  </span>
+                </label>
+                <textarea
+                  value={announcement}
+                  onChange={(e) => setAnnouncement(e.target.value.slice(0, 500))}
+                  rows={2}
+                  placeholder="พิมพ์ข้อความประกาศประจำห้อง... (จะแสดงในแชทและปักหมุดด้านบนเมื่อสมาชิกเข้าห้อง)"
+                  className="w-full px-3.5 py-2 bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] shadow-xs resize-none"
+                />
+                <p className="text-[10px] text-[#615d59] mt-1">
+                  * ข้อความนี้จะถูกปักหมุดไว้ที่ส่วนหัวของแชท และส่งเป็นการ์ดต้อนรับเมื่อมีคนเข้าห้อง
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

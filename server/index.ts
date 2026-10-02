@@ -1100,6 +1100,9 @@ async function startServer() {
           case 'GAME_GUESS':
             roomManager.handleGameGuess(ws, msg.guess);
             break;
+          case 'SET_ROOM_ANNOUNCEMENT':
+            roomManager.handleSetRoomAnnouncement(ws, msg.announcement);
+            break;
           default:
             break;
         }

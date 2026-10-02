@@ -1499,6 +1499,7 @@ export function App() {
     onlyAdminManagePlaylist: boolean;
     stageAccessMode?: StageAccessMode;
     widgets?: RoomWidgetsConfig;
+    announcement?: string;
   }) => {
     socketService.send({
       type: 'UPDATE_ROOM_SETTINGS',
@@ -1866,6 +1867,10 @@ export function App() {
 
   const handleGameGuess = useCallback((guess: string) => {
     socketService.send({ type: 'GAME_GUESS', guess });
+  }, []);
+
+  const handleSetRoomAnnouncement = useCallback((announcement: string) => {
+    socketService.send({ type: 'SET_ROOM_ANNOUNCEMENT', announcement });
   }, []);
 
   if (isLineStudioRoute) {
@@ -2694,6 +2699,9 @@ export function App() {
                 onSelectUser={handleOpenUserCard}
                 onDeleteMessage={handleDeleteMessage}
                 onShowToast={showToast}
+                roomAnnouncement={roomMetadata.announcement}
+                isOwnerOrAdmin={myRole === 'owner' || myRole === 'admin' || isSuperAdmin}
+                onSetAnnouncement={handleSetRoomAnnouncement}
               />
             </div>
 

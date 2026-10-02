@@ -145,6 +145,7 @@ export interface RoomMetadata {
   category?: RoomCategory;
   coverImage?: string;
   widgets?: RoomWidgetsConfig;
+  announcement?: string;
   createdAt: number;
 }
 
@@ -237,7 +238,7 @@ export type WSClientMessage =
   | { type: 'GET_ROOMS' }
   | { type: 'VERIFY_ROOM_PASSWORD'; roomId: string; password: string; user?: UserProfile }
   | { type: 'UPDATE_PROFILE'; user: UserProfile }
-  | { type: 'UPDATE_ROOM_SETTINGS'; settings: { name: string; description: string; isPrivate: boolean; password?: string; category?: RoomCategory; coverImage?: string; onlyAdminManagePlaylist: boolean; stageAccessMode?: StageAccessMode; widgets?: RoomWidgetsConfig } }
+  | { type: 'UPDATE_ROOM_SETTINGS'; settings: { name: string; description: string; isPrivate: boolean; password?: string; category?: RoomCategory; coverImage?: string; onlyAdminManagePlaylist: boolean; stageAccessMode?: StageAccessMode; widgets?: RoomWidgetsConfig; announcement?: string } }
   | { type: 'UPDATE_ROOM_WIDGETS'; widgets: Partial<RoomWidgetsConfig> }
   | { type: 'SET_ADMIN_ROLE'; targetUserId: string; role: 'admin' | 'member' }
   | { type: 'KICK_USER'; targetUserId: string }
@@ -277,7 +278,8 @@ export type WSClientMessage =
   | { type: 'GAME_SELECT_WORD'; word: string; category: string }
   | { type: 'GAME_DRAW_STROKE'; stroke: DrawStroke }
   | { type: 'GAME_CLEAR_CANVAS' }
-  | { type: 'GAME_GUESS'; guess: string };
+  | { type: 'GAME_GUESS'; guess: string }
+  | { type: 'SET_ROOM_ANNOUNCEMENT'; announcement: string };
 
 export type WSServerMessage =
   | { type: 'ROOMS_LIST'; rooms: RoomSummary[] }
