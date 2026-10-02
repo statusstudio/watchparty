@@ -372,7 +372,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                   }
 
                   return (
-                    <div className={`text-xs rounded-2xl rounded-tl-sm px-3 py-2 inline-block max-w-full break-words leading-relaxed border shadow-xs ${
+                    <div className={`text-xs rounded-2xl rounded-tl-sm px-3 py-2 inline-block max-w-full break-words leading-relaxed border shadow-xs select-text ${
                       isMe
                         ? 'bg-[#0075de]/8 text-[#000000] border-[#0075de]/20'
                         : 'bg-white text-[#31302e] border-[#e6e6e6]'

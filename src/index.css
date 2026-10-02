@@ -5,6 +5,7 @@
 @layer base {
   * {
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
   }
   html, body, #root {
     height: 100%;
@@ -14,6 +15,16 @@
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     overscroll-behavior-y: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* Allow text selection only where users need to type or copy text */
+  input, textarea, [contenteditable="true"], .select-text, .selectable-text {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    -webkit-touch-callout: default !important;
   }
 
   /* Prevent auto-zoom on iOS Safari when focusing form inputs */
