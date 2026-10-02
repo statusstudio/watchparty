@@ -19,13 +19,16 @@ import {
   PlatformConfig,
   DEFAULT_PLATFORM_CONFIG,
   RoomWidgetsConfig,
+  DrawAndGuessGameState,
+  DrawStroke,
 } from './types/index.js';
 import { getStoredUser, saveUser, clearUser } from './services/auth.js';
 import { socketService } from './services/socket.js';
 import { WebRTCVoiceEngine } from './services/webrtc.js';
-import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Plus, Radio, RefreshCw, Moon, X, Ghost, LogOut, Play, Pause, RotateCcw, RotateCw } from 'lucide-react';
+import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Plus, Radio, RefreshCw, Moon, X, Ghost, LogOut, Play, Pause, RotateCcw, RotateCw, Gamepad2 } from 'lucide-react';
 import { Navbar } from './components/Navbar.js';
 import { VideoPlayer } from './components/VideoPlayer.js';
+import { DrawAndGuessStage } from './components/DrawAndGuessStage.js';
 import { VoiceStage } from './components/VoiceStage.js';
 import { LiveChat } from './components/LiveChat.js';
 import { SidebarQueue } from './components/SidebarQueue.js';
@@ -164,6 +167,7 @@ export function App() {
   }, [members]);
   const [bannedUsers, setBannedUsers] = useState<BannedUser[]>([]);
   const [myRole, setMyRole] = useState<UserRole>('member');
+  const [gameState, setGameState] = useState<DrawAndGuessGameState | null>(null);
 
   // Password Gate
   const [isPasswordGateOpen, setIsPasswordGateOpen] = useState(false);
@@ -1073,6 +1077,7 @@ export function App() {
           setOnlineCount(msg.state.onlineCount || dedupedMembers.length);
           setBannedUsers(msg.state.bannedUsers);
           setMyRole(msg.state.myRole);
+          setGameState(msg.state.gameState || null);
           setUnreadChatCount(0);
           if (msg.state.approvedSpeakerIds) {
             setApprovedSpeakerIds(msg.state.approvedSpeakerIds);
@@ -1244,6 +1249,22 @@ export function App() {
           showToast(`📢 ${msg.text}`, msg.announcementType === 'alert' ? 'warning' : 'info');
           break;
 
+        case 'GAME_STATE_UPDATED':
+          setGameState(msg.state);
+          break;
+
+        case 'GAME_DRAW_STROKE':
+          window.dispatchEvent(new CustomEvent('watchparty:game_stroke', { detail: msg.stroke }));
+          break;
+
+        case 'GAME_CLEAR_CANVAS':
+          window.dispatchEvent(new CustomEvent('watchparty:game_clear_canvas'));
+          break;
+
+        case 'GAME_GUESSED_CORRECT':
+          showToast(`🎉 ${msg.userName} ทายคำตอบถูกต้อง! (+${msg.points} คะแนน)`, 'success');
+          break;
+
         default:
           break;
       }
@@ -1282,6 +1303,7 @@ export function App() {
     socketService.send({ type: 'LEAVE_ROOM' });
     setRoomId('');
     setChat([]);
+    setGameState(null);
     setMembers([]);
     setPlaylist([]);
     setVideo({
@@ -1821,6 +1843,31 @@ export function App() {
     setReactions((prev) => prev.filter((r) => r.id !== id));
   };
 
+  // Draw and Guess Game Action Handlers
+  const handleStartGame = useCallback((maxRounds: number = 3) => {
+    socketService.send({ type: 'GAME_START', maxRounds });
+  }, []);
+
+  const handleStopGame = useCallback(() => {
+    socketService.send({ type: 'GAME_STOP' });
+  }, []);
+
+  const handleSelectGameWord = useCallback((word: string, category: string) => {
+    socketService.send({ type: 'GAME_SELECT_WORD', word, category });
+  }, []);
+
+  const handleSendGameStroke = useCallback((stroke: DrawStroke) => {
+    socketService.send({ type: 'GAME_DRAW_STROKE', stroke });
+  }, []);
+
+  const handleClearGameCanvas = useCallback(() => {
+    socketService.send({ type: 'GAME_CLEAR_CANVAS' });
+  }, []);
+
+  const handleGameGuess = useCallback((guess: string) => {
+    socketService.send({ type: 'GAME_GUESS', guess });
+  }, []);
+
   if (isLineStudioRoute) {
     return (
       <>
@@ -1931,6 +1978,16 @@ export function App() {
         isSuperAdmin={isSuperAdmin}
         isRefreshing={isRefreshing}
         isFavoriteRoom={favoriteRoomIds.has(roomId)}
+        isGameActive={Boolean(gameState?.isActive)}
+        onToggleGame={() => {
+          if (gameState?.isActive) {
+            if (window.confirm('คุณต้องการยุติเกมวาดรูปสำหรับทุกคนใช่หรือไม่?')) {
+              handleStopGame();
+            }
+          } else {
+            handleStartGame(3);
+          }
+        }}
         onToggleFavoriteRoom={handleToggleFavoriteCurrentRoom}
         onRefreshRoom={handleRefresh}
         onToggleOledSleep={() => setIsOledSleepMode(true)}
@@ -2122,7 +2179,9 @@ export function App() {
           {/* Left Column: Synchronized Video Player & Open Voice Bar (Desktop: 8 cols) */}
           <div className="w-full lg:col-span-8 flex flex-col shrink-0 lg:shrink lg:h-full min-h-0 gap-2 sm:gap-2.5">
             {/* Synchronized YouTube Video Player */}
-            <div className="w-full aspect-video max-h-[25vh] sm:max-h-[30vh] md:max-h-[32vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black rounded-xl overflow-hidden border border-[#e6e6e6] shadow-[0_4px_12px_rgba(0,0,0,0.06)] relative shrink-0">
+            <div className={`w-full aspect-video max-h-[25vh] sm:max-h-[30vh] md:max-h-[32vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black rounded-xl overflow-hidden border border-[#e6e6e6] shadow-[0_4px_12px_rgba(0,0,0,0.06)] relative shrink-0 ${
+              gameState?.isActive ? 'fixed -left-[9999px] top-0 w-1 h-1 opacity-0 pointer-events-none' : ''
+            }`}>
               <VideoPlayer
                 video={video}
                 reactions={isReactionsEnabled ? reactions : []}
@@ -2155,6 +2214,22 @@ export function App() {
                 onShowToast={showToast}
               />
             </div>
+
+            {/* Draw & Guess 2D Party Game Stage (When game is active, takes the stage in place of the video) */}
+            {gameState?.isActive && (
+              <div className="w-full h-[52vh] sm:h-[58vh] md:h-[62vh] lg:h-full min-h-[360px] flex-1 flex flex-col shrink-0 lg:shrink">
+                <DrawAndGuessStage
+                  gameState={gameState}
+                  currentUser={currentUser}
+                  myRole={myRole}
+                  onSendStroke={handleSendGameStroke}
+                  onClearCanvas={handleClearGameCanvas}
+                  onSelectWord={handleSelectGameWord}
+                  onGuess={handleGameGuess}
+                  onStopGame={handleStopGame}
+                />
+              </div>
+            )}
 
             {/* Current Video Info Banner & Quick Controls - Notion White Surface */}
             <div className="bg-white border border-[#e6e6e6] rounded-xl px-2.5 py-2 sm:px-3 sm:py-2.5 flex flex-col gap-2 shrink-0 shadow-xs">
@@ -2262,6 +2337,33 @@ export function App() {
                     <Moon className="w-3.5 h-3.5 text-[#615d59]" />
                     <span className="text-[10px] hidden sm:inline">พักจอ</span>
                   </button>
+
+                  {/* Draw & Guess 2D Party Game Toggle Button (Host & Admin only) */}
+                  {(myRole === 'owner' || myRole === 'admin' || isSuperAdmin) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (gameState?.isActive) {
+                          if (window.confirm('คุณต้องการยุติเกมวาดรูปสำหรับทุกคนใช่หรือไม่?')) {
+                            handleStopGame();
+                          }
+                        } else {
+                          handleStartGame(3);
+                        }
+                      }}
+                      title={gameState?.isActive ? 'ยุติเกมวาดรูปทายคำ' : 'เริ่มเกมวาดรูปทายคำ (Game Stage Mode)'}
+                      className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs border ${
+                        gameState?.isActive
+                          ? 'bg-rose-500 hover:bg-rose-600 text-white border-rose-600 animate-pulse'
+                          : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700'
+                      }`}
+                    >
+                      <Gamepad2 className="w-3.5 h-3.5" />
+                      <span className="text-[11px]">
+                        {gameState?.isActive ? 'ยุติเกม' : 'เริ่มเกมทายคำ'}
+                      </span>
+                    </button>
+                  )}
                 </div>
               </div>
 

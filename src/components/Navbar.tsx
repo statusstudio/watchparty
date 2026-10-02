@@ -18,6 +18,7 @@ import {
   Star,
   ExternalLink,
   Minimize2,
+  Gamepad2,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { UserProfile, UserRole } from '../types/index.js';
@@ -33,6 +34,8 @@ interface NavbarProps {
   isSuperAdmin?: boolean;
   isRefreshing?: boolean;
   isFavoriteRoom?: boolean;
+  isGameActive?: boolean;
+  onToggleGame?: () => void;
   onToggleFavoriteRoom?: () => void;
   onRefreshRoom: () => void;
   onToggleOledSleep: () => void;
@@ -61,6 +64,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   isSuperAdmin,
   isRefreshing,
   isFavoriteRoom,
+  isGameActive,
+  onToggleGame,
   onToggleFavoriteRoom,
   onRefreshRoom,
   onToggleOledSleep,
@@ -260,6 +265,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Moon className="w-3.5 h-3.5 text-[#615d59]" />
                 <span>พักจอ</span>
+              </button>
+            )}
+
+            {/* 2D Draw and Guess Game Button (Host & Admin only) */}
+            {(isAdminOrOwner || isSuperAdmin) && onToggleGame && (
+              <button
+                type="button"
+                onClick={onToggleGame}
+                className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer shadow-xs border ${
+                  isGameActive
+                    ? 'bg-rose-500 hover:bg-rose-600 text-white border-rose-600 animate-pulse'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700'
+                }`}
+                title={isGameActive ? 'ยุติเกมวาดรูปทายคำ' : 'เริ่มเกมวาดรูปทายคำ (Game Stage Mode)'}
+              >
+                <Gamepad2 className="w-3.5 h-3.5" />
+                <span>{isGameActive ? 'ยุติเกม' : 'เกมวาดรูป'}</span>
               </button>
             )}
 
@@ -498,6 +520,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <Shield className="w-4 h-4 text-[#391c57]" />
                         )}
                         <span>จัดการห้อง (สิทธิ์ผู้ดูแล)</span>
+                      </button>
+                    )}
+
+                    {/* 2D Draw and Guess Game Button in Mobile Menu (Host & Admin only) */}
+                    {(isAdminOrOwner || isSuperAdmin) && onToggleGame && (
+                      <button
+                        onClick={() => {
+                          onToggleGame();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className={`w-full px-3 py-2 rounded-lg text-left text-xs font-semibold flex items-center gap-2.5 transition-colors cursor-pointer ${
+                          isGameActive
+                            ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                        }`}
+                      >
+                        <Gamepad2 className="w-4 h-4" />
+                        <span>{isGameActive ? 'ยุติเกมวาดรูปทายคำ' : 'เริ่มเกมวาดรูปทายคำ (Game Mode)'}</span>
                       </button>
                     )}
 

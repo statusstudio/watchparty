@@ -187,6 +187,48 @@ export interface RoomState {
   onlineCount: number;
   myRole: UserRole;
   isStealth?: boolean;
+  gameState?: DrawAndGuessGameState | null;
+}
+
+export interface DrawStroke {
+  prevX: number;
+  prevY: number;
+  x: number;
+  y: number;
+  color: string;
+  size: number;
+  isEraser?: boolean;
+}
+
+export interface GamePlayerScore {
+  userId: string;
+  userName: string;
+  avatar: string;
+  score: number;
+  hasGuessed: boolean;
+}
+
+export interface WordChoice {
+  word: string;
+  category: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+}
+
+export interface DrawAndGuessGameState {
+  isActive: boolean;
+  round: number;
+  maxRounds: number;
+  currentDrawerId: string;
+  currentDrawerName: string;
+  currentWord?: string;
+  wordLength: number;
+  wordHint: string;
+  wordCategory: string;
+  wordChoices?: WordChoice[];
+  phase: 'selecting_word' | 'drawing' | 'round_end' | 'game_over';
+  timeLeft: number;
+  scores: GamePlayerScore[];
+  winner?: GamePlayerScore;
 }
 
 export type WSClientMessage =
@@ -229,7 +271,13 @@ export type WSClientMessage =
   | { type: 'CLOSE_ROOM' }
   | { type: 'EMOJI_REACTION'; emoji: string }
   | { type: 'PLAY_SOUND'; soundId: string; soundName: string }
-  | { type: 'SIGNAL_DATA'; targetId: string; data: any };
+  | { type: 'SIGNAL_DATA'; targetId: string; data: any }
+  | { type: 'GAME_START'; maxRounds?: number }
+  | { type: 'GAME_STOP' }
+  | { type: 'GAME_SELECT_WORD'; word: string; category: string }
+  | { type: 'GAME_DRAW_STROKE'; stroke: DrawStroke }
+  | { type: 'GAME_CLEAR_CANVAS' }
+  | { type: 'GAME_GUESS'; guess: string };
 
 export type WSServerMessage =
   | { type: 'ROOMS_LIST'; rooms: RoomSummary[] }
@@ -256,7 +304,11 @@ export type WSServerMessage =
   | { type: 'YOU_WERE_SUSPENDED'; reason: string }
   | { type: 'ROOM_FORCE_CLOSED'; roomId: string; reason: string }
   | { type: 'PLATFORM_CONFIG_UPDATED'; config: PlatformConfig }
-  | { type: 'SYSTEM_ANNOUNCEMENT'; text: string; announcementType?: 'info' | 'warning' | 'alert' };
+  | { type: 'SYSTEM_ANNOUNCEMENT'; text: string; announcementType?: 'info' | 'warning' | 'alert' }
+  | { type: 'GAME_STATE_UPDATED'; state: DrawAndGuessGameState | null }
+  | { type: 'GAME_DRAW_STROKE'; stroke: DrawStroke }
+  | { type: 'GAME_CLEAR_CANVAS' }
+  | { type: 'GAME_GUESSED_CORRECT'; userId: string; userName: string; points: number };
 
 // Platform Owner & Super Admin Types
 export interface PlatformUser {

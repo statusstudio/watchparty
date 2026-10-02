@@ -1082,6 +1082,24 @@ async function startServer() {
           case 'SIGNAL_DATA':
             roomManager.handleSignal(ws, msg.targetId, msg.data);
             break;
+          case 'GAME_START':
+            roomManager.handleGameStart(ws, msg.maxRounds);
+            break;
+          case 'GAME_STOP':
+            roomManager.handleGameStop(ws);
+            break;
+          case 'GAME_SELECT_WORD':
+            roomManager.handleGameSelectWord(ws, msg.word, msg.category);
+            break;
+          case 'GAME_DRAW_STROKE':
+            roomManager.handleGameDrawStroke(ws, msg.stroke);
+            break;
+          case 'GAME_CLEAR_CANVAS':
+            roomManager.handleGameClearCanvas(ws);
+            break;
+          case 'GAME_GUESS':
+            roomManager.handleGameGuess(ws, msg.guess);
+            break;
           default:
             break;
         }

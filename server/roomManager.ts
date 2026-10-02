@@ -22,7 +22,12 @@ import {
   StageRequest,
   RoomWidgetsConfig,
   DEFAULT_ROOM_WIDGETS,
+  DrawAndGuessGameState,
+  DrawStroke,
+  GamePlayerScore,
+  WordChoice,
 } from '../src/types/index.js';
+import { THAI_WORD_BANK, getRandomWordChoices } from './wordBank.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,6 +58,11 @@ interface InternalRoomData {
   isMemberRoom?: boolean;
   lastActiveTime?: number;
   emptySince?: number | null;
+  gameState?: DrawAndGuessGameState | null;
+  gameCanvasHistory?: DrawStroke[];
+  gameTimer?: NodeJS.Timeout | null;
+  gameTurnOrder?: string[];
+  gameCurrentTurnIndex?: number;
 }
 
 export class RoomManager {
@@ -616,6 +626,7 @@ export class RoomManager {
       onlineCount,
       myRole,
       isStealth,
+      gameState: this.getSanitizedGameState(roomId, requestingUserId),
     };
   }
 
@@ -672,7 +683,22 @@ export class RoomManager {
       const remainingClients = this.getRoomClients(oldRoomId, false);
       if (remainingClients.length === 0) {
         room.chat = this.createDefaultChat(room.metadata);
+        if (room.gameState && room.gameState.isActive) {
+          if (room.gameTimer) {
+            clearInterval(room.gameTimer);
+            room.gameTimer = null;
+          }
+          room.gameState = null;
+          room.gameCanvasHistory = [];
+        }
         this.scheduleSave();
+      } else if (room.gameState && room.gameState.isActive && room.gameState.currentDrawerId === user.id) {
+        this.broadcastToRoom(oldRoomId, {
+          type: 'SYNC_TOAST',
+          message: 'ผู้เล่นที่กำลังวาดได้ออกจากห้อง กำลังสลับไปยังผู้เล่นคนถัดไป... 🔄',
+          toastType: 'info',
+        });
+        this.endTurn(oldRoomId, 'drawer_left');
       }
 
       if (!wasStealth) {
@@ -809,6 +835,23 @@ export class RoomManager {
         loopMode: roomState.loopMode,
         isShuffle: roomState.isShuffle,
       });
+    }
+
+    // Instant sync for game state if currently active
+    if (room.gameState && room.gameState.isActive) {
+      const sanitizedGame = this.getSanitizedGameState(roomId, user.id);
+      this.sendToClient(ws, {
+        type: 'GAME_STATE_UPDATED',
+        state: sanitizedGame,
+      });
+      if (room.gameCanvasHistory && room.gameCanvasHistory.length > 0) {
+        for (const stroke of room.gameCanvasHistory) {
+          this.sendToClient(ws, {
+            type: 'GAME_DRAW_STROKE',
+            stroke,
+          });
+        }
+      }
     }
 
     // If stealth, DO NOT announce join to other users in room
@@ -2085,6 +2128,23 @@ export class RoomManager {
     const room = this.getOrCreateRoom(client.roomId);
     if (!text?.trim() && !imageUrl) return;
 
+    // Draw & Guess game: intercept correct answer so it isn't spoiled in chat
+    if (
+      text &&
+      room.gameState &&
+      room.gameState.isActive &&
+      room.gameState.phase === 'drawing' &&
+      room.gameState.currentDrawerId !== client.user.id
+    ) {
+      const normalize = (s: string) => (s || '').trim().toLowerCase().replace(/\s+/g, '').replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '');
+      const cleanGuess = normalize(text);
+      const cleanTarget = normalize(room.gameState.currentWord || '');
+      if (cleanGuess && cleanTarget && cleanGuess === cleanTarget) {
+        this.handleGameGuess(ws, text);
+        return;
+      }
+    }
+
     const message: ChatMessage = {
       id: 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
       sender: client.user,
@@ -2321,5 +2381,437 @@ export class RoomManager {
       }
     }
     return null;
+  }
+
+  // ==========================================
+  // DRAW AND GUESS 2D PARTY GAME ENGINE
+  // ==========================================
+
+  public getSanitizedGameState(roomId: string, requestingUserId?: string): DrawAndGuessGameState | null {
+    const room = this.rooms.get(roomId);
+    if (!room || !room.gameState || !room.gameState.isActive) return null;
+
+    const game = room.gameState;
+    const isDrawer = requestingUserId === game.currentDrawerId;
+    const hasGuessed = requestingUserId ? Boolean(game.scores.find((s) => s.userId === requestingUserId)?.hasGuessed) : false;
+    const isRevealed = game.phase === 'round_end' || game.phase === 'game_over';
+
+    return {
+      ...game,
+      currentWord: (isDrawer || hasGuessed || isRevealed) ? game.currentWord : undefined,
+      wordChoices: (isDrawer && game.phase === 'selecting_word') ? game.wordChoices : undefined,
+    };
+  }
+
+  public broadcastGameState(roomId: string) {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+    const clients = this.getRoomClients(roomId, true);
+    for (const client of clients) {
+      const sanitized = this.getSanitizedGameState(roomId, client.user?.id);
+      this.sendToClient(client.ws, {
+        type: 'GAME_STATE_UPDATED',
+        state: sanitized,
+      });
+    }
+  }
+
+  public handleGameStart(ws: WebSocket, maxRounds: number = 3) {
+    const client = this.clients.get(ws);
+    if (!client) return;
+
+    const room = this.rooms.get(client.roomId);
+    if (!room) return;
+
+    const isOwner = client.user.id === room.metadata.ownerId;
+    const isAdmin = room.adminIds.has(client.user.id);
+    const isSuperAdmin = platformManager.isSuperAdmin(client.user.id) || client.user.id === 'admin';
+
+    if (!isOwner && !isAdmin && !isSuperAdmin) {
+      this.sendToClient(ws, {
+        type: 'SYNC_TOAST',
+        message: 'เฉพาะเจ้าของห้องหรือแอดมินเท่านั้นที่สามารถเริ่มเกมได้ 🛡️',
+        toastType: 'warning',
+      });
+      return;
+    }
+
+    if (room.gameTimer) {
+      clearInterval(room.gameTimer);
+      room.gameTimer = null;
+    }
+
+    const roomClients = this.getRoomClients(client.roomId, false);
+    if (roomClients.length === 0) return;
+
+    const scores: GamePlayerScore[] = roomClients.map((c) => ({
+      userId: c.user.id,
+      userName: c.user.name,
+      avatar: c.user.avatar || '',
+      score: 0,
+      hasGuessed: false,
+    }));
+
+    room.gameTurnOrder = roomClients.map((c) => c.user.id);
+    room.gameCurrentTurnIndex = 0;
+    room.gameCanvasHistory = [];
+
+    room.gameState = {
+      isActive: true,
+      round: 1,
+      maxRounds: Math.max(1, Math.min(maxRounds || 3, 10)),
+      currentDrawerId: room.gameTurnOrder[0],
+      currentDrawerName: roomClients[0].user.name,
+      wordLength: 0,
+      wordHint: '',
+      wordCategory: '',
+      phase: 'selecting_word',
+      timeLeft: 15,
+      scores,
+    };
+
+    this.startTurn(client.roomId);
+  }
+
+  private startTurn(roomId: string) {
+    const room = this.rooms.get(roomId);
+    if (!room || !room.gameState || !room.gameState.isActive) return;
+
+    if (room.gameTimer) {
+      clearInterval(room.gameTimer);
+      room.gameTimer = null;
+    }
+
+    const turnOrder = room.gameTurnOrder || [];
+    if (turnOrder.length === 0) {
+      this.endGame(roomId);
+      return;
+    }
+
+    const currentTurnIndex = room.gameCurrentTurnIndex || 0;
+    const drawerId = turnOrder[currentTurnIndex % turnOrder.length];
+    const clients = this.getRoomClients(roomId, false);
+    const drawerClient = clients.find((c) => c.user.id === drawerId) || clients[0];
+    const drawerName = drawerClient ? drawerClient.user.name : 'ผู้เล่น';
+
+    // Reset guessed status for all players (drawer is automatically marked guessed)
+    room.gameState.scores = room.gameState.scores.map((s) => ({
+      ...s,
+      hasGuessed: s.userId === drawerId,
+    }));
+
+    const choices = getRandomWordChoices(3);
+    room.gameState.currentDrawerId = drawerId;
+    room.gameState.currentDrawerName = drawerName;
+    room.gameState.wordChoices = choices;
+    room.gameState.currentWord = '';
+    room.gameState.wordLength = 0;
+    room.gameState.wordHint = '';
+    room.gameState.wordCategory = '';
+    room.gameState.phase = 'selecting_word';
+    room.gameState.timeLeft = 15;
+    room.gameCanvasHistory = [];
+
+    this.broadcastToRoom(roomId, { type: 'GAME_CLEAR_CANVAS' });
+    this.broadcastGameState(roomId);
+
+    room.gameTimer = setInterval(() => {
+      if (!room.gameState || !room.gameState.isActive) {
+        if (room.gameTimer) clearInterval(room.gameTimer);
+        return;
+      }
+
+      room.gameState.timeLeft -= 1;
+      if (room.gameState.timeLeft <= 0) {
+        if (room.gameState.phase === 'selecting_word') {
+          const autoChoice = choices[0];
+          this.handleGameSelectWordInternal(roomId, drawerId, autoChoice.word, autoChoice.category);
+        }
+      } else {
+        this.broadcastGameState(roomId);
+      }
+    }, 1000);
+  }
+
+  public handleGameSelectWord(ws: WebSocket, word: string, category: string) {
+    const client = this.clients.get(ws);
+    if (!client) return;
+    this.handleGameSelectWordInternal(client.roomId, client.user.id, word, category);
+  }
+
+  private handleGameSelectWordInternal(roomId: string, userId: string, word: string, category: string) {
+    const room = this.rooms.get(roomId);
+    if (!room || !room.gameState || !room.gameState.isActive) return;
+    if (room.gameState.phase !== 'selecting_word') return;
+    if (room.gameState.currentDrawerId !== userId) return;
+
+    if (room.gameTimer) {
+      clearInterval(room.gameTimer);
+      room.gameTimer = null;
+    }
+
+    const clean = (word || '').trim();
+    room.gameState.currentWord = clean;
+    room.gameState.wordCategory = category || 'ทั่วไป';
+    room.gameState.wordLength = clean.length;
+    room.gameState.wordHint = Array(clean.length).fill('_').join(' ');
+    room.gameState.wordChoices = undefined;
+    room.gameState.phase = 'drawing';
+    room.gameState.timeLeft = 70;
+    room.gameCanvasHistory = [];
+
+    this.broadcastToRoom(roomId, { type: 'GAME_CLEAR_CANVAS' });
+    this.broadcastGameState(roomId);
+
+    room.gameTimer = setInterval(() => {
+      if (!room.gameState || !room.gameState.isActive) {
+        if (room.gameTimer) clearInterval(room.gameTimer);
+        return;
+      }
+
+      room.gameState.timeLeft -= 1;
+      if (room.gameState.timeLeft <= 0) {
+        this.endTurn(roomId, 'time_up');
+      } else {
+        this.broadcastGameState(roomId);
+      }
+    }, 1000);
+  }
+
+  public handleGameDrawStroke(ws: WebSocket, stroke: DrawStroke) {
+    const client = this.clients.get(ws);
+    if (!client) return;
+
+    const room = this.rooms.get(client.roomId);
+    if (!room || !room.gameState || !room.gameState.isActive) return;
+    if (room.gameState.phase !== 'drawing') return;
+    if (room.gameState.currentDrawerId !== client.user.id) return;
+
+    if (!room.gameCanvasHistory) room.gameCanvasHistory = [];
+    room.gameCanvasHistory.push(stroke);
+    if (room.gameCanvasHistory.length > 5000) {
+      room.gameCanvasHistory.shift();
+    }
+
+    this.broadcastToRoom(client.roomId, {
+      type: 'GAME_DRAW_STROKE',
+      stroke,
+    }, ws);
+  }
+
+  public handleGameClearCanvas(ws: WebSocket) {
+    const client = this.clients.get(ws);
+    if (!client) return;
+
+    const room = this.rooms.get(client.roomId);
+    if (!room || !room.gameState || !room.gameState.isActive) return;
+    if (room.gameState.phase !== 'drawing') return;
+    if (room.gameState.currentDrawerId !== client.user.id) return;
+
+    room.gameCanvasHistory = [];
+    this.broadcastToRoom(client.roomId, {
+      type: 'GAME_CLEAR_CANVAS',
+    });
+  }
+
+  public handleGameGuess(ws: WebSocket, guess: string) {
+    const client = this.clients.get(ws);
+    if (!client) return;
+
+    const room = this.rooms.get(client.roomId);
+    if (!room || !room.gameState || !room.gameState.isActive) return;
+    if (room.gameState.phase !== 'drawing') return;
+    if (room.gameState.currentDrawerId === client.user.id) return;
+
+    const player = room.gameState.scores.find((s) => s.userId === client.user.id);
+    if (!player || player.hasGuessed) return;
+
+    const normalize = (s: string) => (s || '').trim().toLowerCase().replace(/\s+/g, '').replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '');
+    const cleanGuess = normalize(guess);
+    const cleanTarget = normalize(room.gameState.currentWord || '');
+
+    if (cleanGuess && cleanTarget && cleanGuess === cleanTarget) {
+      player.hasGuessed = true;
+      const points = Math.max(30, Math.floor(room.gameState.timeLeft * 1.5));
+      player.score += points;
+
+      const drawer = room.gameState.scores.find((s) => s.userId === room.gameState?.currentDrawerId);
+      if (drawer) {
+        drawer.score += 20;
+      }
+
+      this.broadcastToRoom(client.roomId, {
+        type: 'GAME_GUESSED_CORRECT',
+        userId: client.user.id,
+        userName: client.user.name,
+        points,
+      });
+
+      const announceMsg: ChatMessage = {
+        id: 'guess-' + Math.random().toString(36).substring(2, 9),
+        sender: {
+          id: 'sys-game',
+          name: '🎮 กรรมการเกม',
+          avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=gamebot',
+          color: '#10b981',
+          provider: 'guest',
+        },
+        text: `🎉 ${client.user.name} ทายคำตอบถูกต้อง! (+${points} คะแนน)`,
+        timestamp: Date.now(),
+      };
+      room.chat.push(announceMsg);
+      if (room.chat.length > 200) room.chat.shift();
+      this.broadcastToRoom(client.roomId, { type: 'NEW_CHAT', message: announceMsg });
+
+      this.broadcastGameState(client.roomId);
+
+      const nonDrawers = room.gameState.scores.filter((s) => s.userId !== room.gameState?.currentDrawerId);
+      const allGuessed = nonDrawers.length > 0 && nonDrawers.every((s) => s.hasGuessed);
+      if (allGuessed) {
+        this.endTurn(client.roomId, 'all_guessed');
+      }
+    }
+  }
+
+  private endTurn(roomId: string, reason = 'time_up') {
+    const room = this.rooms.get(roomId);
+    if (!room || !room.gameState || !room.gameState.isActive) return;
+
+    if (room.gameTimer) {
+      clearInterval(room.gameTimer);
+      room.gameTimer = null;
+    }
+
+    room.gameState.phase = 'round_end';
+    room.gameState.timeLeft = 5;
+    this.broadcastGameState(roomId);
+
+    let countdown = 5;
+    room.gameTimer = setInterval(() => {
+      if (!room.gameState || !room.gameState.isActive) {
+        if (room.gameTimer) clearInterval(room.gameTimer);
+        return;
+      }
+
+      countdown -= 1;
+      room.gameState.timeLeft = countdown;
+      if (countdown <= 0) {
+        if (room.gameTimer) {
+          clearInterval(room.gameTimer);
+          room.gameTimer = null;
+        }
+
+        const turnOrder = room.gameTurnOrder || [];
+        const nextTurnIndex = (room.gameCurrentTurnIndex || 0) + 1;
+        room.gameCurrentTurnIndex = nextTurnIndex;
+
+        if (nextTurnIndex >= turnOrder.length) {
+          if (room.gameState.round < room.gameState.maxRounds) {
+            room.gameState.round += 1;
+            room.gameCurrentTurnIndex = 0;
+            this.startTurn(roomId);
+          } else {
+            this.endGame(roomId);
+          }
+        } else {
+          this.startTurn(roomId);
+        }
+      } else {
+        this.broadcastGameState(roomId);
+      }
+    }, 1000);
+  }
+
+  private endGame(roomId: string) {
+    const room = this.rooms.get(roomId);
+    if (!room || !room.gameState) return;
+
+    if (room.gameTimer) {
+      clearInterval(room.gameTimer);
+      room.gameTimer = null;
+    }
+
+    const sorted = [...room.gameState.scores].sort((a, b) => b.score - a.score);
+    const winner = sorted[0] || undefined;
+
+    room.gameState.phase = 'game_over';
+    room.gameState.winner = winner;
+    room.gameState.timeLeft = 12;
+    this.broadcastGameState(roomId);
+
+    if (winner) {
+      const winnerMsg: ChatMessage = {
+        id: 'win-' + Math.random().toString(36).substring(2, 9),
+        sender: {
+          id: 'sys-game',
+          name: '🏆 ผู้ชนะเกมวาดรูป',
+          avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=winnerbot',
+          color: '#f59e0b',
+          provider: 'guest',
+        },
+        text: `🏆 ขอแสดงความยินดีกับคุณ ${winner.userName}! คว้าอันดับ 1 ด้วยคะแนน ${winner.score} คะแนน! 🎉`,
+        timestamp: Date.now(),
+      };
+      room.chat.push(winnerMsg);
+      if (room.chat.length > 200) room.chat.shift();
+      this.broadcastToRoom(roomId, { type: 'NEW_CHAT', message: winnerMsg });
+    }
+
+    let countdown = 12;
+    room.gameTimer = setInterval(() => {
+      if (!room.gameState) {
+        if (room.gameTimer) clearInterval(room.gameTimer);
+        return;
+      }
+      countdown -= 1;
+      room.gameState.timeLeft = countdown;
+      if (countdown <= 0) {
+        if (room.gameTimer) clearInterval(room.gameTimer);
+        room.gameTimer = null;
+        room.gameState = null;
+        room.gameCanvasHistory = [];
+        this.broadcastToRoom(roomId, { type: 'GAME_STATE_UPDATED', state: null });
+      } else {
+        this.broadcastGameState(roomId);
+      }
+    }, 1000);
+  }
+
+  public handleGameStop(ws: WebSocket) {
+    const client = this.clients.get(ws);
+    if (!client) return;
+
+    const room = this.rooms.get(client.roomId);
+    if (!room) return;
+
+    const isOwner = client.user.id === room.metadata.ownerId;
+    const isAdmin = room.adminIds.has(client.user.id);
+    const isSuperAdmin = platformManager.isSuperAdmin(client.user.id) || client.user.id === 'admin';
+
+    if (!isOwner && !isAdmin && !isSuperAdmin) {
+      this.sendToClient(ws, {
+        type: 'SYNC_TOAST',
+        message: 'เฉพาะเจ้าของห้องหรือแอดมินเท่านั้นที่สามารถยุติเกมได้ 🛡️',
+        toastType: 'warning',
+      });
+      return;
+    }
+
+    if (room.gameTimer) {
+      clearInterval(room.gameTimer);
+      room.gameTimer = null;
+    }
+    room.gameState = null;
+    room.gameCanvasHistory = [];
+
+    this.broadcastToRoom(client.roomId, {
+      type: 'GAME_STATE_UPDATED',
+      state: null,
+    });
+    this.broadcastToRoom(client.roomId, {
+      type: 'SYNC_TOAST',
+      message: '🛑 เกมวาดรูปทายคำถูกยุติแล้ว',
+      toastType: 'info',
+    });
   }
 }
