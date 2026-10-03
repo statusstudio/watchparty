@@ -58,6 +58,18 @@ async function startServer() {
     });
   });
 
+  // Android App Direct APK Download
+  app.get('/download/apk', (req, res) => {
+    const apkPath = path.join(rootDir, 'public', 'pleng.online.apk');
+    res.download(apkPath, 'pleng.online.apk');
+  });
+
+  // Android App Digital Asset Links (TWA Verification)
+  app.get('/.well-known/assetlinks.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.sendFile(path.join(rootDir, 'public', '.well-known', 'assetlinks.json'));
+  });
+
   // SEO routes
   app.get('/robots.txt', (req, res) => {
     res.type('text/plain');

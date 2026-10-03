@@ -38,6 +38,11 @@ lerna-debug.log*
 test-*.ts
 test-*.js
 
+# Local Android packaging build artifacts
+android-package/
+*.zip
+
+
 # Local database and persistent storage
 server/data/
 server/data/*.json

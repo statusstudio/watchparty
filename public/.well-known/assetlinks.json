@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "online.pleng.app",
+        "sha256_cert_fingerprints": ["92:F1:7C:77:91:E3:10:34:DD:4E:0B:EF:AB:C7:C9:7B:70:14:F2:62:EA:75:B3:82:43:97:27:91:26:7A:B1:BA"]
+      }
+    }]
