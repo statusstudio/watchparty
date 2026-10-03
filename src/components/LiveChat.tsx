@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, MessageSquare, Clock, Image as ImageIcon, X, Loader2, Trash2, Smile } from 'lucide-react';
+import { Send, MessageSquare, Clock, Image as ImageIcon, X, Loader2, Trash2, Smile, Gift, Heart } from 'lucide-react';
 import { ChatMessage, UserProfile } from '../types/index.js';
 import { compressChatImage } from '../services/imageCompressor.js';
 import { ANIMATED_EMOJIS, GRAFFITI_STICKERS, ALL_CHAT_STICKERS, parseStickerMessage, AnimatedSticker, getStickerThumbUrl } from '../data/chatStickers.js';
+import { VIRTUAL_GIFTS } from './FloatingReactions.js';
 
 interface LiveChatProps {
   messages: ChatMessage[];
@@ -13,6 +14,7 @@ interface LiveChatProps {
   onSendMessage: (text: string, imageUrl?: string) => void;
   onDeleteMessage?: (messageId: string) => void;
   onSendReaction?: (emoji: string) => void;
+  onSendGift?: (gift: { id: string; name: string; icon: string }) => void;
   onSeekTo: (seconds: number) => void;
   onOpenProfile: () => void;
   onSelectUser?: (user: UserProfile) => void;
@@ -28,6 +30,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
   onSendMessage,
   onDeleteMessage,
   onSendReaction,
+  onSendGift,
   onSeekTo,
   onOpenProfile,
   onSelectUser,
@@ -38,6 +41,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
   const [isCompressingImage, setIsCompressingImage] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [confirmModalImage, setConfirmModalImage] = useState<string | null>(null);
+  const [isChatGiftMenuOpen, setIsChatGiftMenuOpen] = useState(false);
   const [confirmModalCaption, setConfirmModalCaption] = useState('');
   const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
   const [activeStickerTab, setActiveStickerTab] = useState<'emoji' | 'graffiti' | 'all'>('emoji');
@@ -439,6 +443,76 @@ export const LiveChat: React.FC<LiveChatProps> = ({
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+      )}
+
+      {/* Quick Floating Reactions & Gifts Bar */}
+      {onSendReaction && (
+        <div className="px-2.5 py-1 bg-[#f6f5f4] border-t border-[#e6e6e6] flex items-center justify-between gap-1 shrink-0 select-none">
+          <div className="flex items-center gap-1 overflow-x-auto py-0.5">
+            {['❤️', '🔥', '👏', '🥳', '🎵', '💎'].map((em) => (
+              <button
+                key={em}
+                type="button"
+                onClick={() => onSendReaction(em)}
+                className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-black/5 active:scale-90 transition-transform text-sm cursor-pointer"
+                title={`ส่ง ${em} ลอยขึ้นจอ`}
+              >
+                {em}
+              </button>
+            ))}
+          </div>
+
+          {onSendGift && (
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsChatGiftMenuOpen(!isChatGiftMenuOpen)}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 border border-amber-500/30 text-[11px] font-semibold cursor-pointer transition-all active:scale-95"
+                title="ส่งของขวัญจำลอง"
+              >
+                <Gift className="w-3 h-3 text-amber-600" />
+                <span>ของขวัญ</span>
+              </button>
+
+              {isChatGiftMenuOpen && (
+                <div className="absolute bottom-full mb-2 right-0 w-64 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-2xl shadow-2xl p-2.5 z-50 text-white">
+                  <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-zinc-800">
+                    <span className="text-xs font-bold text-amber-300 flex items-center gap-1">
+                      <Gift className="w-3.5 h-3.5" /> เลือกของขวัญ
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsChatGiftMenuOpen(false)}
+                      className="p-1 text-zinc-400 hover:text-white rounded-md cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {VIRTUAL_GIFTS.map((g) => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => {
+                          onSendGift(g);
+                          setIsChatGiftMenuOpen(false);
+                        }}
+                        className="flex flex-col items-center justify-center p-2 rounded-xl bg-zinc-900 hover:bg-amber-500/20 border border-zinc-800 hover:border-amber-400/50 transition-all cursor-pointer text-center group"
+                      >
+                        <span className="text-xl mb-0.5 group-hover:scale-110 transition-transform">
+                          {g.icon}
+                        </span>
+                        <span className="text-[10px] font-semibold text-zinc-300 group-hover:text-amber-300 truncate w-full">
+                          {g.name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

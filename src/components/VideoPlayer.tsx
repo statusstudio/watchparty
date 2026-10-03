@@ -777,7 +777,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {/* Floating Live Reactions & Gifts Dock */}
       {onSendReaction && onSendGift && (
-        <div className="absolute bottom-4 right-4 z-25 pointer-events-auto">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          className="absolute bottom-3 right-3 z-40 pointer-events-auto"
+        >
           <LiveReactionsDock onSendReaction={onSendReaction} onSendGift={onSendGift} />
         </div>
       )}

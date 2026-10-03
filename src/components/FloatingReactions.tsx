@@ -57,6 +57,14 @@ export const FloatingReactions: React.FC<FloatingReactionsProps> = ({
 }) => {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden z-30">
+      <style>{`
+        @keyframes floatReactionAnim {
+          0% { transform: translateY(0) scale(0.65); opacity: 0; }
+          12% { transform: translateY(-25px) scale(1.15); opacity: 1; }
+          80% { opacity: 0.95; }
+          100% { transform: translateY(-340px) scale(1.35); opacity: 0; }
+        }
+      `}</style>
       {/* Floating Bubbles */}
       {reactions.map((item) => (
         <FloatingBubble key={item.id} item={item} onFinish={() => onRemove(item.id)} />
@@ -109,33 +117,25 @@ const FloatingBubble: React.FC<{ item: FloatingItem; onFinish: () => void }> = (
   item,
   onFinish,
 }) => {
-  const [active, setActive] = useState(false);
-
   useEffect(() => {
-    const animTimer = setTimeout(() => setActive(true), 20);
     const removeTimer = setTimeout(() => onFinish(), 2800);
-
-    return () => {
-      clearTimeout(animTimer);
-      clearTimeout(removeTimer);
-    };
+    return () => clearTimeout(removeTimer);
   }, [onFinish]);
 
   return (
     <div
-      className="absolute bottom-6 flex flex-col items-center pointer-events-none transition-all duration-[2600ms] ease-out select-none"
+      className="absolute bottom-6 flex flex-col items-center pointer-events-none select-none"
       style={{
         left: `${item.leftPercent}%`,
-        transform: active ? 'translateY(-300px) scale(1.35)' : 'translateY(0) scale(0.6)',
-        opacity: active ? 0 : 1,
+        animation: 'floatReactionAnim 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
       }}
     >
-      <span className="text-3xl filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] animate-bounce">
+      <span className="text-3xl filter drop-shadow-[0_2px_10px_rgba(0,0,0,0.85)] animate-bounce">
         {item.emoji}
       </span>
       {item.senderName && (
         <span
-          className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-black/75 text-white shadow-md mt-0.5 border"
+          className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-black/85 text-white shadow-md mt-0.5 border"
           style={{ borderColor: item.senderColor || '#8b5cf6' }}
         >
           {item.senderName}
@@ -166,14 +166,17 @@ export const LiveReactionsDock: React.FC<LiveReactionsDockProps> = ({
     onSendReaction('❤️');
   };
 
-  const handleStartHeartHold = () => {
+  const handleStartHeartHold = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
     triggerHeartBurst();
+    if (heartHoldIntervalRef.current) clearInterval(heartHoldIntervalRef.current);
     heartHoldIntervalRef.current = setInterval(() => {
       triggerHeartBurst();
-    }, 180);
+    }, 160);
   };
 
-  const handleStopHeartHold = () => {
+  const handleStopHeartHold = (e?: React.SyntheticEvent) => {
+    if (e) e.stopPropagation();
     if (heartHoldIntervalRef.current) {
       clearInterval(heartHoldIntervalRef.current);
       heartHoldIntervalRef.current = null;
@@ -181,17 +184,30 @@ export const LiveReactionsDock: React.FC<LiveReactionsDockProps> = ({
   };
 
   return (
-    <div className={`relative flex items-center select-none ${className}`}>
+    <div
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      className={`relative flex items-center select-none pointer-events-auto ${className}`}
+    >
       {/* Gift Selection Popover */}
       {isGiftMenuOpen && (
-        <div className="absolute bottom-full mb-3 right-0 w-72 bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-2xl shadow-2xl p-3.5 z-50 animate-in fade-in zoom-in-95 duration-200">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute bottom-full mb-3 right-0 w-72 bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-2xl shadow-2xl p-3.5 z-50 animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
+        >
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800">
             <span className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
               <Gift className="w-3.5 h-3.5 text-amber-400" /> มอบของขวัญให้ห้องปาร์ตี้
             </span>
             <button
-              onClick={() => setIsGiftMenuOpen(false)}
-              className="text-zinc-400 hover:text-white p-1 rounded-md transition-colors"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsGiftMenuOpen(false);
+              }}
+              className="text-zinc-400 hover:text-white p-1 rounded-md transition-colors cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -200,11 +216,13 @@ export const LiveReactionsDock: React.FC<LiveReactionsDockProps> = ({
             {VIRTUAL_GIFTS.map((g) => (
               <button
                 key={g.id}
-                onClick={() => {
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
                   onSendGift(g);
                   setIsGiftMenuOpen(false);
                 }}
-                className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-zinc-900/80 hover:bg-amber-500/20 hover:border-amber-400/50 border border-zinc-800/80 transition-all hover:scale-105 active:scale-95 group text-center"
+                className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-zinc-900/80 hover:bg-amber-500/20 hover:border-amber-400/50 border border-zinc-800/80 transition-all hover:scale-105 active:scale-95 group text-center cursor-pointer"
               >
                 <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">
                   {g.icon}
@@ -219,12 +237,16 @@ export const LiveReactionsDock: React.FC<LiveReactionsDockProps> = ({
       )}
 
       {/* Main Reactions Toolbar */}
-      <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2 py-1.5 rounded-full border border-white/10 shadow-lg">
+      <div className="flex items-center gap-1.5 bg-black/75 backdrop-blur-md px-2 py-1.5 rounded-full border border-white/20 shadow-2xl">
         {/* Toggle Collapse */}
         <button
-          onClick={() => setIsExpanded(!isExpanded)}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(!isExpanded);
+          }}
           title={isExpanded ? 'ย่อแถบรีแอคชัน' : 'ขยายแถบรีแอคชัน'}
-          className="w-7 h-7 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+          className="w-7 h-7 rounded-full flex items-center justify-center text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
         >
           {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
         </button>
@@ -235,8 +257,12 @@ export const LiveReactionsDock: React.FC<LiveReactionsDockProps> = ({
             {quickEmojis.map((emoji) => (
               <button
                 key={emoji}
-                onClick={() => onSendReaction(emoji)}
-                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/15 transition-transform hover:scale-125 active:scale-90 text-lg"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSendReaction(emoji);
+                }}
+                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/15 transition-transform hover:scale-125 active:scale-90 text-lg cursor-pointer"
               >
                 {emoji}
               </button>
@@ -246,9 +272,13 @@ export const LiveReactionsDock: React.FC<LiveReactionsDockProps> = ({
 
             {/* Gift Button */}
             <button
-              onClick={() => setIsGiftMenuOpen(!isGiftMenuOpen)}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsGiftMenuOpen(!isGiftMenuOpen);
+              }}
               title="ส่งของขวัญจำลอง"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500/30 to-yellow-500/30 hover:from-amber-500/50 hover:to-yellow-500/50 border border-amber-400/40 text-amber-200 text-xs font-semibold shadow-sm hover:scale-105 active:scale-95 transition-all"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500/30 to-yellow-500/30 hover:from-amber-500/50 hover:to-yellow-500/50 border border-amber-400/40 text-amber-200 text-xs font-semibold shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer"
             >
               <Gift className="w-3.5 h-3.5 text-amber-300" />
               <span>ของขวัญ</span>
@@ -258,13 +288,18 @@ export const LiveReactionsDock: React.FC<LiveReactionsDockProps> = ({
 
         {/* Big Heart Spam Button */}
         <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            triggerHeartBurst();
+          }}
           onMouseDown={handleStartHeartHold}
           onMouseUp={handleStopHeartHold}
           onMouseLeave={handleStopHeartHold}
           onTouchStart={handleStartHeartHold}
           onTouchEnd={handleStopHeartHold}
-          title="กดรัวๆ หรือกดค้างเพื่อส่งหัวใจ ❤️"
-          className="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-600 to-pink-500 flex items-center justify-center text-white shadow-[0_0_12px_rgba(244,63,94,0.6)] hover:scale-110 active:scale-90 transition-transform"
+          title="แตะรัวๆ หรือกดค้างเพื่อส่งหัวใจ ❤️"
+          className="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-600 to-pink-500 flex items-center justify-center text-white shadow-[0_0_12px_rgba(244,63,94,0.7)] hover:scale-110 active:scale-90 transition-transform cursor-pointer"
         >
           <Heart className="w-4 h-4 fill-white animate-pulse" />
         </button>

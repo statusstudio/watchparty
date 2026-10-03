@@ -2831,6 +2831,7 @@ export function App() {
                 onClearChat={handleClearChat}
                 onSendMessage={handleSendMessage}
                 onSendReaction={handleSendReaction}
+                onSendGift={handleSendGift}
                 onSeekTo={handleVideoSeek}
                 onOpenProfile={() => {
                   setSelectedUserForProfile(currentUser);
