@@ -3097,6 +3097,7 @@ export function App() {
       <KaraokeLyricsModal
         isOpen={isKaraokeModalOpen}
         onClose={() => setIsKaraokeModalOpen(false)}
+        videoId={video.videoId}
         videoTitle={video.title}
         videoChannel={video.channel}
         currentTime={playbackCurrentTime || video.currentTime || 0}
