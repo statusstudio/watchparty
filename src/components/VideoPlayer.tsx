@@ -102,7 +102,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   useEffect(() => {
     hasEndedRef.current = false;
-  }, [video.videoId]);
+    setTapRipple(null);
+    if (tapRippleTimeoutRef.current) {
+      clearTimeout(tapRippleTimeoutRef.current);
+      tapRippleTimeoutRef.current = null;
+    }
+  }, [video.videoId, video.streamUrl]);
 
   // Load YouTube IFrame API
   useEffect(() => {
@@ -720,6 +725,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
+  const triggerTapRipple = useCallback((type: 'play' | 'pause') => {
+    setTapRipple(type);
+    if (tapRippleTimeoutRef.current) {
+      clearTimeout(tapRippleTimeoutRef.current);
+    }
+    tapRippleTimeoutRef.current = setTimeout(() => {
+      setTapRipple(null);
+      tapRippleTimeoutRef.current = null;
+    }, 600);
+  }, []);
+
   const triggerVolumeHud = useCallback(() => {
     setShowVolumeHud(true);
     if (volumeHudTimeoutRef.current) {
@@ -790,11 +806,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           if (hlsVideoRef.current.paused) {
             hlsVideoRef.current.play().catch(() => {});
             onPlay(0, 0);
-            setTapRipple('play');
+            triggerTapRipple('play');
           } else {
             hlsVideoRef.current.pause();
             onPause(0, 0);
-            setTapRipple('pause');
+            triggerTapRipple('pause');
           }
         } else if (playerRef.current) {
           try {
@@ -802,14 +818,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             if (playerState === window.YT?.PlayerState?.PLAYING) {
               playerRef.current.pauseVideo();
               onPause(calculateTargetTime(videoRef.current));
-              setTapRipple('pause');
+              triggerTapRipple('pause');
             } else {
               playerRef.current.playVideo();
               onPlay(calculateTargetTime(videoRef.current));
-              setTapRipple('play');
+              triggerTapRipple('play');
             }
-            if (tapRippleTimeoutRef.current) clearTimeout(tapRippleTimeoutRef.current);
-            tapRippleTimeoutRef.current = setTimeout(() => setTapRipple(null), 600);
           } catch (err) {}
         }
       }
