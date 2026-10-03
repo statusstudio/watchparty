@@ -2333,6 +2333,37 @@ export class RoomManager {
     });
   }
 
+  public handleSendGift(ws: WebSocket, giftId: string, giftName: string, giftIcon: string) {
+    const client = this.clients.get(ws);
+    if (!client) return;
+
+    const room = this.rooms.get(client.roomId);
+    if (!room) return;
+
+    this.broadcastToRoom(client.roomId, {
+      type: 'GIFT_BROADCAST',
+      giftId,
+      giftName,
+      giftIcon,
+      sender: client.user,
+    });
+
+    const chatMsg: ChatMessage = {
+      id: 'gift-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+      sender: client.user,
+      text: `มอบของขวัญ ${giftIcon} ${giftName} ให้กับห้องปาร์ตี้! ✨🎉`,
+      timestamp: Date.now(),
+    };
+    room.chat.push(chatMsg);
+    if (room.chat.length > 200) room.chat.shift();
+    this.broadcastToRoom(client.roomId, {
+      type: 'NEW_CHAT',
+      message: chatMsg,
+    });
+    room.lastActiveTime = Date.now();
+    this.scheduleSave();
+  }
+
   public handlePlaySound(ws: WebSocket, soundId: string, soundName: string) {
     const client = this.clients.get(ws);
     if (!client) return;

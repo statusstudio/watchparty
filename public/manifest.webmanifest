@@ -1,0 +1,26 @@
+{
+  "name": "pleng.online – ฟังเพลงออนไลน์ไม่มีโฆษณา ดู YouTube กับเพื่อน",
+  "short_name": "pleng.online",
+  "description": "เว็บฟังเพลงออนไลน์ไม่มีโฆษณาคั่น ดู YouTube กับเพื่อนแบบเรียลไทม์ ซิงค์พร้อมกัน คุยไมค์สด 9 ที่นั่ง จัดคิว Playlist ได้อิสระ",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#09090b",
+  "theme_color": "#8b5cf6",
+  "icons": [
+    {
+      "src": "/logo-icon.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["music", "entertainment", "social"]
+}

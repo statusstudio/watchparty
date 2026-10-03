@@ -25,10 +25,13 @@ import {
 import { getStoredUser, saveUser, clearUser } from './services/auth.js';
 import { socketService } from './services/socket.js';
 import { WebRTCVoiceEngine } from './services/webrtc.js';
-import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Plus, Radio, RefreshCw, Moon, X, Ghost, LogOut, Play, Pause, RotateCcw, RotateCw, Gamepad2 } from 'lucide-react';
+import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Mic2, Plus, Radio, RefreshCw, Moon, X, Ghost, LogOut, Play, Pause, RotateCcw, RotateCw, Gamepad2, Clock, Share2, Download, Gift } from 'lucide-react';
 import { Navbar } from './components/Navbar.js';
 import { VideoPlayer } from './components/VideoPlayer.js';
 import { DrawAndGuessStage } from './components/DrawAndGuessStage.js';
+import { KaraokeLyricsModal } from './components/KaraokeLyricsModal.js';
+import { SleepTimerModal } from './components/SleepTimerModal.js';
+import { ShareCardModal } from './components/ShareCardModal.js';
 import { VoiceStage } from './components/VoiceStage.js';
 import { LiveChat } from './components/LiveChat.js';
 import { SidebarQueue } from './components/SidebarQueue.js';
@@ -49,7 +52,7 @@ import { PublicProfileView } from './components/PublicProfileView.js';
 import { AdPopupModal } from './components/AdPopupModal.js';
 import LineStickerStudio from './components/LineStickerStudio.js';
 import { SupportModal } from './components/SupportModal.js';
-import { FloatingItem } from './components/FloatingReactions.js';
+import { FloatingItem, GiftEvent } from './components/FloatingReactions.js';
 import { ToastContainer, ToastItem } from './components/Toast.js';
 import {
   isSupabaseConfigured,
@@ -341,6 +344,7 @@ export function App() {
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isCreateRoomModalOpen, setIsCreateRoomModalOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [isKaraokeModalOpen, setIsKaraokeModalOpen] = useState(false);
   const [isAudioDuckingEnabled, setIsAudioDuckingEnabled] = useState(true);
 
   // Super Admin & Support State
@@ -352,11 +356,58 @@ export function App() {
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
   const [isBannerDismissed, setIsBannerDismissed] = useState(false);
 
-  // Interactive Reactions
+  // Interactive Reactions & Gifts
   const [reactions, setReactions] = useState<FloatingItem[]>([]);
+  const [activeGifts, setActiveGifts] = useState<GiftEvent[]>([]);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
+  // QoL: Sleep Timer & PWA & Share Card
+  const [isShareCardModalOpen, setIsShareCardModalOpen] = useState(false);
+  const [isSleepTimerModalOpen, setIsSleepTimerModalOpen] = useState(false);
+  const [sleepTimerSecondsLeft, setSleepTimerSecondsLeft] = useState<number | null>(null);
+  const [sleepTimerStopAtEnd, setSleepTimerStopAtEnd] = useState(false);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
+
   const isSomeoneSpeaking = seats.some((s) => s.isSpeaking && !s.isMuted);
+
+  // Listen for PWA Install Prompt
+  useEffect(() => {
+    const handleBeforeInstall = (e: any) => {
+      e.preventDefault();
+      setDeferredInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
+
+  const handleInstallPwa = async () => {
+    if (!deferredInstallPrompt) {
+      showToast('แอปพร้อมใช้งานผ่านเบราว์เซอร์แล้ว หรือเปิดเมนูตัวเลือกเพื่อ "เพิ่มลงหน้าจอหลัก"', 'info');
+      return;
+    }
+    deferredInstallPrompt.prompt();
+    const choice = await deferredInstallPrompt.userChoice;
+    if (choice.outcome === 'accepted') {
+      showToast('กำลังติดตั้งแอป pleng.online 🎉', 'success');
+      setDeferredInstallPrompt(null);
+    }
+  };
+
+  // Sleep Timer Countdown Effect
+  useEffect(() => {
+    if (sleepTimerSecondsLeft === null || sleepTimerSecondsLeft <= 0) return;
+    const interval = setInterval(() => {
+      setSleepTimerSecondsLeft((prev) => {
+        if (prev === null || prev <= 1) {
+          handleVideoPause(video.currentTime || 0, video.duration);
+          showToast('ตัวตั้งเวลาปิดเพลงทำงานแล้ว 🌙 ราตรีสวัสดิ์ครับ', 'info');
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sleepTimerSecondsLeft, video.currentTime, video.duration]);
 
   // WebRTC engine reference
   const webrtcRef = useRef<WebRTCVoiceEngine | null>(null);
@@ -1233,6 +1284,20 @@ export function App() {
           break;
         }
 
+        case 'GIFT_BROADCAST': {
+          const giftItem: GiftEvent = {
+            id: 'gift-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+            giftId: msg.giftId,
+            giftName: msg.giftName,
+            giftIcon: msg.giftIcon,
+            senderName: msg.sender.name,
+            senderAvatar: msg.sender.avatar,
+            senderColor: msg.sender.color,
+          };
+          setActiveGifts((prev) => [...prev, giftItem]);
+          break;
+        }
+
         case 'SIGNAL_DATA':
           webrtcRef.current?.handleSignal(msg.senderId, msg.data);
           break;
@@ -1691,6 +1756,12 @@ export function App() {
 
   // Handle Video End (Server-authoritative auto advance playlist)
   const handleVideoEnd = () => {
+    if (sleepTimerStopAtEnd) {
+      setSleepTimerStopAtEnd(false);
+      handleVideoPause(video.currentTime || 0, video.duration);
+      showToast('ตัวตั้งเวลาปิดเพลงทำงานแล้ว (เล่นจบเพลงนี้) 🌙 ราตรีสวัสดิ์ครับ', 'info');
+      return;
+    }
     socketService.send({
       type: 'VIDEO_ENDED',
     });
@@ -1842,6 +1913,29 @@ export function App() {
 
   const handleRemoveReaction = (id: string) => {
     setReactions((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const handleSendGift = (gift: { id: string; name: string; icon: string }) => {
+    const giftItem: GiftEvent = {
+      id: 'gift-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+      giftId: gift.id,
+      giftName: gift.name,
+      giftIcon: gift.icon,
+      senderName: currentUser.name,
+      senderAvatar: currentUser.avatar,
+      senderColor: currentUser.color,
+    };
+    setActiveGifts((prev) => [...prev, giftItem]);
+    socketService.send({
+      type: 'SEND_GIFT',
+      giftId: gift.id,
+      giftName: gift.name,
+      giftIcon: gift.icon,
+    });
+  };
+
+  const handleRemoveGift = (id: string) => {
+    setActiveGifts((prev) => prev.filter((g) => g.id !== id));
   };
 
   // Draw and Guess Game Action Handlers
@@ -1998,6 +2092,8 @@ export function App() {
         onToggleFavoriteRoom={handleToggleFavoriteCurrentRoom}
         onRefreshRoom={handleRefresh}
         onToggleOledSleep={() => setIsOledSleepMode(true)}
+        onOpenShareCard={() => setIsShareCardModalOpen(true)}
+        onInstallApp={handleInstallPwa}
         onMinimizeRoom={handleMinimizeRoom}
         onLeaveRoom={handleLeaveRoom}
         onNavigateHome={handleNavigateHome}
@@ -2193,6 +2289,10 @@ export function App() {
                 video={video}
                 reactions={isReactionsEnabled ? reactions : []}
                 onRemoveReaction={handleRemoveReaction}
+                activeGifts={activeGifts}
+                onRemoveGift={handleRemoveGift}
+                onSendReaction={handleSendReaction}
+                onSendGift={handleSendGift}
                 isSomeoneSpeaking={isSomeoneSpeaking}
                 isAudioDuckingEnabled={isAudioDuckingEnabled}
                 isFavorite={isVideoFavorite}
@@ -2343,6 +2443,44 @@ export function App() {
                   >
                     <Moon className="w-3.5 h-3.5 text-[#615d59]" />
                     <span className="text-[10px] hidden sm:inline">พักจอ</span>
+                  </button>
+
+                  {/* Karaoke & Synced Lyrics Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!video.videoId) {
+                        showToast('ไม่มีเพลงที่กำลังเล่นอยู่ 🎵', 'info');
+                        return;
+                      }
+                      setIsKaraokeModalOpen(true);
+                    }}
+                    title="โหมดคาราโอเกะ & เนื้อเพลงสด (Synced Lyrics)"
+                    className="px-2.5 py-1 rounded-md bg-pink-500/10 hover:bg-pink-500/20 text-pink-600 border border-pink-500/30 text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs active:scale-95"
+                  >
+                    <Mic2 className="w-3.5 h-3.5 text-pink-500 animate-pulse" />
+                    <span className="text-[11px]">เนื้อเพลง</span>
+                  </button>
+
+                  {/* Sleep Timer Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsSleepTimerModalOpen(true)}
+                    title="ตัวตั้งเวลาปิดเพลงอัตโนมัติ (Sleep Timer)"
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs active:scale-95 border ${
+                      (sleepTimerSecondsLeft !== null && sleepTimerSecondsLeft > 0) || sleepTimerStopAtEnd
+                        ? 'bg-indigo-600 text-white border-indigo-700 animate-pulse'
+                        : 'bg-white hover:bg-[#f6f5f4] text-[#615d59] border-[#e6e6e6]'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span className="text-[11px]">
+                      {sleepTimerStopAtEnd
+                        ? 'จบเพลงนี้'
+                        : sleepTimerSecondsLeft !== null && sleepTimerSecondsLeft > 0
+                        ? `${Math.floor(sleepTimerSecondsLeft / 60)}:${(sleepTimerSecondsLeft % 60).toString().padStart(2, '0')}`
+                        : 'ตั้งเวลาปิด'}
+                    </span>
                   </button>
 
                   {/* Draw & Guess 2D Party Game Toggle Button (Host & Admin only) */}
@@ -2952,6 +3090,65 @@ export function App() {
         isOpen={isSuperAdminModalOpen}
         onClose={() => setIsSuperAdminModalOpen(false)}
         currentUser={currentUser}
+        onShowToast={showToast}
+      />
+
+      <KaraokeLyricsModal
+        isOpen={isKaraokeModalOpen}
+        onClose={() => setIsKaraokeModalOpen(false)}
+        videoTitle={video.title}
+        videoChannel={video.channel}
+        currentTime={playbackCurrentTime || video.currentTime || 0}
+        duration={playbackDuration || video.duration || 0}
+        isPlaying={video.isPlaying}
+        onSeek={(seconds) => {
+          setPlaybackCurrentTime(seconds);
+          handleVideoSeek(seconds, playbackDuration || video.duration || 0);
+        }}
+        onTogglePlayPause={() => {
+          if (video.isPlaying) {
+            handleVideoPause(playbackCurrentTime || video.currentTime || 0, playbackDuration || video.duration || 0);
+          } else {
+            handleVideoPlay(playbackCurrentTime || video.currentTime || 0, playbackDuration || video.duration || 0);
+          }
+        }}
+        onNextTrack={handleNextTrack}
+      />
+
+      {/* Sleep Timer Modal */}
+      <SleepTimerModal
+        isOpen={isSleepTimerModalOpen}
+        onClose={() => setIsSleepTimerModalOpen(false)}
+        secondsLeft={sleepTimerSecondsLeft}
+        stopAtEndOfTrack={sleepTimerStopAtEnd}
+        onSetTimerMinutes={(mins) => {
+          setSleepTimerStopAtEnd(false);
+          setSleepTimerSecondsLeft(mins * 60);
+          showToast(`ตั้งเวลาปิดเพลงในอีก ${mins} นาที 🌙`, 'success');
+        }}
+        onSetStopAtEnd={(enable) => {
+          setSleepTimerSecondsLeft(null);
+          setSleepTimerStopAtEnd(enable);
+          showToast('ตั้งเวลาหยุดเล่นเมื่อจบเพลงปัจจุบันแล้ว 🌙', 'success');
+        }}
+        onCancelTimer={() => {
+          setSleepTimerSecondsLeft(null);
+          setSleepTimerStopAtEnd(false);
+          showToast('ยกเลิกตัวตั้งเวลาปิดเพลงแล้ว', 'info');
+        }}
+        onAddMinutes={(mins) => {
+          setSleepTimerSecondsLeft((prev) => (prev || 0) + mins * 60);
+          showToast(`เพิ่มเวลาอีก ${mins} นาที ⏱️`, 'info');
+        }}
+      />
+
+      {/* Social Story / Share Card Modal */}
+      <ShareCardModal
+        isOpen={isShareCardModalOpen}
+        onClose={() => setIsShareCardModalOpen(false)}
+        room={roomMetadata}
+        currentVideo={video}
+        onlineCount={onlineCount}
         onShowToast={showToast}
       />
 

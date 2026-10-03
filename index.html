@@ -9,8 +9,11 @@
     <meta name="description" content="เว็บฟังเพลงออนไลน์ไม่มีโฆษณาคั่น ดู YouTube กับเพื่อนแบบเรียลไทม์ ซิงค์พร้อมกันเป๊ะ จัดคิว Playlist ได้อิสระ พร้อมห้องคุยไมค์สด 9 ที่นั่ง เข้าได้ทันทีไม่ต้องลงแอป" />
     <meta name="keywords" content="ฟังเพลงออนไลน์ไม่มีโฆษณา, ดู youtube ไม่มีโฆษณา, ฟังเพลงกับเพื่อน, ดู youtube กับเพื่อน, ฟังเพลง playlist youtube, ฟังเพลงเป็นกลุ่ม, watch party ไทย, ห้องฟังเพลงออนไลน์, ฟังเพลงออนไลน์ฟรี, จัดคิวเพลง youtube" />
     <meta name="author" content="pleng.online" />
-    <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://pleng.online/" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#8b5cf6" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
     <!-- Open Graph / Facebook / LINE -->
     <meta property="og:type" content="website" />
@@ -147,6 +150,13 @@
   </head>
   <body class="bg-[#f6f5f4] text-[#31302e] antialiased h-screen overflow-hidden selection:bg-[#0075de]/15 selection:text-[#0075de]">
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').catch(function() {});
+        });
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

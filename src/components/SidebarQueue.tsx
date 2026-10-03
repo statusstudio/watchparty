@@ -18,9 +18,19 @@ import {
   ListPlus,
   Loader2,
   X,
+  Save,
+  BookmarkPlus,
+  FolderHeart,
 } from 'lucide-react';
 import { PlaylistItem, VideoState, LoopMode, UserRole, UserProfile, FavoriteSong } from '../types/index.js';
 import { fetchFavorites, addFavorite, removeFavorite } from '../services/supabase.js';
+
+export interface SavedPlaylist {
+  id: string;
+  name: string;
+  createdAt: number;
+  items: Omit<PlaylistItem, 'id'>[];
+}
 
 interface SidebarQueueProps {
   playlist: PlaylistItem[];
@@ -59,7 +69,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
   onNextTrack,
   onShowToast,
 }) => {
-  const [activeTab, setActiveTab] = useState<'queue' | 'search' | 'favorites'>('queue');
+  const [activeTab, setActiveTab] = useState<'queue' | 'search' | 'favorites' | 'saved_playlists'>('queue');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -70,8 +80,71 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
   const [favoriteSongs, setFavoriteSongs] = useState<FavoriteSong[]>([]);
   const [favIds, setFavIds] = useState<Set<string>>(new Set());
   const [loadingFavorites, setLoadingFavorites] = useState(false);
+  const [savedPlaylists, setSavedPlaylists] = useState<SavedPlaylist[]>(() => {
+    try {
+      const raw = localStorage.getItem('watchparty_saved_playlists');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const canManagePlaylist = !onlyAdminManagePlaylist || myRole === 'owner' || myRole === 'admin';
+
+  const handleSaveQueueAsPlaylist = () => {
+    if (playlist.length === 0) {
+      onShowToast('ยังไม่มีเพลงในคิวให้บันทึก 🎵', 'warning');
+      return;
+    }
+    const defaultTitle = `คิวเพลง ${new Date().toLocaleDateString('th-TH')} (${playlist.length} เพลง)`;
+    const name = window.prompt('ตั้งชื่อเพลย์ลิสต์ส่วนตัวที่ต้องการบันทึก:', defaultTitle);
+    if (!name || !name.trim()) return;
+
+    const newEntry: SavedPlaylist = {
+      id: 'pl-' + Date.now(),
+      name: name.trim(),
+      createdAt: Date.now(),
+      items: playlist.map((item) => ({
+        videoId: item.videoId,
+        title: item.title,
+        channel: item.channel,
+        thumbnail: item.thumbnail,
+        duration: item.duration,
+        addedBy: currentUser?.name || 'คุณ',
+      })),
+    };
+
+    const updated = [newEntry, ...savedPlaylists];
+    setSavedPlaylists(updated);
+    localStorage.setItem('watchparty_saved_playlists', JSON.stringify(updated));
+    onShowToast(`บันทึกเพลย์ลิสต์ "${newEntry.name}" สำเร็จ 💾`, 'success');
+  };
+
+  const handleDeleteSavedPlaylist = (id: string, name: string) => {
+    if (!window.confirm(`คุณต้องการลบเพลย์ลิสต์ "${name}" ใช่หรือไม่?`)) return;
+    const updated = savedPlaylists.filter((p) => p.id !== id);
+    setSavedPlaylists(updated);
+    localStorage.setItem('watchparty_saved_playlists', JSON.stringify(updated));
+    onShowToast(`ลบเพลย์ลิสต์ "${name}" แล้ว`, 'info');
+  };
+
+  const handleLoadSavedPlaylist = (saved: SavedPlaylist) => {
+    if (!canManagePlaylist) {
+      onShowToast('เฉพาะเจ้าของห้องหรือแอดมินเท่านั้นที่สามารถเพิ่มเพลงได้ ⚠️', 'warning');
+      return;
+    }
+    if (!saved.items || saved.items.length === 0) {
+      onShowToast('ไม่มีเพลงในเพลย์ลิสต์นี้', 'warning');
+      return;
+    }
+    if (onAddToPlaylistBatch) {
+      onAddToPlaylistBatch(saved.items);
+    } else {
+      saved.items.forEach((item) => onAddToPlaylist(item));
+    }
+    onShowToast(`นำเข้าเพลย์ลิสต์ "${saved.name}" (${saved.items.length} เพลง) เข้าคิวแล้ว 🎶`, 'success');
+    setActiveTab('queue');
+  };
 
   const loadFavorites = async () => {
     if (!currentUser?.id) return;
@@ -329,6 +402,30 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
               <span className="text-[10px] font-mono">({favoriteSongs.length})</span>
             )}
           </button>
+
+          {/* Saved Playlists Tab Button */}
+          <button
+            type="button"
+            onClick={() => {
+              if (activeTab === 'saved_playlists') {
+                setActiveTab('queue');
+              } else {
+                setActiveTab('saved_playlists');
+              }
+            }}
+            title={activeTab === 'saved_playlists' ? 'กลับไปที่คิวเพลง' : 'เพลย์ลิสต์ส่วนตัวที่บันทึกไว้'}
+            className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs shrink-0 ${
+              activeTab === 'saved_playlists'
+                ? 'bg-purple-600 text-white border-purple-600'
+                : 'bg-white hover:bg-purple-50 text-purple-600 border-[#e6e6e6]'
+            }`}
+          >
+            <FolderHeart className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">เพลย์ลิสต์</span>
+            {savedPlaylists.length > 0 && (
+              <span className="text-[10px] font-mono">({savedPlaylists.length})</span>
+            )}
+          </button>
         </form>
       </div>
 
@@ -370,6 +467,17 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-semibold text-[#000000]">คิวถัดไป</span>
                 <span className="text-[10px] text-[#615d59]">({playlist.length} เพลง)</span>
+                {playlist.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleSaveQueueAsPlaylist}
+                    title="บันทึกคิวเพลงทั้งหมดนี้เป็นเพลย์ลิสต์ส่วนตัว"
+                    className="ml-1 px-2 py-0.5 rounded-md bg-[#0075de]/10 hover:bg-[#0075de]/20 text-[#0075de] text-[10px] font-semibold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                  >
+                    <Save className="w-3 h-3" />
+                    <span>บันทึกคิว</span>
+                  </button>
+                )}
               </div>
 
               {/* Loop & Shuffle Controls */}
@@ -823,6 +931,107 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==================== SAVED PLAYLISTS TAB ==================== */}
+        {activeTab === 'saved_playlists' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between pb-1 border-b border-[#e6e6e6]">
+              <div className="flex items-center gap-1.5">
+                <FolderHeart className="w-3.5 h-3.5 text-purple-600" />
+                <span className="text-xs font-bold text-[#000000]">เพลย์ลิสต์ส่วนตัว</span>
+                <span className="text-[10px] text-[#615d59]">({savedPlaylists.length})</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('queue')}
+                className="text-xs text-[#0075de] hover:underline flex items-center gap-1 cursor-pointer font-medium"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>กลับคิวเพลง</span>
+              </button>
+            </div>
+
+            {savedPlaylists.length === 0 ? (
+              <div className="text-center py-10 px-4 border border-dashed border-[#e6e6e6] rounded-xl bg-[#f6f5f4] space-y-2">
+                <FolderHeart className="w-8 h-8 text-[#a39e98] mx-auto opacity-50 text-purple-400" />
+                <p className="text-xs font-semibold text-[#000000]">
+                  ยังไม่มีเพลย์ลิสต์ที่บันทึกไว้
+                </p>
+                <p className="text-[11px] text-[#615d59] leading-relaxed">
+                  เมื่อคุณจัดคิวเพลงไว้ในห้อง สามารถกดปุ่ม <span className="font-semibold text-[#0075de]">"บันทึกคิว"</span> ที่แท็บคิวเพลง เพื่อเก็บชุดเพลงโปรดไว้เปิดฟังในห้องใดก็ได้ตลอดเวลา!
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {savedPlaylists.map((pl) => (
+                  <div
+                    key={pl.id}
+                    className="p-3 rounded-xl bg-white hover:bg-[#f6f5f4] border border-[#e6e6e6] transition-all shadow-xs group space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h5 className="text-xs font-bold text-[#000000] truncate">
+                          {pl.name}
+                        </h5>
+                        <div className="flex items-center gap-2 text-[10px] text-[#615d59] mt-0.5">
+                          <span className="font-semibold text-purple-600">{pl.items.length} เพลง</span>
+                          <span>•</span>
+                          <span>{new Date(pl.createdAt).toLocaleDateString('th-TH')}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleLoadSavedPlaylist(pl)}
+                          title="นำเข้าเพลงทั้งหมดเข้าคิวห้องปัจจุบัน"
+                          className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold flex items-center gap-1 shadow-xs transition-transform active:scale-95 cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>โหลดเข้าคิว</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSavedPlaylist(pl.id, pl.name)}
+                          title="ลบเพลย์ลิสต์นี้"
+                          className="p-1.5 rounded-lg text-[#a39e98] hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Preview first 3 tracks thumbnails */}
+                    {pl.items.length > 0 && (
+                      <div className="flex items-center gap-1 pt-1 overflow-x-auto">
+                        {pl.items.slice(0, 4).map((it, i) => (
+                          <div
+                            key={i}
+                            className="w-12 h-8 rounded-md bg-black overflow-hidden shrink-0 border border-black/10 relative"
+                            title={it.title}
+                          >
+                            <img
+                              src={it.thumbnail || `https://i.ytimg.com/vi/${it.videoId}/hqdefault.jpg`}
+                              alt={it.title}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ))}
+                        {pl.items.length > 4 && (
+                          <div className="w-10 h-8 rounded-md bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500 shrink-0">
+                            +{pl.items.length - 4}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

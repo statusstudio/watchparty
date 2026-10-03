@@ -22,6 +22,8 @@ import {
   Megaphone,
   Edit3,
   Trash2,
+  Share2,
+  Download,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { UserProfile, UserRole } from '../types/index.js';
@@ -44,6 +46,8 @@ interface NavbarProps {
   onToggleFavoriteRoom?: () => void;
   onRefreshRoom: () => void;
   onToggleOledSleep: () => void;
+  onOpenShareCard?: () => void;
+  onInstallApp?: () => void;
   onMinimizeRoom?: () => void;
   onLeaveRoom?: () => void;
   onNavigateHome: () => void;
@@ -76,6 +80,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleFavoriteRoom,
   onRefreshRoom,
   onToggleOledSleep,
+  onOpenShareCard,
+  onInstallApp,
   onMinimizeRoom,
   onLeaveRoom,
   onNavigateHome,
@@ -300,6 +306,32 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Users className="w-3.5 h-3.5 text-[#2a9d99]" />
               <span className="font-semibold text-[#000000]">{onlineCount}</span>
             </div>
+
+            {/* Share Card Modal Button */}
+            {onOpenShareCard && (
+              <button
+                type="button"
+                onClick={onOpenShareCard}
+                className="hidden md:flex px-2.5 py-1 rounded-md bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold transition-all cursor-pointer items-center gap-1.5 shrink-0 shadow-xs"
+                title="สร้างการ์ดแชร์ห้องแบบมีสไตล์ (Social Story Card & QR Code)"
+              >
+                <Share2 className="w-3.5 h-3.5 text-purple-600" />
+                <span>แชร์การ์ด</span>
+              </button>
+            )}
+
+            {/* Install App PWA Button */}
+            {onInstallApp && (
+              <button
+                type="button"
+                onClick={onInstallApp}
+                className="hidden md:flex px-2.5 py-1 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold transition-all cursor-pointer items-center gap-1.5 shrink-0 shadow-xs animate-pulse"
+                title="ติดตั้ง pleng.online เป็นแอปบนอุปกรณ์ของคุณ"
+              >
+                <Download className="w-3.5 h-3.5 text-indigo-600" />
+                <span>ติดตั้งแอป</span>
+              </button>
+            )}
 
             {/* OLED Sleep Mode Button */}
             {onToggleOledSleep && (
@@ -619,6 +651,34 @@ export const Navbar: React.FC<NavbarProps> = ({
                       >
                         <Gamepad2 className="w-4 h-4" />
                         <span>{isGameActive ? 'ยุติเกมวาดรูปทายคำ' : 'เริ่มเกมวาดรูปทายคำ (Game Mode)'}</span>
+                      </button>
+                    )}
+
+                    {/* Share Card Modal in Mobile */}
+                    {onOpenShareCard && (
+                      <button
+                        onClick={() => {
+                          onOpenShareCard();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full px-3 py-2 rounded-lg hover:bg-purple-50 text-left text-xs text-purple-700 font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <Share2 className="w-4 h-4 text-purple-600" />
+                        <span>สร้างการ์ดแชร์ห้องปาร์ตี้ (Share Card)</span>
+                      </button>
+                    )}
+
+                    {/* Install App in Mobile */}
+                    {onInstallApp && (
+                      <button
+                        onClick={() => {
+                          onInstallApp();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-left text-xs text-indigo-700 font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <Download className="w-4 h-4 text-indigo-600" />
+                        <span>ติดตั้งแอป pleng.online บนเครื่อง</span>
                       </button>
                     )}
 

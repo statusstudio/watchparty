@@ -1,12 +1,16 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Play, Pause, Volume1, Volume2, VolumeX, Maximize, Radio, VolumeOff, Headphones, Music, Heart } from 'lucide-react';
 import { VideoState } from '../types/index.js';
-import { FloatingReactions, FloatingItem } from './FloatingReactions.js';
+import { FloatingReactions, FloatingItem, GiftEvent, LiveReactionsDock } from './FloatingReactions.js';
 
 interface VideoPlayerProps {
   video: VideoState;
   reactions: FloatingItem[];
   onRemoveReaction: (id: string) => void;
+  activeGifts?: GiftEvent[];
+  onRemoveGift?: (id: string) => void;
+  onSendReaction?: (emoji: string) => void;
+  onSendGift?: (gift: { id: string; name: string; icon: string }) => void;
   isSomeoneSpeaking: boolean;
   isAudioDuckingEnabled: boolean;
   isFavorite?: boolean;
@@ -33,6 +37,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   video,
   reactions,
   onRemoveReaction,
+  activeGifts = [],
+  onRemoveGift,
+  onSendReaction,
+  onSendGift,
   isSomeoneSpeaking,
   isAudioDuckingEnabled,
   isFavorite,
@@ -759,8 +767,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Floating Live Reactions Layer */}
-      <FloatingReactions reactions={reactions} onRemove={onRemoveReaction} />
+      {/* Floating Live Reactions & Gifts Celebration Layer */}
+      <FloatingReactions
+        reactions={reactions}
+        onRemove={onRemoveReaction}
+        activeGifts={activeGifts}
+        onRemoveGift={onRemoveGift}
+      />
+
+      {/* Floating Live Reactions & Gifts Dock */}
+      {onSendReaction && onSendGift && (
+        <div className="absolute bottom-4 right-4 z-25 pointer-events-auto">
+          <LiveReactionsDock onSendReaction={onSendReaction} onSendGift={onSendGift} />
+        </div>
+      )}
 
       {/* Prominent floating Unmute button overlay when video autoplays muted */}
       {showUnmutePrompt && isMuted && (

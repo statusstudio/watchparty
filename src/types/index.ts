@@ -271,6 +271,7 @@ export type WSClientMessage =
   | { type: 'CLEAR_CHAT' }
   | { type: 'CLOSE_ROOM' }
   | { type: 'EMOJI_REACTION'; emoji: string }
+  | { type: 'SEND_GIFT'; giftId: string; giftName: string; giftIcon: string }
   | { type: 'PLAY_SOUND'; soundId: string; soundName: string }
   | { type: 'SIGNAL_DATA'; targetId: string; data: any }
   | { type: 'GAME_START'; maxRounds?: number }
@@ -300,6 +301,7 @@ export type WSServerMessage =
   | { type: 'CHAT_MESSAGE_DELETED'; messageId: string }
   | { type: 'CHAT_CLEARED'; chat: ChatMessage[] }
   | { type: 'EMOJI_REACTION'; emoji: string; sender: UserProfile }
+  | { type: 'GIFT_BROADCAST'; giftId: string; giftName: string; giftIcon: string; sender: UserProfile }
   | { type: 'PLAY_SOUND'; soundId: string; soundName: string; playedBy: UserProfile }
   | { type: 'SIGNAL_DATA'; senderId: string; data: any }
   | { type: 'SYNC_TOAST'; message: string; toastType?: 'info' | 'success' | 'warning' }

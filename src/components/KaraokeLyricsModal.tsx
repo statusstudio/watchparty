@@ -1,0 +1,448 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import {
+  Mic2,
+  X,
+  Maximize2,
+  Minimize2,
+  Loader2,
+  Play,
+  Pause,
+  SkipForward,
+  RotateCcw,
+  RotateCw,
+  Search,
+  Type,
+  Music,
+  ExternalLink,
+} from 'lucide-react';
+
+export interface LyricsLine {
+  time: number;
+  text: string;
+}
+
+export interface LyricsData {
+  found: boolean;
+  title?: string;
+  artist?: string;
+  hasSynced?: boolean;
+  syncedLyrics?: string;
+  plainLyrics?: string;
+  lines: LyricsLine[];
+}
+
+interface KaraokeLyricsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  videoTitle: string;
+  videoChannel?: string;
+  currentTime: number;
+  duration: number;
+  isPlaying: boolean;
+  onSeek: (seconds: number) => void;
+  onTogglePlayPause: () => void;
+  onNextTrack?: () => void;
+}
+
+export const KaraokeLyricsModal: React.FC<KaraokeLyricsModalProps> = ({
+  isOpen,
+  onClose,
+  videoTitle,
+  videoChannel = '',
+  currentTime,
+  duration,
+  isPlaying,
+  onSeek,
+  onTogglePlayPause,
+  onNextTrack,
+}) => {
+  const [lyricsData, setLyricsData] = useState<LyricsData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fontSize, setFontSize] = useState<'normal' | 'large' | 'huge'>('large');
+  const [manualQuery, setManualQuery] = useState('');
+  const [isManualSearching, setIsManualSearching] = useState(false);
+  const [showPlainOnly, setShowPlainOnly] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const activeLineRef = useRef<HTMLDivElement>(null);
+  const userScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch lyrics whenever modal opens or song title changes
+  useEffect(() => {
+    if (!isOpen || !videoTitle) return;
+
+    let isMounted = true;
+    setIsLoading(true);
+    setManualQuery('');
+    setIsManualSearching(false);
+
+    const fetchLyrics = async () => {
+      try {
+        const queryUrl = `/api/lyrics?title=${encodeURIComponent(videoTitle)}&artist=${encodeURIComponent(videoChannel)}`;
+        const res = await fetch(queryUrl);
+        const data: LyricsData = await res.json();
+        if (isMounted) {
+          setLyricsData(data);
+        }
+      } catch (err) {
+        console.error('Failed to load lyrics:', err);
+        if (isMounted) {
+          setLyricsData({ found: false, lines: [] });
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchLyrics();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, videoTitle, videoChannel]);
+
+  // Handle manual search if auto-fetch didn't find the right lyrics
+  const handleManualSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualQuery.trim()) return;
+
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/lyrics?title=${encodeURIComponent(manualQuery.trim())}`);
+      const data: LyricsData = await res.json();
+      setLyricsData(data);
+      setIsManualSearching(false);
+    } catch (err) {
+      console.error('Manual lyrics search failed:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Determine active lyrics line based on current playback time
+  const activeLineIndex = useMemo(() => {
+    if (!lyricsData?.lines || lyricsData.lines.length === 0) return -1;
+    const lines = lyricsData.lines;
+
+    // Find last line where line.time <= currentTime
+    let activeIdx = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].time <= currentTime + 0.3) {
+        activeIdx = i;
+      } else {
+        break;
+      }
+    }
+    return activeIdx;
+  }, [lyricsData, currentTime]);
+
+  // Smoothly center the active line
+  useEffect(() => {
+    if (!autoScroll || !activeLineRef.current || !containerRef.current) return;
+
+    activeLineRef.current.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
+  }, [activeLineIndex, autoScroll]);
+
+  // Temporarily pause auto-scroll if user manually scrolls, then resume after 3.5s
+  const handleUserScroll = () => {
+    setAutoScroll(false);
+    if (userScrollTimeoutRef.current) clearTimeout(userScrollTimeoutRef.current);
+    userScrollTimeoutRef.current = setTimeout(() => {
+      setAutoScroll(true);
+    }, 3500);
+  };
+
+  if (!isOpen) return null;
+
+  const fontClasses = {
+    normal: 'text-base sm:text-lg leading-relaxed py-2',
+    large: 'text-xl sm:text-2xl md:text-3xl font-semibold leading-relaxed py-3',
+    huge: 'text-2xl sm:text-3xl md:text-4xl font-bold leading-relaxed py-4',
+  }[fontSize];
+
+  return (
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in ${
+      isFullscreen ? 'p-0' : ''
+    }`}>
+      {/* Karaoke Window Container */}
+      <div
+        className={`relative flex flex-col w-full bg-[#0e0e14] text-white overflow-hidden shadow-2xl transition-all duration-300 ${
+          isFullscreen
+            ? 'h-full w-full rounded-none border-none'
+            : 'h-full sm:h-[88vh] max-w-4xl sm:rounded-2xl border border-zinc-800'
+        }`}
+      >
+        {/* Animated Atmospheric Ambient Glow */}
+        <div className="absolute inset-0 pointer-events-none opacity-25 overflow-hidden">
+          <div className="absolute -top-40 -left-40 w-96 h-96 bg-purple-600 rounded-full blur-[130px] animate-pulse" />
+          <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-pink-600 rounded-full blur-[130px] animate-pulse duration-1000" />
+        </div>
+
+        {/* Top Header Bar */}
+        <div className="relative z-10 px-4 sm:px-6 py-3.5 border-b border-zinc-800/80 bg-zinc-950/60 backdrop-blur-md flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="p-2 rounded-xl bg-gradient-to-tr from-pink-500/20 to-purple-500/20 text-pink-400 border border-pink-500/30 shrink-0">
+              <Mic2 className="w-5 h-5 animate-pulse" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                  {lyricsData?.hasSynced ? '✨ ซิงค์คาราโอเกะสด' : '📄 เนื้อเพลง'}
+                </span>
+                <span className="text-xs text-zinc-400 font-medium truncate hidden sm:inline">
+                  {lyricsData?.title || videoTitle}
+                </span>
+              </div>
+              <h3 className="text-sm sm:text-base font-bold text-white truncate mt-0.5" title={videoTitle}>
+                {lyricsData?.title || videoTitle}
+              </h3>
+            </div>
+          </div>
+
+          {/* Header Controls */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Font Size Toggle */}
+            <button
+              type="button"
+              onClick={() => {
+                if (fontSize === 'normal') setFontSize('large');
+                else if (fontSize === 'large') setFontSize('huge');
+                else setFontSize('normal');
+              }}
+              title="ปรับขนาดตัวหนังสือ"
+              className="p-2 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/60 text-xs transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <Type className="w-4 h-4 text-pink-400" />
+              <span className="text-[10px] font-bold hidden sm:inline">
+                {fontSize === 'normal' ? 'ปกติ' : fontSize === 'large' ? 'ใหญ่' : 'ใหญ่มาก'}
+              </span>
+            </button>
+
+            {/* Manual Search Toggle */}
+            <button
+              type="button"
+              onClick={() => setIsManualSearching((prev) => !prev)}
+              title="ค้นหาเนื้อเพลงด้วยตนเอง"
+              className={`p-2 rounded-lg border text-xs transition-colors cursor-pointer ${
+                isManualSearching
+                  ? 'bg-purple-600 text-white border-purple-500'
+                  : 'bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border-zinc-700/60'
+              }`}
+            >
+              <Search className="w-4 h-4" />
+            </button>
+
+            {/* Fullscreen Toggle */}
+            <button
+              type="button"
+              onClick={() => setIsFullscreen((prev) => !prev)}
+              title={isFullscreen ? 'ย่อหน้าต่าง' : 'โหมดเต็มจอคาราโอเกะ'}
+              className="p-2 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/60 text-xs transition-colors cursor-pointer"
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={onClose}
+              title="ปิดหน้าต่างเนื้อเพลง"
+              className="p-2 rounded-lg bg-zinc-900/80 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 border border-zinc-700/60 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Manual Search Bar (Expands on click) */}
+        {isManualSearching && (
+          <div className="relative z-10 px-4 sm:px-6 py-2.5 bg-zinc-900/90 border-b border-zinc-800 animate-fade-in">
+            <form onSubmit={handleManualSearch} className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={manualQuery}
+                  onChange={(e) => setManualQuery(e.target.value)}
+                  placeholder="พิมพ์ชื่อเพลง หรือ ศิลปิน เพื่อค้นหาเนื้อเพลง..."
+                  className="w-full pl-9 pr-3 py-1.5 bg-zinc-950 border border-zinc-700 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-pink-500"
+                  autoFocus
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!manualQuery.trim() || isLoading}
+                className="px-4 py-1.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold cursor-pointer shrink-0 transition-all shadow-xs"
+              >
+                {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'ค้นหา'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Center Lyrics Scroll Area */}
+        <div
+          ref={containerRef}
+          onScroll={handleUserScroll}
+          className="relative z-10 flex-1 min-h-0 overflow-y-auto px-4 sm:px-8 py-10 overscroll-contain select-text text-center focus:outline-none"
+        >
+          {isLoading ? (
+            <div className="h-full flex flex-col items-center justify-center gap-3 text-zinc-400 py-16 animate-fade-in">
+              <Loader2 className="w-8 h-8 animate-spin text-pink-400" />
+              <p className="text-sm font-medium">กำลังค้นหาเนื้อเพลงสด...</p>
+              <p className="text-xs text-zinc-500">ซิงค์จังหวะเนื้อร้องแบบคาราโอเกะ</p>
+            </div>
+          ) : !lyricsData?.found ? (
+            <div className="h-full flex flex-col items-center justify-center gap-3 text-zinc-400 py-16 max-w-sm mx-auto animate-fade-in">
+              <div className="p-4 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-500">
+                <Music className="w-8 h-8" />
+              </div>
+              <h4 className="text-base font-bold text-white">ยังไม่พบเนื้อเพลงของคลิปนี้</h4>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                คลิปนี้อาจมีชื่อยาวเกินไป หรือเป็นเพลงคัฟเวอร์/ไลฟ์สด ลองกดปุ่มค้นหา 🔍 ด้านบนเพื่อพิมพ์ค้นหาเฉพาะชื่อเพลงได้ครับ
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsManualSearching(true)}
+                className="mt-2 px-4 py-2 rounded-xl bg-pink-600/30 hover:bg-pink-600/50 border border-pink-500/40 text-pink-200 text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5"
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>พิมพ์ค้นหาเนื้อเพลงด้วยตนเอง</span>
+              </button>
+            </div>
+          ) : lyricsData.hasSynced && !showPlainOnly ? (
+            /* --- Synced Karaoke Lines Mode --- */
+            <div className="space-y-1 max-w-2xl mx-auto py-20">
+              {lyricsData.lines.map((line, index) => {
+                const isActive = index === activeLineIndex;
+                const isPast = index < activeLineIndex;
+                const isUpcoming = index > activeLineIndex;
+
+                return (
+                  <div
+                    key={`${line.time}-${index}`}
+                    ref={isActive ? activeLineRef : null}
+                    onClick={() => onSeek(line.time)}
+                    title={`แตะเพื่อกระโดดไปที่ ${Math.floor(line.time / 60)}:${String(Math.floor(line.time % 60)).padStart(2, '0')}`}
+                    className={`transition-all duration-300 rounded-2xl cursor-pointer px-4 select-text group ${fontClasses} ${
+                      isActive
+                        ? 'text-white font-extrabold scale-105 transform origin-center drop-shadow-[0_4px_24px_rgba(236,72,153,0.4)]'
+                        : isPast
+                        ? 'text-zinc-500 opacity-60 hover:opacity-100 hover:text-zinc-300'
+                        : 'text-zinc-400 opacity-80 hover:opacity-100 hover:text-white'
+                    }`}
+                  >
+                    <div className="inline-flex items-center gap-2 relative">
+                      {isActive && (
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-pink-500 animate-ping mr-1" />
+                      )}
+                      <span
+                        className={
+                          isActive
+                            ? 'bg-gradient-to-r from-pink-400 via-rose-300 to-purple-400 bg-clip-text text-transparent font-black tracking-wide'
+                            : ''
+                        }
+                      >
+                        {line.text}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* --- Plain Lyrics Reading Mode --- */
+            <div className="max-w-xl mx-auto text-left py-6 px-4 whitespace-pre-wrap leading-loose text-zinc-300 text-sm sm:text-base font-medium select-text">
+              {lyricsData.plainLyrics || lyricsData.lines.map((l) => l.text).join('\n')}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Playback Control Bar */}
+        <div className="relative z-10 px-4 sm:px-6 py-3 border-t border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2">
+            {/* Play / Pause */}
+            <button
+              type="button"
+              onClick={onTogglePlayPause}
+              className="w-8 h-8 rounded-full bg-pink-500 hover:bg-pink-600 active:scale-95 text-white flex items-center justify-center transition-all cursor-pointer shadow-lg shadow-pink-500/25"
+            >
+              {isPlaying ? (
+                <Pause className="w-4 h-4 fill-current" />
+              ) : (
+                <Play className="w-4 h-4 fill-current translate-x-0.5" />
+              )}
+            </button>
+
+            {/* Rewind 10s */}
+            <button
+              type="button"
+              onClick={() => onSeek(Math.max(0, currentTime - 10))}
+              title="ย้อนหลัง 10 วินาที"
+              className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+
+            {/* Forward 10s */}
+            <button
+              type="button"
+              onClick={() => onSeek(Math.min(duration, currentTime + 10))}
+              title="ไปข้างหน้า 10 วินาที"
+              className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 transition-colors cursor-pointer"
+            >
+              <RotateCw className="w-4 h-4" />
+            </button>
+
+            {/* Next Track */}
+            {onNextTrack && (
+              <button
+                type="button"
+                onClick={onNextTrack}
+                title="เล่นเพลงถัดไป"
+                className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 transition-colors cursor-pointer"
+              >
+                <SkipForward className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Time & Synced Indicator */}
+          <div className="flex items-center gap-3">
+            {lyricsData?.hasSynced && (
+              <button
+                type="button"
+                onClick={() => setAutoScroll((prev) => !prev)}
+                className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all cursor-pointer ${
+                  autoScroll
+                    ? 'bg-pink-500/20 text-pink-300 border-pink-500/40'
+                    : 'bg-zinc-900 text-zinc-500 border-zinc-800 hover:text-zinc-300'
+                }`}
+                title="เปิด/ปิดการเลื่อนอัตโนมัติ"
+              >
+                {autoScroll ? 'เลื่อนอัตโนมัติ: เปิด' : 'เลื่อนอัตโนมัติ: ปิด'}
+              </button>
+            )}
+
+            <div className="font-mono text-xs font-semibold text-zinc-400">
+              <span className="text-pink-400">
+                {Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, '0')}
+              </span>
+              <span className="mx-1 text-zinc-600">/</span>
+              <span>
+                {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

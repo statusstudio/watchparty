@@ -110,6 +110,132 @@ async function startServer() {
     }
   });
 
+  // Synced Lyrics fetch endpoint
+  const lyricsCache = new Map<string, { timestamp: number; data: any }>();
+  const LYRICS_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+  function cleanTitleForLyrics(rawTitle: string): { track: string; artist?: string } {
+    let title = rawTitle
+      .replace(/\[.*?\]|\(.*?\)|【.*?】/g, ' ')
+      .replace(/official\s*(mv|video|audio|music\s*video|lyric\s*video|lyrics?)/gi, ' ')
+      .replace(/(\b(hd|4k|1080p|audio|lyrics?)\b)/gi, ' ')
+      .replace(/feat\..*|ft\..*/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (title.includes(' - ')) {
+      const parts = title.split(' - ');
+      return { artist: parts[0].trim(), track: parts[1].trim() };
+    }
+    if (title.includes(' : ')) {
+      const parts = title.split(' : ');
+      return { artist: parts[0].trim(), track: parts[1].trim() };
+    }
+    return { track: title };
+  }
+
+  function parseLrc(lrcText: string): { time: number; text: string }[] {
+    const lines = lrcText.split('\n');
+    const result: { time: number; text: string }[] = [];
+    const timeReg = /\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]/g;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      let match;
+      const timestamps: number[] = [];
+      let lastIndex = 0;
+      timeReg.lastIndex = 0;
+
+      while ((match = timeReg.exec(trimmed)) !== null) {
+        const mins = parseInt(match[1], 10);
+        const secs = parseInt(match[2], 10);
+        const ms = match[3] ? parseInt(match[3].padEnd(3, '0').slice(0, 3), 10) / 1000 : 0;
+        timestamps.push(mins * 60 + secs + ms);
+        lastIndex = timeReg.lastIndex;
+      }
+
+      const text = trimmed.slice(lastIndex).trim();
+      if (text && timestamps.length > 0) {
+        for (const t of timestamps) {
+          result.push({ time: t, text });
+        }
+      }
+    }
+
+    return result.sort((a, b) => a.time - b.time);
+  }
+
+  app.get('/api/lyrics', async (req, res) => {
+    const rawTitle = ((req.query.title as string) || '').trim();
+    const rawArtist = ((req.query.artist as string) || '').trim();
+
+    if (!rawTitle) {
+      return res.status(400).json({ error: 'Missing title parameter', found: false });
+    }
+
+    const { track, artist: parsedArtist } = cleanTitleForLyrics(rawTitle);
+    const finalArtist = rawArtist || parsedArtist || '';
+    const cacheKey = `${track.toLowerCase()}_${finalArtist.toLowerCase()}`;
+
+    const cached = lyricsCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < LYRICS_CACHE_TTL) {
+      return res.json(cached.data);
+    }
+
+    try {
+      let lrclibData: any = null;
+
+      if (finalArtist && track) {
+        try {
+          const getUrl = `https://lrclib.net/api/get?track_name=${encodeURIComponent(track)}&artist_name=${encodeURIComponent(finalArtist)}`;
+          const getRes = await fetch(getUrl, {
+            headers: { 'User-Agent': 'pleng.online watchparty (contact@pleng.online)' },
+          });
+          if (getRes.ok) {
+            lrclibData = await getRes.json();
+          }
+        } catch {}
+      }
+
+      if (!lrclibData) {
+        const q = `${track} ${finalArtist}`.trim();
+        const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(q)}`;
+        const searchRes = await fetch(searchUrl, {
+          headers: { 'User-Agent': 'pleng.online watchparty (contact@pleng.online)' },
+        });
+        if (searchRes.ok) {
+          const list = await searchRes.json();
+          if (Array.isArray(list) && list.length > 0) {
+            lrclibData = list.find((item: any) => item.syncedLyrics) || list[0];
+          }
+        }
+      }
+
+      if (lrclibData && (lrclibData.syncedLyrics || lrclibData.plainLyrics)) {
+        const lines = lrclibData.syncedLyrics ? parseLrc(lrclibData.syncedLyrics) : [];
+        const payload = {
+          found: true,
+          title: lrclibData.name || track,
+          artist: lrclibData.artistName || finalArtist,
+          hasSynced: Boolean(lrclibData.syncedLyrics && lines.length > 0),
+          syncedLyrics: lrclibData.syncedLyrics || null,
+          plainLyrics: lrclibData.plainLyrics || null,
+          lines,
+        };
+        lyricsCache.set(cacheKey, { timestamp: Date.now(), data: payload });
+        return res.json(payload);
+      }
+
+      const notFoundPayload = { found: false, title: track, artist: finalArtist, lines: [] };
+      lyricsCache.set(cacheKey, { timestamp: Date.now(), data: notFoundPayload });
+      return res.json(notFoundPayload);
+    } catch (err: any) {
+      console.error('Lyrics fetch error:', err);
+      return res.status(500).json({ found: false, error: 'Internal server error', lines: [] });
+    }
+  });
+
   // Create room endpoint
   app.post('/api/rooms/create', (req, res) => {
     const { name, description, isPrivate, password, category, coverImage, onlyAdminManagePlaylist, initialVideoId, initialVideoTitle, initialVideoChannel, stageAccessMode, user } = req.body;
@@ -1075,6 +1201,9 @@ async function startServer() {
             break;
           case 'EMOJI_REACTION':
             roomManager.handleEmojiReaction(ws, msg.emoji);
+            break;
+          case 'SEND_GIFT':
+            roomManager.handleSendGift(ws, msg.giftId, msg.giftName, msg.giftIcon);
             break;
           case 'PLAY_SOUND':
             roomManager.handlePlaySound(ws, msg.soundId, msg.soundName);
