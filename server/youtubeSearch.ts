@@ -207,7 +207,7 @@ export async function searchYouTube(query: string, limit: number = 20): Promise<
  */
 export async function fetchYouTubePlaylist(
   listId: string,
-  limit: number = 60
+  limit: number = 100
 ): Promise<{ title?: string; items: YouTubeSearchResult[] }> {
   const cleanId = listId.trim();
   if (!cleanId) return { items: [] };
@@ -243,7 +243,12 @@ export async function fetchYouTubePlaylist(
     const data = JSON.parse(match[1]);
     const items: YouTubeSearchResult[] = [];
     const seenIds = new Set<string>();
-    let playlistTitle = '';
+    let playlistTitle =
+      data.metadata?.playlistMetadataRenderer?.title ||
+      data.microformat?.microformatDataRenderer?.title ||
+      data.header?.playlistHeaderRenderer?.title?.simpleText ||
+      data.header?.playlistHeaderRenderer?.title?.runs?.[0]?.text ||
+      '';
 
     function extractPlaylistRecursively(obj: any) {
       if (!obj || typeof obj !== 'object') return;
@@ -252,7 +257,7 @@ export async function fetchYouTubePlaylist(
         playlistTitle = obj.title;
       }
 
-      // Check playlistVideoRenderer or videoRenderer
+      // 1. Classic format: playlistVideoRenderer or videoRenderer
       const vr = obj.playlistVideoRenderer || obj.videoRenderer;
       if (vr) {
         const videoId = vr.videoId;
@@ -271,7 +276,7 @@ export async function fetchYouTubePlaylist(
 
           const duration =
             vr.lengthText?.simpleText ||
-            (vr.lengthSeconds ? `${Math.floor(vr.lengthSeconds / 60)}:${String(vr.lengthSeconds % 60).padStart(2, '0')}` : '');
+            (vr.lengthSeconds ? `${Math.floor(vr.lengthSeconds / 60)}:${String(vr.lengthSeconds % 60).padStart(2, '0')}` : '0:00');
 
           const thumbnails = vr.thumbnail?.thumbnails || [];
           const thumbnail =
@@ -291,6 +296,57 @@ export async function fetchYouTubePlaylist(
               title,
               channel,
               duration: typeof duration === 'string' ? duration : String(duration),
+              thumbnail,
+            });
+          }
+        }
+      }
+
+      // 2. Modern YouTube polymer format: lockupViewModel
+      if (obj.lockupViewModel && obj.lockupViewModel.contentId && !seenIds.has(obj.lockupViewModel.contentId)) {
+        const lvm = obj.lockupViewModel;
+        const videoId = lvm.contentId;
+        if (typeof videoId === 'string' && videoId.length === 11) {
+          seenIds.add(videoId);
+
+          const title =
+            lvm.metadata?.lockupMetadataViewModel?.title?.content ||
+            lvm.rendererContext?.accessibilityContext?.label ||
+            'YouTube Video';
+
+          const rows = lvm.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows || [];
+          let channel = 'YouTube';
+          if (rows[0]?.metadataParts?.[0]?.text?.content) {
+            channel = rows[0].metadataParts[0].text.content;
+          }
+
+          let duration = '0:00';
+          const overlays = lvm.contentImage?.thumbnailViewModel?.overlays || [];
+          for (const ov of overlays) {
+            const badge = ov.thumbnailBottomOverlayViewModel?.badges?.[0]?.thumbnailBadgeViewModel;
+            if (badge?.text) {
+              duration = badge.text;
+              break;
+            }
+          }
+
+          const sources = lvm.contentImage?.thumbnailViewModel?.image?.sources || [];
+          const thumbnail =
+            sources.length > 0
+              ? sources[sources.length - 1].url
+              : `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+          if (
+            title &&
+            !title.includes('Private video') &&
+            !title.includes('Deleted video') &&
+            !title.includes('วิดีโอส่วนตัว')
+          ) {
+            items.push({
+              videoId,
+              title,
+              channel,
+              duration,
               thumbnail,
             });
           }

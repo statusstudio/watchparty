@@ -123,9 +123,12 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
     const trimmed = listIdOrUrl.trim();
     if (!trimmed) return;
 
+    const listMatch = trimmed.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+    const cleanId = listMatch ? listMatch[1] : trimmed;
+
     setIsImportingPlaylist(true);
     try {
-      const res = await fetch(`/api/youtube/playlist?listId=${encodeURIComponent(trimmed)}`);
+      const res = await fetch(`/api/youtube/playlist?listId=${encodeURIComponent(cleanId)}`);
       const data = await res.json();
       if (data.items && Array.isArray(data.items) && data.items.length > 0) {
         const itemsToAdd: Omit<PlaylistItem, 'id'>[] = data.items.map((vid: any) => ({

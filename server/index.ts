@@ -102,7 +102,7 @@ async function startServer() {
     }
     const cleanId = extractYouTubePlaylistId(listIdOrUrl) || listIdOrUrl;
     try {
-      const data = await fetchYouTubePlaylist(cleanId, 60);
+      const data = await fetchYouTubePlaylist(cleanId, 100);
       res.json(data);
     } catch (err: any) {
       console.error('Playlist fetch error:', err);
