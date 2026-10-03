@@ -19,6 +19,9 @@ import {
   ExternalLink,
   Minimize2,
   Gamepad2,
+  Megaphone,
+  Edit3,
+  Trash2,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { UserProfile, UserRole } from '../types/index.js';
@@ -27,6 +30,8 @@ interface NavbarProps {
   currentView: 'home' | 'room';
   roomId: string;
   roomName?: string;
+  roomAnnouncement?: string;
+  onSetAnnouncement?: (announcement: string) => void;
   isPrivate?: boolean;
   onlineCount: number;
   currentUser: UserProfile;
@@ -57,6 +62,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentView,
   roomId,
   roomName,
+  roomAnnouncement,
+  onSetAnnouncement,
   isPrivate,
   onlineCount,
   currentUser,
@@ -84,6 +91,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+  const [isEditingAnnouncement, setIsEditingAnnouncement] = useState(false);
+  const [announcementDraft, setAnnouncementDraft] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
   const isAdminOrOwner = myRole === 'owner' || myRole === 'admin';
   const isMember = Boolean(
@@ -180,7 +190,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <>
             <div className="h-4 w-[1px] bg-[#e6e6e6] shrink-0 hidden xs:block" />
 
-            <div className="flex items-center gap-1.5 bg-[#f6f5f4] border border-[#e6e6e6] px-2 py-1 rounded-md min-w-0">
+            <div className="flex items-center gap-1.5 bg-[#f6f5f4] border border-[#e6e6e6] px-2 py-1 rounded-md min-w-0 shrink-0">
               {isPrivate ? (
                 <Lock className="w-3 h-3 text-[#dd5b00] shrink-0" />
               ) : (
@@ -190,6 +200,41 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {roomName || roomId}
               </span>
             </div>
+
+            {/* Room Announcement pill/button right next to room name */}
+            {roomAnnouncement ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setAnnouncementDraft(roomAnnouncement);
+                  setIsEditingAnnouncement(false);
+                  setIsAnnouncementModalOpen(true);
+                }}
+                title={`📢 ประกาศประจำห้อง: ${roomAnnouncement} (คลิกเพื่ออ่านทั้งหมด)`}
+                className="flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 border border-amber-500/30 text-amber-900 px-2 py-1 rounded-md transition-all cursor-pointer min-w-0 max-w-[90px] xs:max-w-[140px] sm:max-w-[220px] md:max-w-[320px] shadow-xs group shrink"
+              >
+                <Megaphone className="w-3.5 h-3.5 text-amber-600 shrink-0 group-hover:scale-110 transition-transform" />
+                <span className="text-[11px] sm:text-xs font-medium truncate text-amber-950">
+                  {roomAnnouncement}
+                </span>
+              </button>
+            ) : (
+              isAdminOrOwner && onSetAnnouncement && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAnnouncementDraft('');
+                    setIsEditingAnnouncement(true);
+                    setIsAnnouncementModalOpen(true);
+                  }}
+                  title="ตั้งประกาศประจำห้อง"
+                  className="hidden xs:flex items-center gap-1 text-[11px] font-medium text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 border border-amber-300/70 px-2 py-1 rounded-md transition-colors cursor-pointer shadow-xs shrink-0"
+                >
+                  <Megaphone className="w-3 h-3 text-amber-600" />
+                  <span className="hidden sm:inline">ตั้งประกาศ</span>
+                </button>
+              )
+            )}
 
             {/* Favorite / Follow Room Star Button */}
             {onToggleFavoriteRoom && (
@@ -476,6 +521,42 @@ export const Navbar: React.FC<NavbarProps> = ({
                       {copied && <span className="text-[10px] text-[#1aae39] font-medium">คัดลอกแล้ว</span>}
                     </button>
 
+                    {/* Room Announcement in Mobile Dropdown */}
+                    {roomAnnouncement ? (
+                      <button
+                        onClick={() => {
+                          setAnnouncementDraft(roomAnnouncement);
+                          setIsEditingAnnouncement(false);
+                          setIsAnnouncementModalOpen(true);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full px-3 py-2 rounded-lg hover:bg-amber-50 text-left text-xs text-amber-950 flex items-center justify-between transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Megaphone className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span className="font-medium">ประกาศประจำห้อง</span>
+                        </div>
+                        <span className="text-[10px] text-amber-800 bg-amber-100 border border-amber-300/60 px-1.5 py-0.5 rounded-md font-medium truncate max-w-[90px]">
+                          {roomAnnouncement}
+                        </span>
+                      </button>
+                    ) : (
+                      isAdminOrOwner && onSetAnnouncement && (
+                        <button
+                          onClick={() => {
+                            setAnnouncementDraft('');
+                            setIsEditingAnnouncement(true);
+                            setIsAnnouncementModalOpen(true);
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className="w-full px-3 py-2 rounded-lg hover:bg-amber-50 text-left text-xs text-amber-900 flex items-center gap-2.5 transition-colors cursor-pointer"
+                        >
+                          <Megaphone className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span className="font-medium">ตั้งประกาศประจำห้อง</span>
+                        </button>
+                      )
+                    )}
+
                     {/* Refresh Room Sync */}
                     {onRefreshRoom && (
                       <button
@@ -660,6 +741,167 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
       </div>
+
+      {/* Room Announcement Modal */}
+      {isAnnouncementModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in text-[#31302e]">
+          <div className="bg-white border border-[#e6e6e6] rounded-2xl w-full max-w-md p-4 sm:p-5 shadow-2xl animate-scale-up">
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#f0efed]">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="p-2 rounded-xl bg-amber-500/15 text-amber-600 border border-amber-500/20 shrink-0">
+                  <Megaphone className="w-4 h-4" />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-[#000000] truncate">
+                    {isEditingAnnouncement
+                      ? (roomAnnouncement ? 'แก้ไขประกาศประจำห้อง' : 'ตั้งประกาศประจำห้อง')
+                      : 'ประกาศประจำห้อง'}
+                  </h3>
+                  <p className="text-[11px] text-[#615d59] truncate">
+                    {roomName || roomId}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAnnouncementModalOpen(false);
+                  setIsEditingAnnouncement(false);
+                }}
+                className="text-[#a39e98] hover:text-[#000000] p-1.5 rounded-lg hover:bg-[#f6f5f4] cursor-pointer shrink-0 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {isEditingAnnouncement ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (onSetAnnouncement) {
+                    onSetAnnouncement(announcementDraft.trim());
+                    setIsAnnouncementModalOpen(false);
+                    setIsEditingAnnouncement(false);
+                  }
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-xs font-semibold text-[#31302e] mb-1">
+                    ข้อความประกาศ
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={announcementDraft}
+                    onChange={(e) => setAnnouncementDraft(e.target.value.slice(0, 500))}
+                    placeholder="พิมพ์ข้อความประกาศประจำห้อง... (จะแสดงข้างชื่อห้องด้านบน)"
+                    className="w-full px-3 py-2 bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none focus:border-[#0075de] shadow-xs resize-none select-text"
+                    maxLength={500}
+                    autoFocus
+                  />
+                  <div className="flex items-center justify-between text-[10px] text-[#a39e98] mt-1">
+                    <span>* แสดงข้างชื่อห้องด้านบนสุด</span>
+                    <span>{announcementDraft.length}/500 ตัวอักษร</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-[#f0efed]">
+                  {roomAnnouncement ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('คุณต้องการลบประกาศประจำห้องนี้ใช่หรือไม่?')) {
+                          if (onSetAnnouncement) {
+                            onSetAnnouncement('');
+                            setIsAnnouncementModalOpen(false);
+                            setIsEditingAnnouncement(false);
+                          }
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>ลบประกาศ</span>
+                    </button>
+                  ) : (
+                    <div />
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (roomAnnouncement) {
+                          setIsEditingAnnouncement(false);
+                        } else {
+                          setIsAnnouncementModalOpen(false);
+                        }
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl border border-[#e6e6e6] bg-white hover:bg-[#f6f5f4] text-xs font-medium text-[#31302e] transition-colors cursor-pointer"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!announcementDraft.trim()}
+                      className="px-4 py-1.5 rounded-xl bg-[#0075de] hover:bg-[#005bab] disabled:opacity-40 text-white text-xs font-semibold transition-colors shadow-xs cursor-pointer"
+                    >
+                      บันทึกประกาศ
+                    </button>
+                  </div>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-xl text-xs text-[#000000] font-medium leading-relaxed whitespace-pre-wrap select-text max-h-[55vh] overflow-y-auto">
+                  {roomAnnouncement}
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-[#f0efed]">
+                  {isAdminOrOwner && onSetAnnouncement ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAnnouncementDraft(roomAnnouncement || '');
+                          setIsEditingAnnouncement(true);
+                        }}
+                        className="px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>แก้ไขประกาศ</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm('คุณต้องการลบประกาศประจำห้องนี้ใช่หรือไม่?')) {
+                            onSetAnnouncement('');
+                            setIsAnnouncementModalOpen(false);
+                          }
+                        }}
+                        className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>ลบ</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div />
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setIsAnnouncementModalOpen(false)}
+                    className="px-4 py-1.5 rounded-xl bg-[#0075de] hover:bg-[#005bab] text-white text-xs font-semibold transition-colors shadow-xs cursor-pointer"
+                  >
+                    ปิด
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 };

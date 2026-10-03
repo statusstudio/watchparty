@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, MessageSquare, Clock, Image as ImageIcon, X, Loader2, Trash2, Smile, Megaphone, Edit3 } from 'lucide-react';
+import { Send, MessageSquare, Clock, Image as ImageIcon, X, Loader2, Trash2, Smile } from 'lucide-react';
 import { ChatMessage, UserProfile } from '../types/index.js';
 import { compressChatImage } from '../services/imageCompressor.js';
 import { ANIMATED_EMOJIS, GRAFFITI_STICKERS, ALL_CHAT_STICKERS, parseStickerMessage, AnimatedSticker, getStickerThumbUrl } from '../data/chatStickers.js';
@@ -17,9 +17,6 @@ interface LiveChatProps {
   onOpenProfile: () => void;
   onSelectUser?: (user: UserProfile) => void;
   onShowToast: (msg: string, type?: 'info' | 'success' | 'warning') => void;
-  roomAnnouncement?: string;
-  isOwnerOrAdmin?: boolean;
-  onSetAnnouncement?: (announcement: string) => void;
 }
 
 export const LiveChat: React.FC<LiveChatProps> = ({
@@ -35,18 +32,9 @@ export const LiveChat: React.FC<LiveChatProps> = ({
   onOpenProfile,
   onSelectUser,
   onShowToast,
-  roomAnnouncement,
-  isOwnerOrAdmin,
-  onSetAnnouncement,
 }) => {
   const [inputText, setInputText] = useState('');
-  const [isEditAnnouncementOpen, setIsEditAnnouncementOpen] = useState(false);
-  const [announcementDraft, setAnnouncementDraft] = useState(roomAnnouncement || '');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-
-  useEffect(() => {
-    setAnnouncementDraft(roomAnnouncement || '');
-  }, [roomAnnouncement]);
   const [isCompressingImage, setIsCompressingImage] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [confirmModalImage, setConfirmModalImage] = useState<string | null>(null);
@@ -215,8 +203,8 @@ export const LiveChat: React.FC<LiveChatProps> = ({
 
   return (
     <div className="bg-white flex flex-col h-full min-h-0 overflow-hidden">
-      {/* Tab Header - visible on desktop, or when clear chat/announcements available on mobile */}
-      <div className={`${(canClearChat && onClearChat && messages.length > 1) || isOwnerOrAdmin || roomAnnouncement ? 'flex' : 'hidden lg:flex'} px-3 sm:px-4 py-2 sm:py-2.5 border-b border-[#e6e6e6] bg-[#f6f5f4] items-center justify-between shrink-0`}>
+      {/* Tab Header - visible on desktop, or when clear chat available on mobile */}
+      <div className={`${canClearChat && onClearChat && messages.length > 1 ? 'flex' : 'hidden lg:flex'} px-3 sm:px-4 py-2 sm:py-2.5 border-b border-[#e6e6e6] bg-[#f6f5f4] items-center justify-between shrink-0`}>
         <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-[#0075de]" />
           <h3 className="text-xs font-semibold text-[#000000] tracking-wide">
@@ -224,21 +212,6 @@ export const LiveChat: React.FC<LiveChatProps> = ({
           </h3>
         </div>
         <div className="flex items-center gap-2">
-          {isOwnerOrAdmin && onSetAnnouncement && !roomAnnouncement && (
-            <button
-              type="button"
-              onClick={() => {
-                setAnnouncementDraft('');
-                setIsEditAnnouncementOpen(true);
-              }}
-              title="ตั้งประกาศประจำห้อง"
-              className="text-[11px] font-medium text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300/70 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
-            >
-              <Megaphone className="w-3 h-3 text-amber-600" />
-              <span>ตั้งประกาศ</span>
-            </button>
-          )}
-
           {canClearChat && onClearChat && messages.length > 1 && (
             <button
               type="button"
@@ -258,52 +231,6 @@ export const LiveChat: React.FC<LiveChatProps> = ({
         </div>
       </div>
 
-      {/* Pinned Room Announcement Banner */}
-      {roomAnnouncement && (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 px-3 py-2 flex items-start justify-between gap-2 shrink-0 animate-fade-in text-[#31302e]">
-          <div className="flex items-start gap-2 min-w-0">
-            <span className="p-1 rounded-md bg-amber-500/15 text-amber-600 shrink-0 mt-0.5">
-              <Megaphone className="w-3.5 h-3.5" />
-            </span>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-700 uppercase tracking-wider">
-                <span>ประกาศประจำห้อง</span>
-              </div>
-              <p className="text-xs text-[#000000] font-medium break-words leading-relaxed select-text mt-0.5 whitespace-pre-wrap">
-                {roomAnnouncement}
-              </p>
-            </div>
-          </div>
-          {isOwnerOrAdmin && onSetAnnouncement && (
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setAnnouncementDraft(roomAnnouncement || '');
-                  setIsEditAnnouncementOpen(true);
-                }}
-                className="text-[11px] text-amber-800 hover:text-black hover:bg-amber-200/60 p-1 rounded-md transition-colors cursor-pointer"
-                title="แก้ไขประกาศ"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm('คุณต้องการลบประกาศประจำห้องนี้ใช่หรือไม่?')) {
-                    onSetAnnouncement('');
-                  }
-                }}
-                className="text-[11px] text-rose-600 hover:text-rose-700 hover:bg-rose-100 p-1 rounded-md transition-colors cursor-pointer"
-                title="ลบประกาศ"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Messages Scroll Area */}
       <div
         ref={chatContainerRef}
@@ -319,23 +246,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
           const isAnnouncement = msg.sender.id === 'room-announcement';
 
           if (isAnnouncement) {
-            return (
-              <div
-                key={msg.id}
-                className="p-3 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-400/5 to-amber-500/10 border border-amber-500/30 text-xs shadow-xs select-text animate-fade-in my-1"
-              >
-                <div className="flex items-center gap-2 mb-1 text-amber-700 font-bold text-xs">
-                  <Megaphone className="w-4 h-4 text-amber-500 shrink-0" />
-                  <span>ประกาศประจำห้อง</span>
-                  <span className="text-[10px] text-amber-600/70 font-normal ml-auto">
-                    {formatMessageTime(msg.timestamp)}
-                  </span>
-                </div>
-                <div className="text-zinc-900 font-medium leading-relaxed pl-6 whitespace-pre-wrap">
-                  {msg.text}
-                </div>
-              </div>
-            );
+            return null;
           }
 
           if (isSystem) {
@@ -851,103 +762,6 @@ export const LiveChat: React.FC<LiveChatProps> = ({
         </div>
       )}
 
-      {/* Room Announcement Edit Modal */}
-      {isEditAnnouncementOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white border border-[#e6e6e6] rounded-2xl w-full max-w-md p-4 sm:p-5 shadow-2xl animate-scale-up text-[#31302e]">
-            <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#f0efed]">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-xl bg-amber-500/10 text-amber-600">
-                  <Megaphone className="w-4 h-4" />
-                </span>
-                <div>
-                  <h3 className="text-sm font-bold text-[#000000]">
-                    {roomAnnouncement ? 'แก้ไขประกาศประจำห้อง' : 'ตั้งประกาศประจำห้อง'}
-                  </h3>
-                  <p className="text-[11px] text-[#615d59]">
-                    แสดงในช่องแชทและปักหมุดด้านบนให้ทุกคนในห้องเห็น
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsEditAnnouncementOpen(false)}
-                className="text-[#a39e98] hover:text-[#000000] p-1 rounded-lg hover:bg-[#f6f5f4]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (onSetAnnouncement) {
-                  onSetAnnouncement(announcementDraft.trim());
-                  setIsEditAnnouncementOpen(false);
-                }
-              }}
-              className="space-y-3"
-            >
-              <div>
-                <label className="block text-xs font-semibold text-[#31302e] mb-1">
-                  ข้อความประกาศ
-                </label>
-                <textarea
-                  rows={4}
-                  value={announcementDraft}
-                  onChange={(e) => setAnnouncementDraft(e.target.value)}
-                  placeholder="เช่น ยินดีต้อนรับทุกคน! วันนี้เวลา 21:00 น. มีแข่งตอบคำถามชิงรางวัลนะ 🎵"
-                  className="w-full px-3 py-2 bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none focus:border-[#0075de] shadow-xs resize-none select-text"
-                  maxLength={500}
-                  autoFocus
-                />
-                <div className="text-right text-[10px] text-[#a39e98] mt-0.5">
-                  {announcementDraft.length}/500 ตัวอักษร
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-[#f0efed]">
-                {roomAnnouncement ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm('คุณต้องการลบประกาศประจำห้องนี้ใช่หรือไม่?')) {
-                        if (onSetAnnouncement) {
-                          onSetAnnouncement('');
-                          setIsEditAnnouncementOpen(false);
-                        }
-                      }
-                    }}
-                    className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>ลบประกาศ</span>
-                  </button>
-                ) : (
-                  <div />
-                )}
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditAnnouncementOpen(false)}
-                    className="px-3.5 py-1.5 rounded-xl border border-[#e6e6e6] bg-white hover:bg-[#f6f5f4] text-xs font-medium text-[#31302e] transition-colors cursor-pointer"
-                  >
-                    ยกเลิก
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!announcementDraft.trim()}
-                    className="px-4 py-1.5 rounded-xl bg-[#0075de] hover:bg-[#005bab] disabled:opacity-40 text-white text-xs font-semibold transition-colors shadow-xs cursor-pointer"
-                  >
-                    บันทึกประกาศ
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

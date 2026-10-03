@@ -1976,6 +1976,8 @@ export function App() {
         currentView={currentView}
         roomId={roomId}
         roomName={roomMetadata.name}
+        roomAnnouncement={roomMetadata.announcement}
+        onSetAnnouncement={handleSetRoomAnnouncement}
         isPrivate={roomMetadata.isPrivate}
         onlineCount={onlineCount}
         currentUser={currentUser}
@@ -2699,9 +2701,6 @@ export function App() {
                 onSelectUser={handleOpenUserCard}
                 onDeleteMessage={handleDeleteMessage}
                 onShowToast={showToast}
-                roomAnnouncement={roomMetadata.announcement}
-                isOwnerOrAdmin={myRole === 'owner' || myRole === 'admin' || isSuperAdmin}
-                onSetAnnouncement={handleSetRoomAnnouncement}
               />
             </div>
 

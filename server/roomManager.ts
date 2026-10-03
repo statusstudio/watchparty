@@ -108,20 +108,6 @@ export class RoomManager {
       },
     ];
 
-    if (metadata?.announcement?.trim()) {
-      list.push({
-        id: 'msg-announcement-' + Date.now(),
-        sender: {
-          id: 'room-announcement',
-          name: '📢 ประกาศประจำห้อง',
-          avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=announcement',
-          color: '#f59e0b',
-        },
-        text: metadata.announcement.trim(),
-        timestamp: Date.now() + 1,
-      });
-    }
-
     return list;
   }
 
@@ -1079,7 +1065,10 @@ export class RoomManager {
     const hadAnnouncement = Boolean(room.metadata.announcement?.trim());
     room.metadata.announcement = clean || undefined;
 
-    // Broadcast updated metadata to all participants so pinned announcement bar updates instantly
+    // Filter out any previous announcement messages in chat
+    room.chat = room.chat.filter((m) => m.sender.id !== 'room-announcement');
+
+    // Broadcast updated metadata to all participants so top navbar updates instantly
     this.broadcastToRoom(client.roomId, {
       type: 'ROOM_METADATA_UPDATED',
       metadata: {
@@ -1089,55 +1078,12 @@ export class RoomManager {
     });
 
     if (clean) {
-      // Remove any previous announcement message in chat to avoid duplicates
-      room.chat = room.chat.filter((m) => m.sender.id !== 'room-announcement');
-
-      // Post announcement message into chat
-      const announceMsg: ChatMessage = {
-        id: 'announcement-' + Date.now(),
-        sender: {
-          id: 'room-announcement',
-          name: '📢 ประกาศประจำห้อง',
-          avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=announcement',
-          color: '#f59e0b',
-        },
-        text: clean,
-        timestamp: Date.now(),
-      };
-      room.chat.push(announceMsg);
-      if (room.chat.length > 200) room.chat.shift();
-      this.broadcastToRoom(client.roomId, {
-        type: 'NEW_CHAT',
-        message: announceMsg,
-      });
-
       this.broadcastToRoom(client.roomId, {
         type: 'SYNC_TOAST',
         message: '📢 อัปเดตประกาศประจำห้องเรียบร้อย',
         toastType: 'success',
       });
     } else if (hadAnnouncement) {
-      // Remove announcement messages from chat
-      room.chat = room.chat.filter((m) => m.sender.id !== 'room-announcement');
-
-      const removeNoticeMsg: ChatMessage = {
-        id: 'announcement-del-' + Date.now(),
-        sender: {
-          id: 'room-announcement',
-          name: '📢 ประกาศประจำห้อง',
-          avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=announcement',
-          color: '#ef4444',
-        },
-        text: `${client.user.name} ได้ลบประกาศประจำห้องแล้ว`,
-        timestamp: Date.now(),
-      };
-      room.chat.push(removeNoticeMsg);
-      if (room.chat.length > 200) room.chat.shift();
-      this.broadcastToRoom(client.roomId, {
-        type: 'NEW_CHAT',
-        message: removeNoticeMsg,
-      });
-
       this.broadcastToRoom(client.roomId, {
         type: 'SYNC_TOAST',
         message: 'ลบประกาศประจำห้องเรียบร้อย',
