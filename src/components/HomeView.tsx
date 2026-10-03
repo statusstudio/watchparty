@@ -21,6 +21,7 @@ import {
   Star,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
+import { TypewriterHero } from './TypewriterHero.js';
 import { RoomSummary, UserProfile } from '../types/index.js';
 
 interface HomeViewProps {
@@ -107,9 +108,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <PlengLogo size="hero" animated={true} />
           </div>
 
-          {/* Primary SEO Heading */}
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#000000] tracking-tight max-w-2xl mx-auto leading-snug">
-            ฟังเพลงออนไลน์ไม่มีโฆษณา ดู YouTube กับเพื่อน
+          {/* Typewriter Hero Heading (w2g.tv inspired) */}
+          <TypewriterHero />
+
+          {/* Primary SEO Subheading */}
+          <h1 className="text-xs sm:text-sm font-medium text-[#615d59] max-w-xl mx-auto -mt-1 leading-relaxed">
+            สเปซฟังเพลงออนไลน์ไม่มีโฆษณาคั่น จัดคิว Playlist YouTube และดูคลิปพร้อมเพื่อนแบบเรียลไทม์
           </h1>
 
           {/* Feature Badges Pills - Notion badge-pill specs */}
@@ -126,19 +130,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
           </div>
 
-          <p className="text-xs sm:text-sm text-[#615d59] max-w-xl mx-auto leading-relaxed">
-            สเปซฟังเพลงออนไลน์ไม่มีโฆษณาคั่น จัดคิว Playlist YouTube และดูคลิปพร้อมเพื่อนแบบเรียลไทม์ พร้อมห้องคุยไมค์สดอิสระ สร้างห้องแล้วส่งลิงก์ชวนเพื่อนเข้ามาร่วมแจมได้ทันที ไม่ต้องลงแอป
-          </p>
-
-          {/* Action buttons - Notion Primary Blue Pill */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+          {/* Action buttons - Notion Primary Blue Pill & No account note */}
+          <div className="flex flex-col items-center justify-center gap-2 pt-2">
             <button
               onClick={onOpenCreateRoom}
-              className="px-6 py-2.5 rounded-full font-semibold text-xs sm:text-sm bg-[#0075de] hover:bg-[#005bab] text-white shadow-[0_2px_8px_rgba(0,117,222,0.25)] hover:scale-[1.01] transition-all flex items-center gap-2 cursor-pointer"
+              className="px-7 py-2.5 rounded-full font-semibold text-xs sm:text-sm bg-[#0075de] hover:bg-[#005bab] text-white shadow-[0_2px_8px_rgba(0,117,222,0.25)] hover:scale-[1.01] transition-all flex items-center gap-2 cursor-pointer"
             >
               <Music className="w-4 h-4" />
               <span>สร้างห้องฟังเพลงใหม่</span>
             </button>
+            <span className="text-[11px] text-[#85807a] font-normal">
+              (ไม่ต้องสมัครสมาชิก แชร์ลิงก์เข้าใช้งานได้ทันที)
+            </span>
           </div>
 
           {/* Quick Join via Room Code */}
