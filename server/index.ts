@@ -1238,7 +1238,16 @@ async function startServer() {
             roomManager.handleVideoSeek(ws, msg.currentTime, msg.duration);
             break;
           case 'VIDEO_CHANGE':
-            roomManager.handleVideoChange(ws, msg.videoId, msg.title, msg.channel, msg.duration);
+            roomManager.handleVideoChange(
+              ws,
+              msg.videoId,
+              msg.title,
+              msg.channel,
+              msg.duration,
+              msg.isLive,
+              msg.streamUrl,
+              msg.thumbnail
+            );
             break;
           case 'PLAYLIST_ADD':
             roomManager.handlePlaylistAdd(ws, msg.item, msg.roomId);

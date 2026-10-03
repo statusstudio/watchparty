@@ -1690,7 +1690,16 @@ export class RoomManager {
     });
   }
 
-  public handleVideoChange(ws: WebSocket, videoId: string, title?: string, channel?: string, duration?: number) {
+  public handleVideoChange(
+    ws: WebSocket,
+    videoId: string,
+    title?: string,
+    channel?: string,
+    duration?: number,
+    isLive?: boolean,
+    streamUrl?: string,
+    thumbnail?: string
+  ) {
     const client = this.clients.get(ws);
     if (!client) return;
 
@@ -1703,7 +1712,7 @@ export class RoomManager {
       if (!isOwner && !isAdmin) {
         this.sendToClient(ws, {
           type: 'SYNC_TOAST',
-          message: 'ห้องนี้จำกัดสิทธิ์เฉพาะ Owner & Admin เท่านั้นในการเปลี่ยนเพลง',
+          message: 'ห้องนี้จำกัดสิทธิ์เฉพาะ Owner & Admin เท่านั้นในการเปลี่ยนเพลง/ช่อง',
           toastType: 'warning',
         });
         return;
@@ -1712,12 +1721,15 @@ export class RoomManager {
 
     room.video = {
       videoId,
-      title: title || 'YouTube Video',
-      channel: channel || 'YouTube',
+      title: title || (isLive ? 'ช่องสด (Live Stream)' : 'YouTube Video'),
+      channel: channel || (isLive ? 'Live TV' : 'YouTube'),
       duration: duration || 0,
       currentTime: 0,
       isPlaying: true,
       lastUpdated: Date.now(),
+      isLive: !!isLive,
+      streamUrl: streamUrl || undefined,
+      thumbnail: thumbnail || undefined,
     };
 
     platformManager.recordTrackPlay({

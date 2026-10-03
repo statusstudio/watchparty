@@ -21,6 +21,7 @@ import {
   Star,
   Download,
   Smartphone,
+  Tv,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { TypewriterHero } from './TypewriterHero.js';
@@ -32,6 +33,7 @@ interface HomeViewProps {
   onSelectRoom: (roomId: string) => void;
   onOpenCreateRoom: () => void;
   onOpenInstallModal?: () => void;
+  onOpenLiveTV?: () => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -40,6 +42,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onSelectRoom,
   onOpenCreateRoom,
   onOpenInstallModal,
+  onOpenLiveTV,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [quickRoomCode, setQuickRoomCode] = useState('');
@@ -198,6 +201,41 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <span className="px-3 py-1.5 rounded-xl bg-emerald-600 group-hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs flex items-center gap-1 transition-all">
                     <Download className="w-3.5 h-3.5" />
                     <span>ดาวน์โหลด</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Live TV Watch Party Banner Card */}
+          {onOpenLiveTV && (
+            <div
+              onClick={onOpenLiveTV}
+              className="mt-3 p-3 sm:p-3.5 bg-gradient-to-r from-rose-50 via-red-50 to-amber-50 rounded-2xl border border-rose-200/80 shadow-xs hover:shadow-md transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-600 to-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                    <Tv className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-gray-900 group-hover:text-rose-900">
+                        ทีวีดิจิทัล & ถ่ายทอดสดออนไลน์ (Live TV Watch Party)
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-rose-600 text-white shadow-xs animate-pulse">
+                        623 ช่อง
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-600 truncate mt-0.5">
+                      ฟรีทีวีไทย (3HD, 7HD, MONO29, PPTV) &bull; กีฬา &bull; ช่องทั่วโลก ดูสดพร้อมกันกับเพื่อนในห้อง
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="px-3 py-1.5 rounded-xl bg-rose-600 group-hover:bg-rose-700 text-white text-xs font-semibold shadow-xs flex items-center gap-1 transition-all">
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>เลือกดูช่องสด</span>
                   </span>
                 </div>
               </div>

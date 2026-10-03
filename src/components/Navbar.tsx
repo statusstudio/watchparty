@@ -25,6 +25,7 @@ import {
   Share2,
   Download,
   Smartphone,
+  Tv,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { UserProfile, UserRole } from '../types/index.js';
@@ -49,6 +50,7 @@ interface NavbarProps {
   onToggleOledSleep: () => void;
   onOpenShareCard?: () => void;
   onInstallApp?: () => void;
+  onOpenLiveTV?: () => void;
   onMinimizeRoom?: () => void;
   onLeaveRoom?: () => void;
   onNavigateHome: () => void;
@@ -83,6 +85,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleOledSleep,
   onOpenShareCard,
   onInstallApp,
+  onOpenLiveTV,
   onMinimizeRoom,
   onLeaveRoom,
   onNavigateHome,
@@ -331,6 +334,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
                 <span>โหลดแอป APK</span>
+              </button>
+            )}
+
+            {/* Live TV Button */}
+            {onOpenLiveTV && (
+              <button
+                type="button"
+                onClick={onOpenLiveTV}
+                className="hidden md:flex px-2.5 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300/80 text-xs font-semibold transition-all cursor-pointer items-center gap-1.5 shrink-0 shadow-xs"
+                title="ดูทีวีดิจิทัล & ช่องสดออนไลน์พร้อมกัน (Live TV 623 ช่อง)"
+              >
+                <Tv className="w-3.5 h-3.5 text-rose-600" />
+                <span>ดูทีวีสด 📺</span>
               </button>
             )}
 
@@ -680,6 +696,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                       >
                         <Smartphone className="w-4 h-4 text-emerald-600" />
                         <span>ดาวน์โหลดแอป Android (.APK) / ติดตั้ง</span>
+                      </button>
+                    )}
+
+                    {/* Live TV in Mobile */}
+                    {onOpenLiveTV && (
+                      <button
+                        onClick={() => {
+                          onOpenLiveTV();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full px-3 py-2.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-left text-xs text-rose-800 font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <Tv className="w-4 h-4 text-rose-600" />
+                        <span>ดูทีวีดิจิทัล & ช่องสดออนไลน์ (623 ช่อง) 📺</span>
                       </button>
                     )}
 

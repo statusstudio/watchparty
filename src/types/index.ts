@@ -73,6 +73,9 @@ export interface VideoState {
   currentTime: number;
   isPlaying: boolean;
   lastUpdated: number;
+  isLive?: boolean;
+  streamUrl?: string;
+  thumbnail?: string;
 }
 
 export interface PlaylistItem {
@@ -83,6 +86,8 @@ export interface PlaylistItem {
   thumbnail: string;
   duration: string;
   addedBy: string;
+  isLive?: boolean;
+  streamUrl?: string;
 }
 
 export type LoopMode = 'off' | 'all' | 'single';
@@ -256,7 +261,7 @@ export type WSClientMessage =
   | { type: 'VIDEO_PLAY'; currentTime: number; duration?: number }
   | { type: 'VIDEO_PAUSE'; currentTime: number; duration?: number }
   | { type: 'VIDEO_SEEK'; currentTime: number; duration?: number }
-  | { type: 'VIDEO_CHANGE'; videoId: string; title?: string; channel?: string; duration?: number }
+  | { type: 'VIDEO_CHANGE'; videoId: string; title?: string; channel?: string; duration?: number; isLive?: boolean; streamUrl?: string; thumbnail?: string }
   | { type: 'VIDEO_ENDED' }
   | { type: 'PLAYLIST_ADD'; item: Omit<PlaylistItem, 'id'>; roomId?: string }
   | { type: 'PLAYLIST_ADD_BATCH'; items: Omit<PlaylistItem, 'id'>[]; roomId?: string }

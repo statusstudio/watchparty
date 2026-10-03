@@ -48,6 +48,8 @@ import { SuperAdminUnlockModal } from './components/SuperAdminUnlockModal.js';
 import { AdPopupModal } from './components/AdPopupModal.js';
 import { SupportModal } from './components/SupportModal.js';
 import { InstallAppModal } from './components/InstallAppModal.js';
+import { LiveTVModal } from './components/LiveTVModal.js';
+import { LiveChannel } from './data/iptvChannels.js';
 
 // Code-split heavy views to reduce initial bundle size & speed up page load drastically
 const LineStickerStudio = React.lazy(() => import('./components/LineStickerStudio.js'));
@@ -364,7 +366,8 @@ export function App() {
   const [activeGifts, setActiveGifts] = useState<GiftEvent[]>([]);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  // QoL: Sleep Timer & PWA & Share Card & APK Install
+  // QoL: Sleep Timer & PWA & Share Card & APK Install & Live TV
+  const [isLiveTVModalOpen, setIsLiveTVModalOpen] = useState(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isShareCardModalOpen, setIsShareCardModalOpen] = useState(false);
   const [isSleepTimerModalOpen, setIsSleepTimerModalOpen] = useState(false);
@@ -1758,6 +1761,43 @@ export function App() {
     });
   };
 
+  const handlePlayLiveChannel = useCallback((liveChannel: LiveChannel) => {
+    if (currentView === 'home') {
+      window.scrollTo(0, 0);
+      setCurrentView('room');
+      const targetRoom = roomId || 'squad-chill';
+      window.location.hash = `#${targetRoom}`;
+      handleSelectRoom(targetRoom);
+    }
+    socketService.send({
+      type: 'VIDEO_CHANGE',
+      videoId: liveChannel.id,
+      title: liveChannel.name,
+      channel: liveChannel.countryName,
+      duration: 0,
+      isLive: true,
+      streamUrl: liveChannel.streamUrl,
+      thumbnail: liveChannel.logo,
+    });
+  }, [currentView, roomId]);
+
+  const handleAddLiveChannelToQueue = useCallback((liveChannel: LiveChannel) => {
+    socketService.send({
+      type: 'PLAYLIST_ADD',
+      item: {
+        videoId: liveChannel.id,
+        title: liveChannel.name,
+        channel: liveChannel.countryName,
+        thumbnail: liveChannel.logo || 'https://images.unsplash.com/photo-1593784991095-a205069470b6?w=600&auto=format&fit=crop&q=80',
+        duration: 'ถ่ายทอดสด',
+        addedBy: currentUser.name,
+        isLive: true,
+        streamUrl: liveChannel.streamUrl,
+      },
+      roomId: roomId,
+    });
+  }, [currentUser.name, roomId]);
+
   // Handle Video End (Server-authoritative auto advance playlist)
   const handleVideoEnd = () => {
     if (sleepTimerStopAtEnd) {
@@ -2097,6 +2137,7 @@ export function App() {
         onToggleOledSleep={() => setIsOledSleepMode(true)}
         onOpenShareCard={() => setIsShareCardModalOpen(true)}
         onInstallApp={() => setIsInstallModalOpen(true)}
+        onOpenLiveTV={() => setIsLiveTVModalOpen(true)}
         onMinimizeRoom={handleMinimizeRoom}
         onLeaveRoom={handleLeaveRoom}
         onNavigateHome={handleNavigateHome}
@@ -2272,6 +2313,7 @@ export function App() {
           onSelectRoom={handleSelectRoom}
           onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
           onOpenInstallModal={() => setIsInstallModalOpen(true)}
+          onOpenLiveTV={() => setIsLiveTVModalOpen(true)}
         />
       )}
 
@@ -2319,6 +2361,7 @@ export function App() {
                 onVideoEnd={handleVideoEnd}
                 onNextTrack={handleNextTrack}
                 onPrevTrack={handlePrevTrack}
+                onOpenLiveTV={() => setIsLiveTVModalOpen(true)}
                 onShowToast={showToast}
               />
             </div>
@@ -3160,6 +3203,16 @@ export function App() {
         room={roomMetadata}
         currentVideo={video}
         onlineCount={onlineCount}
+        onShowToast={showToast}
+      />
+
+      {/* Live TV Channels Modal (623 Channels with Country & Category Filters) */}
+      <LiveTVModal
+        isOpen={isLiveTVModalOpen}
+        onClose={() => setIsLiveTVModalOpen(false)}
+        currentVideo={video}
+        onPlayChannel={handlePlayLiveChannel}
+        onAddToQueue={handleAddLiveChannelToQueue}
         onShowToast={showToast}
       />
 

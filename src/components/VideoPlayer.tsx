@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Play, Pause, Volume1, Volume2, VolumeX, Maximize, Radio, VolumeOff, Headphones, Music, Heart } from 'lucide-react';
+import Hls from 'hls.js';
+import { Play, Pause, Volume1, Volume2, VolumeX, Maximize, Radio, VolumeOff, Headphones, Music, Heart, Tv } from 'lucide-react';
 import { VideoState } from '../types/index.js';
 import { FloatingReactions, FloatingItem, LiveReactionsDock } from './FloatingReactions.js';
 
@@ -24,6 +25,7 @@ interface VideoPlayerProps {
   onNextTrack?: () => void;
   onPrevTrack?: () => void;
   onShowToast: (msg: string, type?: 'info' | 'success' | 'warning') => void;
+  onOpenLiveTV?: () => void;
 }
 
 declare global {
@@ -54,9 +56,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onNextTrack,
   onPrevTrack,
   onShowToast,
+  onOpenLiveTV,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
+  const hlsVideoRef = useRef<HTMLVideoElement | null>(null);
+  const hlsInstanceRef = useRef<Hls | null>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isMuted, setIsMuted] = useState(true); // Start muted to guarantee browser autoplay
   const [showUnmutePrompt, setShowUnmutePrompt] = useState(true);
@@ -124,6 +129,90 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
     };
   }, []);
+
+  // HLS.js Live Stream Lifecycle & Sync
+  const isHlsStream = Boolean(video.streamUrl);
+
+  useEffect(() => {
+    if (!isHlsStream || !video.streamUrl) {
+      if (hlsInstanceRef.current) {
+        hlsInstanceRef.current.destroy();
+        hlsInstanceRef.current = null;
+      }
+      return;
+    }
+
+    const videoEl = hlsVideoRef.current;
+    if (!videoEl) return;
+
+    if (hlsInstanceRef.current) {
+      hlsInstanceRef.current.destroy();
+      hlsInstanceRef.current = null;
+    }
+
+    if (Hls.isSupported()) {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        backBufferLength: 30,
+      });
+      hls.loadSource(video.streamUrl);
+      hls.attachMedia(videoEl);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (videoRef.current.isPlaying) {
+          videoEl.play().catch(() => {});
+        }
+      });
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              hls.recoverMediaError();
+              break;
+            default:
+              hls.destroy();
+              break;
+          }
+        }
+      });
+      hlsInstanceRef.current = hls;
+    } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+      videoEl.src = video.streamUrl;
+      videoEl.addEventListener('loadedmetadata', () => {
+        if (videoRef.current.isPlaying) {
+          videoEl.play().catch(() => {});
+        }
+      });
+    }
+
+    return () => {
+      if (hlsInstanceRef.current) {
+        hlsInstanceRef.current.destroy();
+        hlsInstanceRef.current = null;
+      }
+    };
+  }, [video.streamUrl, isHlsStream]);
+
+  // Sync Live Stream play/pause
+  useEffect(() => {
+    if (!isHlsStream || !hlsVideoRef.current) return;
+    if (video.isPlaying) {
+      hlsVideoRef.current.play().catch(() => {});
+    } else {
+      hlsVideoRef.current.pause();
+    }
+  }, [video.isPlaying, isHlsStream]);
+
+  // Sync Live Stream volume & Audio Ducking
+  useEffect(() => {
+    if (!hlsVideoRef.current) return;
+    hlsVideoRef.current.muted = isMuted;
+    const duckRatio = isAudioDuckingEnabled && isSomeoneSpeaking ? 0.35 : 1;
+    hlsVideoRef.current.volume = Math.max(0, Math.min(1, (musicVolume / 100) * duckRatio));
+  }, [musicVolume, isMuted, isSomeoneSpeaking, isAudioDuckingEnabled]);
 
   const calculateTargetTime = (targetVideo: VideoState): number => {
     let targetTime = targetVideo.currentTime || 0;
@@ -712,8 +801,26 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       ref={containerRef}
       className="relative w-full h-full bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-800/80 group flex items-center justify-center mx-auto"
     >
-      {/* YouTube IFrame container or Standby UI */}
-      {video.videoId ? (
+      {/* Video Content: HLS Live Stream OR YouTube IFrame OR Standby UI */}
+      {isHlsStream ? (
+        <video
+          ref={hlsVideoRef}
+          playsInline
+          autoPlay
+          muted={isMuted}
+          className="w-full h-full object-contain pointer-events-auto bg-black"
+          onPlay={() => {
+            if (!videoRef.current.isPlaying) {
+              onPlay(0, 0);
+            }
+          }}
+          onPause={() => {
+            if (videoRef.current.isPlaying) {
+              onPause(0, 0);
+            }
+          }}
+        />
+      ) : video.videoId ? (
         <div id="youtube-iframe" className="w-full h-full pointer-events-auto" />
       ) : (
         <div className="flex flex-col items-center justify-center text-[#615d59] gap-3 p-6 text-center select-none animate-fade-in max-w-md">
@@ -723,9 +830,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <div className="space-y-1.5">
             <h3 className="text-sm sm:text-base font-bold text-white">ห้องอยู่ในโหมด Standby 🎵</h3>
             <p className="text-xs text-white/80 leading-relaxed">
-              ยังไม่มีเพลงกำลังเล่นในห้องนี้ — ค้นหาเพลงหรือวางลิงก์ YouTube ที่แถบคิวเพลงเพื่อเริ่มฟังพร้อมกันได้เลย!
+              ยังไม่มีเพลงหรือช่องทีวีกำลังเล่นในห้องนี้ — ค้นหาเพลงหรือกดปุ่ม "ดูทีวีสด 📺" เพื่อเริ่มรับชมพร้อมกันได้เลย!
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Live Stream Indicator Badge (Top Left) */}
+      {isHlsStream && (
+        <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-600/90 text-white text-xs font-bold shadow-lg backdrop-blur-md animate-fade-in pointer-events-none">
+          <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+          <span>ถ่ายทอดสด 🔴 {video.title}</span>
         </div>
       )}
 
@@ -889,6 +1004,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </span>
           </div>
         </div>
+
+        {onOpenLiveTV && (
+          <button
+            onClick={onOpenLiveTV}
+            title="ทีวีดิจิทัล & ช่องสด (Live TV) 📺"
+            className="p-1.5 rounded-full text-[#615d59] hover:text-rose-600 hover:bg-black/5 transition-colors cursor-pointer"
+          >
+            <Tv className="w-3.5 h-3.5" />
+          </button>
+        )}
 
         <button
           onClick={handleFullscreen}
