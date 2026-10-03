@@ -8,6 +8,7 @@ import { platformManager } from './platformManager.js';
 import { emailService } from './emailService.js';
 import { searchYouTube, extractYouTubePlaylistId, fetchYouTubePlaylist } from './youtubeSearch.js';
 import { fetchYouTubeSubtitles } from './youtubeCaptions.js';
+import compression from 'compression';
 import { WSClientMessage } from '../src/types/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -32,6 +33,7 @@ async function startServer() {
   await platformManager.init();
 
   const app = express();
+  app.use(compression());
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: '/ws' });
   const roomManager = new RoomManager();
@@ -1310,11 +1312,15 @@ async function startServer() {
   } else {
     app.use(
       express.static(path.join(rootDir, 'dist'), {
+        maxAge: '1y',
         setHeaders: (res, filePath) => {
           if (filePath.endsWith('.html')) {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
             res.setHeader('Pragma', 'no-cache');
             res.setHeader('Expires', '0');
+          } else {
+            // Hashed static assets (.js, .css, .woff2, images) can be cached permanently
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
           }
         },
       })

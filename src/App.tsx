@@ -28,7 +28,6 @@ import { WebRTCVoiceEngine } from './services/webrtc.js';
 import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Mic2, Plus, Radio, RefreshCw, Moon, X, Ghost, LogOut, Play, Pause, RotateCcw, RotateCw, Gamepad2, Clock, Share2, Download, Gift } from 'lucide-react';
 import { Navbar } from './components/Navbar.js';
 import { VideoPlayer } from './components/VideoPlayer.js';
-import { DrawAndGuessStage } from './components/DrawAndGuessStage.js';
 import { KaraokeLyricsModal } from './components/KaraokeLyricsModal.js';
 import { SleepTimerModal } from './components/SleepTimerModal.js';
 import { ShareCardModal } from './components/ShareCardModal.js';
@@ -46,12 +45,15 @@ import { CreateRoomModal, CreateRoomForm } from './components/CreateRoomModal.js
 import { PasswordGateModal } from './components/PasswordGateModal.js';
 import { AdminPanelModal } from './components/AdminPanelModal.js';
 import { SuperAdminUnlockModal } from './components/SuperAdminUnlockModal.js';
-import { SuperAdminDashboardModal } from './components/SuperAdminDashboardModal.js';
-import { AdminPortalView } from './components/AdminPortalView.js';
-import { PublicProfileView } from './components/PublicProfileView.js';
 import { AdPopupModal } from './components/AdPopupModal.js';
-import LineStickerStudio from './components/LineStickerStudio.js';
 import { SupportModal } from './components/SupportModal.js';
+
+// Code-split heavy views to reduce initial bundle size & speed up page load drastically
+const LineStickerStudio = React.lazy(() => import('./components/LineStickerStudio.js'));
+const AdminPortalView = React.lazy(() => import('./components/AdminPortalView.js').then((m) => ({ default: m.AdminPortalView })));
+const PublicProfileView = React.lazy(() => import('./components/PublicProfileView.js').then((m) => ({ default: m.PublicProfileView })));
+const SuperAdminDashboardModal = React.lazy(() => import('./components/SuperAdminDashboardModal.js').then((m) => ({ default: m.SuperAdminDashboardModal })));
+const DrawAndGuessStage = React.lazy(() => import('./components/DrawAndGuessStage.js').then((m) => ({ default: m.DrawAndGuessStage })));
 import { FloatingItem, GiftEvent } from './components/FloatingReactions.js';
 import { ToastContainer, ToastItem } from './components/Toast.js';
 import {
@@ -1968,16 +1970,16 @@ export function App() {
 
   if (isLineStudioRoute) {
     return (
-      <>
+      <React.Suspense fallback={<div className="min-h-screen bg-[#11161d] flex items-center justify-center text-zinc-400 text-sm">กำลังโหลด Line Sticker Studio...</div>}>
         <LineStickerStudio />
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      </>
+      </React.Suspense>
     );
   }
 
   if (isAdminRoute) {
     return (
-      <>
+      <React.Suspense fallback={<div className="min-h-screen bg-[#11161d] flex items-center justify-center text-zinc-400 text-sm">กำลังโหลด Admin Portal...</div>}>
         <AdminPortalView
           currentUser={currentUser}
           onUpdateCurrentUser={(updated) => setCurrentUser(updated)}
@@ -1997,13 +1999,13 @@ export function App() {
           }}
         />
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      </>
+      </React.Suspense>
     );
   }
 
   if (profileHandleRoute) {
     return (
-      <>
+      <React.Suspense fallback={<div className="min-h-screen bg-[#11161d] flex items-center justify-center text-zinc-400 text-sm">กำลังโหลดโปรไฟล์...</div>}>
         <PublicProfileView
           handle={profileHandleRoute}
           currentUser={currentUser}
@@ -2055,7 +2057,7 @@ export function App() {
           onLogout={handleLogout}
         />
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      </>
+      </React.Suspense>
     );
   }
 
@@ -2321,16 +2323,18 @@ export function App() {
             {/* Draw & Guess 2D Party Game Stage (When game is active, takes the stage in place of the video) */}
             {gameState?.isActive && (
               <div className="w-full h-[52vh] sm:h-[58vh] md:h-[62vh] lg:h-full min-h-[360px] flex-1 flex flex-col shrink-0 lg:shrink">
-                <DrawAndGuessStage
-                  gameState={gameState}
-                  currentUser={currentUser}
-                  myRole={myRole}
-                  onSendStroke={handleSendGameStroke}
-                  onClearCanvas={handleClearGameCanvas}
-                  onSelectWord={handleSelectGameWord}
-                  onGuess={handleGameGuess}
-                  onStopGame={handleStopGame}
-                />
+                <React.Suspense fallback={<div className="flex-1 flex items-center justify-center text-zinc-400 text-sm">กำลังโหลดเกมวาดรูป...</div>}>
+                  <DrawAndGuessStage
+                    gameState={gameState}
+                    currentUser={currentUser}
+                    myRole={myRole}
+                    onSendStroke={handleSendGameStroke}
+                    onClearCanvas={handleClearGameCanvas}
+                    onSelectWord={handleSelectGameWord}
+                    onGuess={handleGameGuess}
+                    onStopGame={handleStopGame}
+                  />
+                </React.Suspense>
               </div>
             )}
 
@@ -3085,12 +3089,16 @@ export function App() {
         }}
       />
 
-      <SuperAdminDashboardModal
-        isOpen={isSuperAdminModalOpen}
-        onClose={() => setIsSuperAdminModalOpen(false)}
-        currentUser={currentUser}
-        onShowToast={showToast}
-      />
+      {isSuperAdminModalOpen && (
+        <React.Suspense fallback={null}>
+          <SuperAdminDashboardModal
+            isOpen={isSuperAdminModalOpen}
+            onClose={() => setIsSuperAdminModalOpen(false)}
+            currentUser={currentUser}
+            onShowToast={showToast}
+          />
+        </React.Suspense>
+      )}
 
       <KaraokeLyricsModal
         isOpen={isKaraokeModalOpen}
