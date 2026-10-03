@@ -3,7 +3,7 @@ import { Send, MessageSquare, Clock, Image as ImageIcon, X, Loader2, Trash2, Smi
 import { ChatMessage, UserProfile } from '../types/index.js';
 import { compressChatImage } from '../services/imageCompressor.js';
 import { ANIMATED_EMOJIS, GRAFFITI_STICKERS, ALL_CHAT_STICKERS, parseStickerMessage, AnimatedSticker, getStickerThumbUrl } from '../data/chatStickers.js';
-import { VIRTUAL_GIFTS } from './FloatingReactions.js';
+import { VIRTUAL_GIFTS, GiftEvent, GiftBannerItem } from './FloatingReactions.js';
 
 interface LiveChatProps {
   messages: ChatMessage[];
@@ -15,6 +15,8 @@ interface LiveChatProps {
   onDeleteMessage?: (messageId: string) => void;
   onSendReaction?: (emoji: string) => void;
   onSendGift?: (gift: { id: string; name: string; icon: string }) => void;
+  activeGifts?: GiftEvent[];
+  onRemoveGift?: (id: string) => void;
   onSeekTo: (seconds: number) => void;
   onOpenProfile: () => void;
   onSelectUser?: (user: UserProfile) => void;
@@ -31,6 +33,8 @@ export const LiveChat: React.FC<LiveChatProps> = ({
   onDeleteMessage,
   onSendReaction,
   onSendGift,
+  activeGifts,
+  onRemoveGift,
   onSeekTo,
   onOpenProfile,
   onSelectUser,
@@ -234,6 +238,19 @@ export const LiveChat: React.FC<LiveChatProps> = ({
           <span className="hidden sm:inline text-[11px] text-[#615d59]">Live Chat</span>
         </div>
       </div>
+
+      {/* Active Gift Celebration Banner (Shown inside chat, off the video screen!) */}
+      {activeGifts && activeGifts.length > 0 && (
+        <div className="px-3 py-2 bg-gradient-to-r from-amber-500/10 via-yellow-400/15 to-amber-500/10 border-b border-amber-300/40 flex flex-col gap-1.5 shrink-0 animate-fade-in shadow-xs">
+          {activeGifts.map((gift) => (
+            <GiftBannerItem
+              key={gift.id}
+              gift={gift}
+              onFinish={() => onRemoveGift && onRemoveGift(gift.id)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Messages Scroll Area */}
       <div

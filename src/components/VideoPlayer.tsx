@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Play, Pause, Volume1, Volume2, VolumeX, Maximize, Radio, VolumeOff, Headphones, Music, Heart } from 'lucide-react';
 import { VideoState } from '../types/index.js';
-import { FloatingReactions, FloatingItem, GiftEvent, LiveReactionsDock } from './FloatingReactions.js';
+import { FloatingReactions, FloatingItem, LiveReactionsDock } from './FloatingReactions.js';
 
 interface VideoPlayerProps {
   video: VideoState;
   reactions: FloatingItem[];
   onRemoveReaction: (id: string) => void;
-  activeGifts?: GiftEvent[];
+  activeGifts?: any[];
   onRemoveGift?: (id: string) => void;
   onSendReaction?: (emoji: string) => void;
   onSendGift?: (gift: { id: string; name: string; icon: string }) => void;
@@ -138,6 +138,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return Math.max(0, targetTime);
   };
 
+  const disablePlayerCaptions = (player: any) => {
+    if (!player) return;
+    try {
+      if (typeof player.unloadModule === 'function') {
+        player.unloadModule('captions');
+        player.unloadModule('cc');
+      }
+      if (typeof player.setOption === 'function') {
+        player.setOption('captions', 'track', {});
+        player.setOption('cc', 'track', {});
+      }
+    } catch (e) {
+      // Ignore module errors
+    }
+  };
+
   const initPlayer = () => {
     if (playerRef.current) return;
 
@@ -170,10 +186,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         modestbranding: 1,
         playsinline: 1,
         enablejsapi: 1,
+        cc_load_policy: 0, // Force disable automatic subtitles/CC
+        cc_lang_pref: 'none',
+        iv_load_policy: 3,
       },
       events: {
         onReady: (event: any) => {
           setIsPlayerReady(true);
+          disablePlayerCaptions(event.target);
           const freshVideo = videoRef.current;
           applyRoomVideoState(freshVideo, true);
         },
@@ -216,6 +236,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     // 1: PLAYING
     if (state === 1) {
+      disablePlayerCaptions(playerRef.current);
       // ONLY trigger onPlay if room is NOT currently playing
       // (prevents players loading a new song from echoing back a false play command)
       if (!videoRef.current.isPlaying) {
@@ -262,6 +283,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             videoId: targetVideo.videoId,
             startSeconds: targetTime,
           });
+          setTimeout(() => {
+            disablePlayerCaptions(player);
+          }, 350);
           if (!targetVideo.isPlaying) {
             setTimeout(() => {
               try {
@@ -767,16 +791,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Floating Live Reactions & Gifts Celebration Layer */}
+      {/* Floating Live Reactions Layer (Emoji reactions only, gifts moved to chat) */}
       <FloatingReactions
         reactions={reactions}
         onRemove={onRemoveReaction}
-        activeGifts={activeGifts}
-        onRemoveGift={onRemoveGift}
       />
 
-      {/* Floating Live Reactions & Gifts Dock */}
-      {onSendReaction && onSendGift && (
+      {/* Floating Live Reactions Dock (Emoji only, no gifts on video screen) */}
+      {onSendReaction && (
         <div
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
@@ -784,7 +806,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           onTouchStart={(e) => e.stopPropagation()}
           className="absolute bottom-3 right-3 z-40 pointer-events-auto"
         >
-          <LiveReactionsDock onSendReaction={onSendReaction} onSendGift={onSendGift} />
+          <LiveReactionsDock onSendReaction={onSendReaction} />
         </div>
       )}
 

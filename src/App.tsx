@@ -1290,11 +1290,11 @@ export function App() {
             giftId: msg.giftId,
             giftName: msg.giftName,
             giftIcon: msg.giftIcon,
-            senderName: msg.sender.name,
-            senderAvatar: msg.sender.avatar,
-            senderColor: msg.sender.color,
+            senderName: msg.sender?.name || 'เพื่อนในห้อง',
+            senderAvatar: msg.sender?.avatar,
+            senderColor: msg.sender?.color,
           };
-          setActiveGifts((prev) => [...prev, giftItem]);
+          setActiveGifts((prev) => [...prev.slice(-1), giftItem]);
           break;
         }
 
@@ -1915,28 +1915,27 @@ export function App() {
     setReactions((prev) => prev.filter((r) => r.id !== id));
   };
 
-  const handleSendGift = (gift: { id: string; name: string; icon: string }) => {
-    const giftItem: GiftEvent = {
-      id: 'gift-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
-      giftId: gift.id,
-      giftName: gift.name,
-      giftIcon: gift.icon,
-      senderName: currentUser.name,
-      senderAvatar: currentUser.avatar,
-      senderColor: currentUser.color,
-    };
-    setActiveGifts((prev) => [...prev, giftItem]);
+  const lastGiftSentTimeRef = useRef<number>(0);
+
+  const handleSendGift = useCallback((gift: { id: string; name: string; icon: string }) => {
+    const now = Date.now();
+    if (now - lastGiftSentTimeRef.current < 1500) {
+      showToast('กรุณารอสักครู่ก่อนส่งของขวัญชิ้นถัดไป ✨', 'warning');
+      return;
+    }
+    lastGiftSentTimeRef.current = now;
+
     socketService.send({
       type: 'SEND_GIFT',
       giftId: gift.id,
       giftName: gift.name,
       giftIcon: gift.icon,
     });
-  };
+  }, [showToast]);
 
-  const handleRemoveGift = (id: string) => {
+  const handleRemoveGift = useCallback((id: string) => {
     setActiveGifts((prev) => prev.filter((g) => g.id !== id));
-  };
+  }, []);
 
   // Draw and Guess Game Action Handlers
   const handleStartGame = useCallback((maxRounds: number = 3) => {
@@ -2289,10 +2288,7 @@ export function App() {
                 video={video}
                 reactions={isReactionsEnabled ? reactions : []}
                 onRemoveReaction={handleRemoveReaction}
-                activeGifts={activeGifts}
-                onRemoveGift={handleRemoveGift}
                 onSendReaction={handleSendReaction}
-                onSendGift={handleSendGift}
                 isSomeoneSpeaking={isSomeoneSpeaking}
                 isAudioDuckingEnabled={isAudioDuckingEnabled}
                 isFavorite={isVideoFavorite}
@@ -2832,6 +2828,8 @@ export function App() {
                 onSendMessage={handleSendMessage}
                 onSendReaction={handleSendReaction}
                 onSendGift={handleSendGift}
+                activeGifts={activeGifts}
+                onRemoveGift={handleRemoveGift}
                 onSeekTo={handleVideoSeek}
                 onOpenProfile={() => {
                   setSelectedUserForProfile(currentUser);
