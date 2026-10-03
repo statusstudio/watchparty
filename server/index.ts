@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'http';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { RoomManager } from './roomManager.js';
@@ -60,14 +61,31 @@ async function startServer() {
 
   // Android App Direct APK Download
   app.get('/download/apk', (req, res) => {
-    const apkPath = path.join(rootDir, 'public', 'pleng.online.apk');
-    res.download(apkPath, 'pleng.online.apk');
+    const candidates = [
+      path.join(rootDir, 'public', 'pleng.online.apk'),
+      path.join(rootDir, 'dist', 'pleng.online.apk'),
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        return res.download(p, 'pleng.online.apk');
+      }
+    }
+    res.status(404).send('APK file not found');
   });
 
   // Android App Digital Asset Links (TWA Verification)
   app.get('/.well-known/assetlinks.json', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    res.sendFile(path.join(rootDir, 'public', '.well-known', 'assetlinks.json'));
+    const candidates = [
+      path.join(rootDir, 'public', '.well-known', 'assetlinks.json'),
+      path.join(rootDir, 'dist', '.well-known', 'assetlinks.json'),
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        res.setHeader('Content-Type', 'application/json');
+        return res.sendFile(p);
+      }
+    }
+    res.status(404).send('Assetlinks not found');
   });
 
   // SEO routes
