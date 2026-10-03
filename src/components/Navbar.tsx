@@ -24,6 +24,7 @@ import {
   Trash2,
   Share2,
   Download,
+  Smartphone,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { UserProfile, UserRole } from '../types/index.js';
@@ -320,16 +321,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Install App PWA Button */}
+            {/* Install App / Download APK Button */}
             {onInstallApp && (
               <button
                 type="button"
                 onClick={onInstallApp}
-                className="hidden md:flex px-2.5 py-1 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold transition-all cursor-pointer items-center gap-1.5 shrink-0 shadow-xs animate-pulse"
-                title="ติดตั้ง pleng.online เป็นแอปบนอุปกรณ์ของคุณ"
+                className="hidden md:flex px-2.5 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300/80 text-xs font-semibold transition-all cursor-pointer items-center gap-1.5 shrink-0 shadow-xs"
+                title="ดาวน์โหลดแอป pleng.online สำหรับ Android และวิธีติดตั้ง"
               >
-                <Download className="w-3.5 h-3.5 text-indigo-600" />
-                <span>ติดตั้งแอป</span>
+                <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+                <span>โหลดแอป APK</span>
               </button>
             )}
 
@@ -675,10 +676,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onInstallApp();
                           setIsMobileMenuOpen(false);
                         }}
-                        className="w-full px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-left text-xs text-indigo-700 font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
+                        className="w-full px-3 py-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-left text-xs text-emerald-850 font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
                       >
-                        <Download className="w-4 h-4 text-indigo-600" />
-                        <span>ติดตั้งแอป pleng.online บนเครื่อง</span>
+                        <Smartphone className="w-4 h-4 text-emerald-600" />
+                        <span>ดาวน์โหลดแอป Android (.APK) / ติดตั้ง</span>
                       </button>
                     )}
 

@@ -19,6 +19,8 @@ import {
   CheckCircle2,
   Volume2,
   Star,
+  Download,
+  Smartphone,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { TypewriterHero } from './TypewriterHero.js';
@@ -29,6 +31,7 @@ interface HomeViewProps {
   currentUser: UserProfile;
   onSelectRoom: (roomId: string) => void;
   onOpenCreateRoom: () => void;
+  onOpenInstallModal?: () => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -36,6 +39,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   currentUser,
   onSelectRoom,
   onOpenCreateRoom,
+  onOpenInstallModal,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [quickRoomCode, setQuickRoomCode] = useState('');
@@ -164,6 +168,41 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </button>
             </div>
           </form>
+
+          {/* Android APK Download Card & Installation Guide Banner */}
+          {onOpenInstallModal && (
+            <div className="pt-2 max-w-md mx-auto w-full">
+              <div
+                onClick={onOpenInstallModal}
+                className="p-3 sm:p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 hover:from-emerald-100/70 hover:to-teal-100/70 border border-emerald-200/90 hover:border-emerald-300 rounded-2xl shadow-xs flex items-center justify-between gap-3 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                    <Smartphone className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-900">
+                        แอป pleng.online บน Android
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-600 text-white shadow-xs">
+                        .APK
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-600 truncate mt-0.5">
+                      เล่นเต็มจอ ไร้แถบเว็บ ลื่นไหลกว่า (2.9 MB) &bull; แตะดูวิธีติดตั้ง
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="px-3 py-1.5 rounded-xl bg-emerald-600 group-hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs flex items-center gap-1 transition-all">
+                    <Download className="w-3.5 h-3.5" />
+                    <span>ดาวน์โหลด</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

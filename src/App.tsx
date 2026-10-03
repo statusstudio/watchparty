@@ -47,6 +47,7 @@ import { AdminPanelModal } from './components/AdminPanelModal.js';
 import { SuperAdminUnlockModal } from './components/SuperAdminUnlockModal.js';
 import { AdPopupModal } from './components/AdPopupModal.js';
 import { SupportModal } from './components/SupportModal.js';
+import { InstallAppModal } from './components/InstallAppModal.js';
 
 // Code-split heavy views to reduce initial bundle size & speed up page load drastically
 const LineStickerStudio = React.lazy(() => import('./components/LineStickerStudio.js'));
@@ -363,7 +364,8 @@ export function App() {
   const [activeGifts, setActiveGifts] = useState<GiftEvent[]>([]);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  // QoL: Sleep Timer & PWA & Share Card
+  // QoL: Sleep Timer & PWA & Share Card & APK Install
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isShareCardModalOpen, setIsShareCardModalOpen] = useState(false);
   const [isSleepTimerModalOpen, setIsSleepTimerModalOpen] = useState(false);
   const [sleepTimerSecondsLeft, setSleepTimerSecondsLeft] = useState<number | null>(null);
@@ -2094,7 +2096,7 @@ export function App() {
         onRefreshRoom={handleRefresh}
         onToggleOledSleep={() => setIsOledSleepMode(true)}
         onOpenShareCard={() => setIsShareCardModalOpen(true)}
-        onInstallApp={handleInstallPwa}
+        onInstallApp={() => setIsInstallModalOpen(true)}
         onMinimizeRoom={handleMinimizeRoom}
         onLeaveRoom={handleLeaveRoom}
         onNavigateHome={handleNavigateHome}
@@ -2269,6 +2271,7 @@ export function App() {
           currentUser={currentUser}
           onSelectRoom={handleSelectRoom}
           onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
+          onOpenInstallModal={() => setIsInstallModalOpen(true)}
         />
       )}
 
@@ -3157,6 +3160,13 @@ export function App() {
         room={roomMetadata}
         currentVideo={video}
         onlineCount={onlineCount}
+        onShowToast={showToast}
+      />
+
+      {/* Install App Modal (APK Download & Instructions) */}
+      <InstallAppModal
+        isOpen={isInstallModalOpen}
+        onClose={() => setIsInstallModalOpen(false)}
         onShowToast={showToast}
       />
 
