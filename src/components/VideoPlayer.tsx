@@ -649,39 +649,74 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (silentAudioRef.current && silentAudioRef.current.paused) {
       silentAudioRef.current.play().catch(() => {});
     }
-    if (playerRef.current) {
+
+    setIsMuted(false);
+    setShowUnmutePrompt(false);
+
+    // 1. Unmute HLS / Live TV video if active
+    if (hlsVideoRef.current) {
+      try {
+        hlsVideoRef.current.muted = false;
+        const targetVol = musicVolume > 0 ? musicVolume / 100 : 0.7;
+        hlsVideoRef.current.volume = targetVol;
+        if (hlsVideoRef.current.paused && videoRef.current.isPlaying) {
+          hlsVideoRef.current.play().catch(() => {});
+        }
+      } catch (err) {
+        console.warn('HLS unmute error:', err);
+      }
+    }
+
+    // 2. Unmute YouTube player if active
+    if (playerRef.current?.unMute) {
       try {
         playerRef.current.unMute();
         playerRef.current.setVolume(musicVolume);
-        setIsMuted(false);
-        setShowUnmutePrompt(false);
-        onShowToast(`เปิดเสียงวิดีโอแล้ว (${musicVolume}%) 🔊`, 'success');
       } catch (err) {
-        console.warn('Unmute error:', err);
+        console.warn('YouTube unmute error:', err);
       }
     }
+
+    onShowToast(`เปิดเสียงแล้ว (${musicVolume}%) 🔊`, 'success');
   };
 
   const handleMusicVolumeChange = (newVol: number) => {
     setMusicVolume(newVol);
     localStorage.setItem('watchparty_music_volume', newVol.toString());
+
+    // Apply to YouTube Player
     if (playerRef.current?.setVolume && !isMuted) {
       if (!isAudioDuckingEnabled || !isSomeoneSpeaking) {
         playerRef.current.setVolume(newVol);
       }
     }
+
+    // Apply to HLS Video Player
+    if (hlsVideoRef.current) {
+      const duckRatio = isAudioDuckingEnabled && isSomeoneSpeaking ? 0.35 : 1;
+      hlsVideoRef.current.volume = Math.max(0, Math.min(1, (newVol / 100) * duckRatio));
+      if (newVol > 0 && isMuted) {
+        hlsVideoRef.current.muted = false;
+      }
+    }
+
     if (newVol > 0 && isMuted) {
       handleUnmute();
     }
   };
 
   const toggleMute = () => {
-    if (!playerRef.current) return;
     if (isMuted) {
       handleUnmute();
     } else {
-      playerRef.current.mute();
       setIsMuted(true);
+      if (hlsVideoRef.current) {
+        hlsVideoRef.current.muted = true;
+      }
+      if (playerRef.current?.mute) {
+        playerRef.current.mute();
+      }
+      onShowToast('ปิดเสียง (Mute) 🔇', 'info');
     }
   };
 
@@ -751,6 +786,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (duration < 350) {
         if (isMuted) {
           handleUnmute();
+        } else if (isHlsStream && hlsVideoRef.current) {
+          if (hlsVideoRef.current.paused) {
+            hlsVideoRef.current.play().catch(() => {});
+            onPlay(0, 0);
+            setTapRipple('play');
+          } else {
+            hlsVideoRef.current.pause();
+            onPause(0, 0);
+            setTapRipple('pause');
+          }
         } else if (playerRef.current) {
           try {
             const playerState = playerRef.current.getPlayerState?.();
@@ -926,14 +971,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       )}
 
       {/* Prominent floating Unmute button overlay when video autoplays muted */}
-      {showUnmutePrompt && isMuted && (
-        <div className="absolute top-4 left-4 z-30 animate-fade-in">
+      {isMuted && (
+        <div className={`absolute ${isHlsStream ? 'top-14' : 'top-4'} left-4 z-40 animate-fade-in`}>
           <button
             onClick={handleUnmute}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#0075de] hover:bg-[#005bab] text-white font-semibold text-xs shadow-md border border-white/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-lg border border-white/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
           >
             <VolumeOff className="w-4 h-4 animate-bounce text-amber-300" />
-            <span>แตะที่นี่เพื่อเปิดเสียง (Unmute)</span>
+            <span>แตะที่นี่เพื่อเปิดเสียง (Unmute) 🔊</span>
           </button>
         </div>
       )}
