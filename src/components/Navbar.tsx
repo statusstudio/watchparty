@@ -26,6 +26,7 @@ import {
   Download,
   Smartphone,
   Tv,
+  BookOpen,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { UserProfile, UserRole } from '../types/index.js';
@@ -422,6 +423,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </>
         )}
+
+        {/* Novel Platform Link Button */}
+        <button
+          type="button"
+          onClick={() => {
+            window.history.pushState({}, '', '/novel');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold transition-all cursor-pointer shrink-0 shadow-xs"
+          title="เข้าสู่แพลตฟอร์มอ่าน-เขียนนิยายออนไลน์ pleng.online/novel"
+        >
+          <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+          <span>อ่านนิยาย 📖</span>
+        </button>
 
         {/* Support / Feedback Button (Desktop) */}
         {onOpenSupport && (

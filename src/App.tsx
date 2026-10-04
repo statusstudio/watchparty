@@ -57,6 +57,7 @@ const AdminPortalView = React.lazy(() => import('./components/AdminPortalView.js
 const PublicProfileView = React.lazy(() => import('./components/PublicProfileView.js').then((m) => ({ default: m.PublicProfileView })));
 const SuperAdminDashboardModal = React.lazy(() => import('./components/SuperAdminDashboardModal.js').then((m) => ({ default: m.SuperAdminDashboardModal })));
 const DrawAndGuessStage = React.lazy(() => import('./components/DrawAndGuessStage.js').then((m) => ({ default: m.DrawAndGuessStage })));
+const NovelPlatformView = React.lazy(() => import('./novel/NovelPlatformView.js').then((m) => ({ default: m.NovelPlatformView })));
 import { FloatingItem, GiftEvent } from './components/FloatingReactions.js';
 import { ToastContainer, ToastItem } from './components/Toast.js';
 import {
@@ -67,6 +68,13 @@ import {
   removeFavorite,
   checkIsFavorite,
 } from './services/supabase.js';
+
+function isNovelPath(): boolean {
+  return (
+    window.location.pathname.startsWith('/novel') ||
+    window.location.hash.startsWith('#novel')
+  );
+}
 
 function isAdminPath(): boolean {
   return (
@@ -120,12 +128,14 @@ function getHashRoomId(): string | null {
 export function App() {
   const [isAdminRoute, setIsAdminRoute] = useState<boolean>(() => isAdminPath());
   const [isLineStudioRoute, setIsLineStudioRoute] = useState<boolean>(() => isLineStudioPath());
+  const [isNovelRoute, setIsNovelRoute] = useState<boolean>(() => isNovelPath());
   const [profileHandleRoute, setProfileHandleRoute] = useState<string | null>(() => getProfileHandleFromUrl());
 
   useEffect(() => {
     const handleLocationChange = () => {
       setIsAdminRoute(isAdminPath());
       setIsLineStudioRoute(isLineStudioPath());
+      setIsNovelRoute(isNovelPath());
       setProfileHandleRoute(getProfileHandleFromUrl());
     };
     window.addEventListener('popstate', handleLocationChange);
@@ -2009,6 +2019,22 @@ export function App() {
   const handleSetRoomAnnouncement = useCallback((announcement: string) => {
     socketService.send({ type: 'SET_ROOM_ANNOUNCEMENT', announcement });
   }, []);
+
+  if (isNovelRoute) {
+    return (
+      <React.Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-200 text-sm">กำลังโหลด Novel Platform...</div>}>
+        <NovelPlatformView
+          onBackToWatchParty={() => {
+            window.history.pushState({}, '', '/');
+            setIsNovelRoute(false);
+            setCurrentView('home');
+          }}
+          currentUser={{ name: currentUser.name, avatar: currentUser.avatar }}
+        />
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      </React.Suspense>
+    );
+  }
 
   if (isLineStudioRoute) {
     return (
