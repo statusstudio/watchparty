@@ -227,7 +227,7 @@ export class PlatformManager {
     }
   }
 
-  private dumpData(): StoreSchema {
+  public dumpData(): StoreSchema {
     return {
       users: Array.from(this.users.values()),
       userAccounts: Array.from(this.userAccounts.values()),

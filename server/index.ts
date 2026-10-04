@@ -659,6 +659,28 @@ async function startServer() {
     res.json(emailService.getEmailLogs());
   });
 
+  // Export Store for Migration (protected by master passcode)
+  app.get('/api/admin/export-store', (req, res) => {
+    const key = req.query.key || req.headers['x-admin-key'];
+    if (key !== (process.env.ADMIN_MASTER_KEY || 'admin888')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    res.json({
+      store: platformManager.dumpData(),
+      supabase: {
+        url: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || null,
+        key: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY || null,
+      },
+      env: {
+        MAIL_PROVIDER: process.env.MAIL_PROVIDER || null,
+        RESEND_API_KEY: process.env.RESEND_API_KEY || null,
+        SMTP_HOST: process.env.SMTP_HOST || null,
+        SMTP_USER: process.env.SMTP_USER || null,
+        SMTP_PASS: process.env.SMTP_PASS || null,
+      }
+    });
+  });
+
   // Get Supabase Cloud Persistence Status
   app.get('/api/admin/supabase-status', async (req, res) => {
     try {
