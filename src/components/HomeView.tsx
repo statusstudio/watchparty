@@ -19,9 +19,6 @@ import {
   CheckCircle2,
   Volume2,
   Star,
-  Download,
-  Smartphone,
-  Tv,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { TypewriterHero } from './TypewriterHero.js';
@@ -45,7 +42,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenLiveTV,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [quickRoomCode, setQuickRoomCode] = useState('');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [roomTab, setRoomTab] = useState<'all' | 'favorites' | 'mine'>('all');
   const [favoriteRoomIds, setFavoriteRoomIds] = useState<Set<string>>(() => {
@@ -89,22 +85,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
     return true;
   });
 
-  const handleQuickJoin = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = quickRoomCode.trim();
-    if (!trimmed) return;
-
-    // Handle full URL or room code (supports #chill, #room=chill, or raw code)
-    const legacyMatch = trimmed.match(/room=([a-zA-Z0-9_-]+)/);
-    const hashMatch = trimmed.match(/#([a-zA-Z0-9_-]+)/);
-    const targetRoomId = legacyMatch
-      ? legacyMatch[1]
-      : hashMatch
-      ? hashMatch[1]
-      : trimmed.replace(/^[#/]+/, '');
-    onSelectRoom(targetRoomId);
-  };
-
   return (
     <div id="home-view-scroll" className="flex-1 min-h-0 flex flex-col bg-[#f6f5f4] text-[#31302e] overflow-y-auto">
       {/* Hero Section - Notion Warm Paper Tone */}
@@ -123,20 +103,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
             สเปซฟังเพลงออนไลน์ไม่มีโฆษณาคั่น จัดคิว Playlist YouTube และดูคลิปพร้อมเพื่อนแบบเรียลไทม์
           </h1>
 
-          {/* Feature Badges Pills - Notion badge-pill specs */}
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e6e6e6] text-[#0075de] text-xs font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-              <span className="w-2 h-2 rounded-full bg-[#0075de] animate-pulse" />
-              <span>ฟังเพลงออนไลน์</span>
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e6e6e6] text-[#e02424] text-xs font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-              <span>▶️ ดู YouTube</span>
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e6e6e6] text-[#1aae39] text-xs font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-              <span>🎧 ไม่มีโฆษณาคั่น</span>
-            </div>
-          </div>
-
           {/* Action buttons - Notion Primary Blue Pill & No account note */}
           <div className="flex flex-col items-center justify-center gap-2 pt-2">
             <button
@@ -150,97 +116,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
               (ไม่ต้องสมัครสมาชิก แชร์ลิงก์เข้าใช้งานได้ทันที)
             </span>
           </div>
-
-          {/* Quick Join via Room Code */}
-          <form onSubmit={handleQuickJoin} className="pt-2 max-w-md mx-auto w-full">
-            <div className="relative flex items-center shadow-[0_2px_6px_rgba(0,0,0,0.04)]">
-              <input
-                type="text"
-                value={quickRoomCode}
-                onChange={(e) => setQuickRoomCode(e.target.value)}
-                placeholder="มีรหัสห้อง? วางรหัสหรือลิงก์เพื่อเข้าทันที..."
-                className="w-full pl-4 pr-24 py-2.5 bg-white border border-[#e6e6e6] focus:border-[#0075de] rounded-full text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none transition-colors"
-              />
-              <button
-                type="submit"
-                disabled={!quickRoomCode.trim()}
-                className="absolute right-1.5 px-3.5 py-1.5 rounded-full bg-[#0075de] hover:bg-[#005bab] disabled:opacity-30 text-white text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer"
-              >
-                <span>เข้าห้อง</span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
-            </div>
-          </form>
-
-          {/* Android APK Download Card & Installation Guide Banner */}
-          {onOpenInstallModal && (
-            <div className="pt-2 max-w-md mx-auto w-full">
-              <div
-                onClick={onOpenInstallModal}
-                className="p-3 sm:p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 hover:from-emerald-100/70 hover:to-teal-100/70 border border-emerald-200/90 hover:border-emerald-300 rounded-2xl shadow-xs flex items-center justify-between gap-3 text-left transition-all cursor-pointer group"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
-                    <Smartphone className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-900">
-                        แอป pleng.online บน Android
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-600 text-white shadow-xs">
-                        .APK
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-gray-600 truncate mt-0.5">
-                      เล่นเต็มจอ ไร้แถบเว็บ ลื่นไหลกว่า (2.9 MB) &bull; แตะดูวิธีติดตั้ง
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <span className="px-3 py-1.5 rounded-xl bg-emerald-600 group-hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs flex items-center gap-1 transition-all">
-                    <Download className="w-3.5 h-3.5" />
-                    <span>ดาวน์โหลด</span>
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Live TV Watch Party Banner Card */}
-          {onOpenLiveTV && (
-            <div
-              onClick={onOpenLiveTV}
-              className="mt-3 p-3 sm:p-3.5 bg-gradient-to-r from-rose-50 via-red-50 to-amber-50 rounded-2xl border border-rose-200/80 shadow-xs hover:shadow-md transition-all cursor-pointer group"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-600 to-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
-                    <Tv className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-gray-900 group-hover:text-rose-900">
-                        ทีวีดิจิทัล & ถ่ายทอดสดออนไลน์ (Live TV Watch Party)
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-rose-600 text-white shadow-xs animate-pulse">
-                        623 ช่อง
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-gray-600 truncate mt-0.5">
-                      ฟรีทีวีไทย (3HD, 7HD, MONO29, PPTV) &bull; กีฬา &bull; ช่องทั่วโลก ดูสดพร้อมกันกับเพื่อนในห้อง
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <span className="px-3 py-1.5 rounded-xl bg-rose-600 group-hover:bg-rose-700 text-white text-xs font-semibold shadow-xs flex items-center gap-1 transition-all">
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                    <span>เลือกดูช่องสด</span>
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </section>
 
