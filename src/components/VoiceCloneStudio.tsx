@@ -25,6 +25,8 @@ import {
   Wand2,
   ExternalLink,
   VolumeX,
+  Key,
+  X,
 } from 'lucide-react';
 
 interface VoiceOption {
@@ -126,6 +128,26 @@ export default function VoiceCloneStudio() {
   const [audioDuration, setAudioDuration] = useState<number>(0);
   const [audioCurrentTime, setAudioCurrentTime] = useState<number>(0);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
+
+  // Hugging Face Token for personal ZeroGPU quota
+  const [hfToken, setHfToken] = useState<string>(() => {
+    try {
+      return localStorage.getItem('hf_user_token') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [showTokenModal, setShowTokenModal] = useState<boolean>(false);
+
+  // Save HF token to localStorage
+  const handleSaveToken = (val: string) => {
+    setHfToken(val);
+    try {
+      localStorage.setItem('hf_user_token', val.trim());
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // History
   const [history, setHistory] = useState<HistoryItem[]>(() => {
@@ -295,14 +317,24 @@ export default function VoiceCloneStudio() {
 
     try {
       setStatusMessage('กำลังสังเคราะห์เสียงด้วย CosyVoice 3.0 Zero-Shot (ใช้เวลาประมาณ 10-20 วินาที)...');
+      const headers: Record<string, string> = {};
+      if (hfToken.trim()) {
+        headers['X-HF-Token'] = hfToken.trim();
+      }
+
       const response = await fetch('/api/voice/clone', {
         method: 'POST',
+        headers,
         body: formData,
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || errorData.error || 'การสร้างเสียงล้มเหลว');
+        const errMsg = errorData.detail || errorData.error || 'การสร้างเสียงล้มเหลว';
+        if (errMsg.includes('ZeroGPU') || errMsg.includes('quota')) {
+          setShowTokenModal(true);
+        }
+        throw new Error(errMsg);
       }
 
       const data = await response.json();
@@ -321,7 +353,11 @@ export default function VoiceCloneStudio() {
       setHistory((prev) => [newHistoryItem, ...prev.slice(0, 19)]);
       setStatusMessage('');
     } catch (err: any) {
-      alert('เกิดข้อผิดพลาด: ' + err.message);
+      if (err.message.includes('ZeroGPU') || err.message.includes('quota')) {
+        setShowTokenModal(true);
+      } else {
+        alert('เกิดข้อผิดพลาด: ' + err.message);
+      }
       setStatusMessage('');
     } finally {
       setIsGenerating(false);
@@ -431,9 +467,21 @@ export default function VoiceCloneStudio() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowTokenModal(true)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs transition-all shadow-sm ${
+              hfToken
+                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                : 'bg-purple-500/15 hover:bg-purple-500/25 border-purple-500/40 text-purple-200'
+            }`}
+          >
+            <Key className="w-3.5 h-3.5" />
+            <span>{hfToken ? 'HF Token: เชื่อมต่อแล้ว ✓' : 'ใส่ HF Token (โควต้าไม่จำกัด)'}</span>
+          </button>
+
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/60 border border-zinc-700/50 text-xs text-zinc-300">
             <Zap className="w-3.5 h-3.5 text-amber-400" />
-            <span>ต้นทุน 0 บาท (Free Tier)</span>
+            <span>ต้นทุน 0 บาท</span>
           </div>
 
           <a
@@ -990,6 +1038,84 @@ export default function VoiceCloneStudio() {
           </div>
         </div>
       </main>
+
+      {/* Hugging Face Token Modal */}
+      {showTokenModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#121724] border border-zinc-700/80 rounded-2xl max-w-md w-full p-6 shadow-2xl relative flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setShowTokenModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30">
+                <Key className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-zinc-100">ตั้งค่า Hugging Face Token (ฟรี)</h3>
+                <p className="text-xs text-zinc-400">ปลดล็อกโควต้า GPU สำหรับโคลนเสียงไม่จำกัด</p>
+              </div>
+            </div>
+
+            <div className="bg-purple-950/20 border border-purple-800/40 rounded-xl p-3.5 text-xs text-purple-200/90 leading-relaxed flex flex-col gap-2">
+              <div className="flex items-center gap-1.5 font-semibold text-purple-300">
+                <Sparkles className="w-4 h-4 text-purple-400" />
+                <span>ทำไมต้องใส่ Token?</span>
+              </div>
+              <p>
+                โมเดล CosyVoice 3.0 ให้บริการประมวลผลบนการ์ดจอ A100 ฟรีผ่าน Hugging Face ZeroGPU หากไม่ใส่ Token ระบบจะใช้โควต้า IP ส่วนกลางซึ่งอาจติดคิวชั่วคราวได้
+              </p>
+              <p className="text-purple-300 font-medium">
+                เพียงสมัครบัญชีฟรี 10 วินาที แล้วนำ Token มาใส่ คุณจะได้โควต้าส่วนตัวไม่จำกัดทันที 100% ฟรี!
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold text-zinc-300 flex items-center justify-between">
+                <span>Hugging Face Access Token (User Token):</span>
+                <a
+                  href="https://huggingface.co/settings/tokens"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-cyan-400 hover:underline flex items-center gap-1 text-[11px]"
+                >
+                  <span>รับ Token ฟรีที่นี่</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </label>
+
+              <input
+                type="password"
+                value={hfToken}
+                onChange={(e) => handleSaveToken(e.target.value)}
+                placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxxx"
+                className="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-purple-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-3 pt-2">
+              {hfToken ? (
+                <button
+                  onClick={() => handleSaveToken('')}
+                  className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                >
+                  ลบ Token ออก
+                </button>
+              ) : <div />}
+
+              <button
+                onClick={() => setShowTokenModal(false)}
+                className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-md shadow-purple-600/30"
+              >
+                บันทึกและปิด
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

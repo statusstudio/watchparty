@@ -5,7 +5,7 @@ import asyncio
 import subprocess
 from typing import Optional
 from pathlib import Path
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
@@ -33,20 +33,24 @@ app.add_middleware(
 # Mount generated audio files directory
 app.mount("/audio", StaticFiles(directory=str(OUTPUTS_DIR)), name="audio")
 
-# Initialize CosyVoice 3.0 Client lazily or at startup
-cosyvoice_client = None
+# Cache CosyVoice 3.0 Clients by token
+clients_cache = {}
 
-def get_cosyvoice_client():
-    global cosyvoice_client
-    if cosyvoice_client is None:
+def get_cosyvoice_client(hf_token: Optional[str] = None):
+    token = hf_token or os.environ.get("HF_TOKEN") or None
+    cache_key = token or "anonymous"
+    if cache_key not in clients_cache:
         try:
-            print("Connecting to Alibaba CosyVoice 3.0 (FunAudioLLM/Fun-CosyVoice3-0.5B)...")
-            cosyvoice_client = Client("FunAudioLLM/Fun-CosyVoice3-0.5B")
+            print(f"Connecting to Alibaba CosyVoice 3.0 (with auth token: {bool(token)})...")
+            kwargs = {}
+            if token:
+                kwargs["hf_token"] = token
+            clients_cache[cache_key] = Client("FunAudioLLM/Fun-CosyVoice3-0.5B", **kwargs)
             print("CosyVoice 3.0 client initialized successfully.")
         except Exception as e:
             print(f"Failed to connect to CosyVoice 3.0: {e}")
             raise HTTPException(status_code=503, detail=f"CosyVoice engine connection error: {str(e)}")
-    return cosyvoice_client
+    return clients_cache[cache_key]
 
 
 class SynthesizeRequest(BaseModel):
@@ -193,7 +197,8 @@ async def clone_voice(
     audio: UploadFile = File(...),
     text: str = Form(...),
     prompt_text: Optional[str] = Form(""),
-    seed: Optional[int] = Form(0)
+    seed: Optional[int] = Form(0),
+    x_hf_token: Optional[str] = Header(None, alias="X-HF-Token")
 ):
     if not text or not text.strip():
         raise HTTPException(status_code=400, detail="กรุณาระบุข้อความที่ต้องการให้เสียงที่โคลนพูด")
@@ -214,7 +219,7 @@ async def clone_voice(
     audio_for_model = clean_wav_path if converted else raw_path
 
     try:
-        client = get_cosyvoice_client()
+        client = get_cosyvoice_client(x_hf_token)
         print(f"Running CosyVoice 3.0 inference for text: '{text[:50]}...' with reference audio: {audio_for_model}")
         
         loop = asyncio.get_event_loop()
