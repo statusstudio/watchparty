@@ -40,6 +40,30 @@ async function startServer() {
   const roomManager = new RoomManager();
   await roomManager.init();
 
+  // Proxy /api/voice/* to Python Voice Engine (port 8005)
+  app.use('/api/voice', (req, res) => {
+    const targetUrl = new URL(req.url, 'http://127.0.0.1:8005');
+    const proxyReq = http.request(
+      targetUrl,
+      {
+        method: req.method,
+        headers: {
+          ...req.headers,
+          host: '127.0.0.1:8005',
+        },
+      },
+      (proxyRes) => {
+        res.writeHead(proxyRes.statusCode || 500, proxyRes.headers);
+        proxyRes.pipe(res);
+      }
+    );
+    proxyReq.on('error', (err) => {
+      console.error('[Voice Proxy Error]:', err.message);
+      res.status(502).json({ error: 'Voice Engine is offline or starting up', details: err.message });
+    });
+    req.pipe(proxyReq);
+  });
+
   app.use(express.json());
 
   // API endpoints
@@ -151,18 +175,22 @@ async function startServer() {
     let title = rawTitle
       .replace(/\[.*?\]|\(.*?\)|【.*?】/g, ' ')
       .replace(/official\s*(mv|video|audio|music\s*video|lyric\s*video|lyrics?)/gi, ' ')
-      .replace(/(\b(hd|4k|1080p|audio|lyrics?)\b)/gi, ' ')
+      .replace(/(เนื้อเพลง|คอร์ดเพลง|คอร์ด|เนื้อร้อง|มิวสิควิดีโอ|เพลงเต็ม|แสดงสด)/gi, ' ')
+      .replace(/(\b(hd|4k|60fps|1080p|audio|lyrics?|mv)\b)/gi, ' ')
       .replace(/feat\..*|ft\..*/gi, ' ')
       .replace(/\s+/g, ' ')
       .trim();
 
-    if (title.includes(' - ')) {
-      const parts = title.split(' - ');
-      return { artist: parts[0].trim(), track: parts[1].trim() };
-    }
-    if (title.includes(' : ')) {
-      const parts = title.split(' : ');
-      return { artist: parts[0].trim(), track: parts[1].trim() };
+    const separators = [' - ', ' — ', ' – ', ' : ', ' | ', ' / '];
+    for (const sep of separators) {
+      if (title.includes(sep)) {
+        const parts = title.split(sep);
+        const p1 = parts[0].trim();
+        const p2 = parts[1].trim();
+        if (p1 && p2) {
+          return { artist: p1, track: p2 };
+        }
+      }
     }
     return { track: title };
   }
@@ -230,6 +258,22 @@ async function startServer() {
             lrclibData = await getRes.json();
           }
         } catch {}
+
+        // If no synced lyrics, try swapped orientation (Artist vs Song title)
+        if (!lrclibData || !lrclibData.syncedLyrics) {
+          try {
+            const swappedUrl = `https://lrclib.net/api/get?track_name=${encodeURIComponent(finalArtist)}&artist_name=${encodeURIComponent(track)}`;
+            const swappedRes = await fetch(swappedUrl, {
+              headers: { 'User-Agent': 'pleng.online watchparty (contact@pleng.online)' },
+            });
+            if (swappedRes.ok) {
+              const swappedData = await swappedRes.json();
+              if (swappedData && swappedData.syncedLyrics) {
+                lrclibData = swappedData;
+              }
+            }
+          } catch {}
+        }
       }
 
       if (!lrclibData && track) {
@@ -244,6 +288,22 @@ async function startServer() {
             lrclibData = list.find((item: any) => item.syncedLyrics) || list[0];
           }
         }
+      }
+
+      // Try searching track name alone if still not found
+      if (!lrclibData && track) {
+        try {
+          const trackSearchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(track)}`;
+          const trackRes = await fetch(trackSearchUrl, {
+            headers: { 'User-Agent': 'pleng.online watchparty (contact@pleng.online)' },
+          });
+          if (trackRes.ok) {
+            const list = await trackRes.json();
+            if (Array.isArray(list) && list.length > 0) {
+              lrclibData = list.find((item: any) => item.syncedLyrics) || list[0];
+            }
+          }
+        } catch {}
       }
 
       // If LRCLIB returned synced lyrics, prioritize it

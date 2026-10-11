@@ -25,7 +25,7 @@ import {
 import { getStoredUser, saveUser, clearUser } from './services/auth.js';
 import { socketService } from './services/socket.js';
 import { WebRTCVoiceEngine } from './services/webrtc.js';
-import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Mic2, Plus, Radio, RefreshCw, Moon, X, Ghost, LogOut, Play, Pause, RotateCcw, RotateCw, Gamepad2, Clock, Share2, Download, Gift } from 'lucide-react';
+import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Mic2, Plus, Radio, RefreshCw, Moon, X, Ghost, LogOut, Play, Pause, RotateCcw, RotateCw, Gamepad2, Clock, Share2, Download, Gift, Maximize, Headphones, Heart } from 'lucide-react';
 import { Navbar } from './components/Navbar.js';
 import { VideoPlayer } from './components/VideoPlayer.js';
 import { KaraokeLyricsModal } from './components/KaraokeLyricsModal.js';
@@ -53,11 +53,12 @@ import { LiveChannel } from './data/iptvChannels.js';
 
 // Code-split heavy views to reduce initial bundle size & speed up page load drastically
 const LineStickerStudio = React.lazy(() => import('./components/LineStickerStudio.js'));
+const VoiceCloneStudio = React.lazy(() => import('./components/VoiceCloneStudio.js'));
 const AdminPortalView = React.lazy(() => import('./components/AdminPortalView.js').then((m) => ({ default: m.AdminPortalView })));
 const PublicProfileView = React.lazy(() => import('./components/PublicProfileView.js').then((m) => ({ default: m.PublicProfileView })));
 const SuperAdminDashboardModal = React.lazy(() => import('./components/SuperAdminDashboardModal.js').then((m) => ({ default: m.SuperAdminDashboardModal })));
 const DrawAndGuessStage = React.lazy(() => import('./components/DrawAndGuessStage.js').then((m) => ({ default: m.DrawAndGuessStage })));
-import { FloatingItem, GiftEvent } from './components/FloatingReactions.js';
+import { FloatingItem, GiftEvent, LiveReactionsDock } from './components/FloatingReactions.js';
 import { ToastContainer, ToastItem } from './components/Toast.js';
 import {
   isSupabaseConfigured,
@@ -79,6 +80,13 @@ function isLineStudioPath(): boolean {
   return (
     window.location.pathname.startsWith('/line') ||
     window.location.hash.startsWith('#line')
+  );
+}
+
+function isVoiceStudioPath(): boolean {
+  return (
+    window.location.pathname.startsWith('/voice') ||
+    window.location.hash.startsWith('#voice')
   );
 }
 
@@ -104,7 +112,7 @@ function getProfileHandleFromUrl(): string | null {
 
 function getHashRoomId(): string | null {
   const hash = window.location.hash.replace(/^#/, '').trim();
-  if (!hash || hash.startsWith('admin') || hash.startsWith('@') || hash.startsWith('line')) {
+  if (!hash || hash.startsWith('admin') || hash.startsWith('@') || hash.startsWith('line') || hash.startsWith('voice')) {
     return null;
   }
   // Check if legacy #room=xxxx format
@@ -120,12 +128,14 @@ function getHashRoomId(): string | null {
 export function App() {
   const [isAdminRoute, setIsAdminRoute] = useState<boolean>(() => isAdminPath());
   const [isLineStudioRoute, setIsLineStudioRoute] = useState<boolean>(() => isLineStudioPath());
+  const [isVoiceStudioRoute, setIsVoiceStudioRoute] = useState<boolean>(() => isVoiceStudioPath());
   const [profileHandleRoute, setProfileHandleRoute] = useState<string | null>(() => getProfileHandleFromUrl());
 
   useEffect(() => {
     const handleLocationChange = () => {
       setIsAdminRoute(isAdminPath());
       setIsLineStudioRoute(isLineStudioPath());
+      setIsVoiceStudioRoute(isVoiceStudioPath());
       setProfileHandleRoute(getProfileHandleFromUrl());
     };
     window.addEventListener('popstate', handleLocationChange);
@@ -590,6 +600,18 @@ export function App() {
       showToast('บันทึกเพลงนี้ลงในคลังเพลงโปรดของคุณแล้ว ❤️', 'success');
     }
   }, [video.videoId, video.title, video.channel, currentUser.id, isVideoFavorite, showToast]);
+
+  // Fullscreen toggle for Video Player Container
+  const handleToggleFullscreen = useCallback(() => {
+    const container = document.getElementById('video-player-container');
+    if (container) {
+      if (!document.fullscreenElement) {
+        container.requestFullscreen?.().catch((err) => console.error(err));
+      } else {
+        document.exitFullscreen?.().catch((err) => console.error(err));
+      }
+    }
+  }, []);
 
   // Favorite Rooms State
   const [favoriteRoomIds, setFavoriteRoomIds] = useState<Set<string>>(() => {
@@ -2019,6 +2041,15 @@ export function App() {
     );
   }
 
+  if (isVoiceStudioRoute) {
+    return (
+      <React.Suspense fallback={<div className="min-h-screen bg-[#0a0d14] flex items-center justify-center text-zinc-400 text-sm">กำลังโหลด AI Voice Clone Studio...</div>}>
+        <VoiceCloneStudio />
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      </React.Suspense>
+    );
+  }
+
   if (isAdminRoute) {
     return (
       <React.Suspense fallback={<div className="min-h-screen bg-[#11161d] flex items-center justify-center text-zinc-400 text-sm">กำลังโหลด Admin Portal...</div>}>
@@ -2328,9 +2359,12 @@ export function App() {
           {/* Left Column: Synchronized Video Player & Open Voice Bar (Desktop: 8 cols) */}
           <div className="w-full lg:col-span-8 flex flex-col shrink-0 lg:shrink lg:h-full min-h-0 gap-2 sm:gap-2.5">
             {/* Synchronized YouTube Video Player */}
-            <div className={`w-full aspect-video max-h-[25vh] sm:max-h-[30vh] md:max-h-[32vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black rounded-xl overflow-hidden border border-[#e6e6e6] shadow-[0_4px_12px_rgba(0,0,0,0.06)] relative shrink-0 ${
-              gameState?.isActive ? 'fixed -left-[9999px] top-0 w-1 h-1 opacity-0 pointer-events-none' : ''
-            }`}>
+            <div
+              id="video-player-container"
+              className={`w-full aspect-video max-h-[25vh] sm:max-h-[30vh] md:max-h-[32vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black rounded-xl overflow-hidden border border-[#e6e6e6] shadow-[0_4px_12px_rgba(0,0,0,0.06)] relative shrink-0 ${
+                gameState?.isActive ? 'fixed -left-[9999px] top-0 w-1 h-1 opacity-0 pointer-events-none' : ''
+              }`}
+            >
               <VideoPlayer
                 video={video}
                 reactions={isReactionsEnabled ? reactions : []}
@@ -2388,11 +2422,27 @@ export function App() {
             <div className="bg-white border border-[#e6e6e6] rounded-xl px-2.5 py-2 sm:px-3 sm:py-2.5 flex flex-col gap-2 shrink-0 shadow-xs">
               {/* Top Row: Video Title, Channel, Playlist position & Action Controls */}
               <div className="flex items-center justify-between gap-1.5 sm:gap-2">
-                {/* Video Title & Channel */}
+                {/* Video Title, Channel & Favorite Song Button */}
                 <div className="min-w-0 flex-1 pr-2">
-                  <h2 className="text-xs sm:text-sm font-bold text-[#000000] truncate" title={video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}>
-                    {video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}
-                  </h2>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <h2 className="text-xs sm:text-sm font-bold text-[#000000] truncate" title={video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}>
+                      {video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}
+                    </h2>
+                    {video.videoId && (
+                      <button
+                        type="button"
+                        onClick={handleToggleFavoriteCurrentSong}
+                        title={isVideoFavorite ? 'ลบออกจากเพลงโปรด' : 'บันทึกเพลงนี้เป็นเพลงโปรด ❤️'}
+                        className={`p-1 rounded-full transition-colors cursor-pointer shrink-0 ${
+                          isVideoFavorite
+                            ? 'text-rose-600 bg-rose-50'
+                            : 'text-[#a39e98] hover:text-rose-600 hover:bg-black/5'
+                        }`}
+                      >
+                        <Heart className={`w-3.5 h-3.5 ${isVideoFavorite ? 'fill-current' : ''}`} />
+                      </button>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 text-[11px] text-[#615d59] mt-0.5">
                     <span className="truncate max-w-[140px] sm:max-w-[200px]">{video.channel || 'pleng.online'}</span>
                     {playlist.length > 0 && (
@@ -2527,6 +2577,27 @@ export function App() {
                         ? `${Math.floor(sleepTimerSecondsLeft / 60)}:${(sleepTimerSecondsLeft % 60).toString().padStart(2, '0')}`
                         : 'ตั้งเวลาปิด'}
                     </span>
+                  </button>
+
+                  {/* Audio Ducking Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAudioDuckingEnabled((prev) => {
+                        const next = !prev;
+                        showToast(next ? 'เปิดระบบลดเสียงคลิปเวลาคนพูด (Audio Ducking) 🎧' : 'ปิดระบบลดเสียงคลิปเวลาคนพูด', 'info');
+                        return next;
+                      });
+                    }}
+                    title={isAudioDuckingEnabled ? 'ลดเสียงเพลงอัตโนมัติเมื่อมีคนพูด (เปิดอยู่)' : 'ลดเสียงเพลงอัตโนมัติเมื่อมีคนพูด (ปิดอยู่)'}
+                    className={`px-2 py-1 rounded-md text-xs font-semibold border flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-xs active:scale-95 ${
+                      isAudioDuckingEnabled
+                        ? 'bg-[#1aae39]/10 text-[#1aae39] border-[#1aae39]/30'
+                        : 'bg-white hover:bg-[#f6f5f4] text-[#a39e98] border-[#e6e6e6]'
+                    }`}
+                  >
+                    <Headphones className={`w-3.5 h-3.5 ${isAudioDuckingEnabled ? 'text-[#1aae39]' : 'opacity-60'}`} />
+                    <span className="text-[11px] hidden sm:inline">Ducking</span>
                   </button>
 
                   {/* Draw & Guess 2D Party Game Toggle Button (Host & Admin only) */}
@@ -2668,6 +2739,26 @@ export function App() {
                     {formatTime(playbackDuration || video.duration || 0)}
                   </span>
                 </div>
+
+                {/* Live Reactions Dock (Moved off the video screen into the control bar!) */}
+                {isReactionsEnabled && (
+                  <div className="shrink-0 flex items-center ml-0.5">
+                    <LiveReactionsDock
+                      onSendReaction={handleSendReaction}
+                      onSendGift={handleSendGift}
+                    />
+                  </div>
+                )}
+
+                {/* Fullscreen Toggle Button */}
+                <button
+                  type="button"
+                  onClick={handleToggleFullscreen}
+                  title="ขยายเต็มจอ (Fullscreen)"
+                  className="p-1.5 rounded-lg bg-white hover:bg-[#f6f5f4] text-[#615d59] hover:text-[#000000] border border-[#e6e6e6] active:scale-95 transition-all cursor-pointer shrink-0 shadow-xs"
+                >
+                  <Maximize className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
 
