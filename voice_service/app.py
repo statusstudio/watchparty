@@ -2,6 +2,7 @@ import os
 import uuid
 import shutil
 import asyncio
+import subprocess
 from typing import Optional
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
@@ -162,6 +163,31 @@ async def synthesize_speech(req: SynthesizeRequest):
         raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการสังเคราะห์เสียง: {str(e)}")
 
 
+def convert_audio_to_pcm_wav(input_path: Path, output_wav_path: Path) -> bool:
+    """Normalize any audio format (.m4a, .webm, .mp3, .ogg, etc.) to 24kHz 16-bit mono PCM WAV for CosyVoice."""
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i", str(input_path),
+        "-vn",
+        "-ar", "24000",
+        "-ac", "1",
+        "-c:a", "pcm_s16le",
+        str(output_wav_path)
+    ]
+    try:
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        if res.returncode == 0 and output_wav_path.exists() and output_wav_path.stat().st_size > 0:
+            print(f"[FFmpeg] Successfully normalized {input_path.name} -> {output_wav_path.name} ({output_wav_path.stat().st_size} bytes)")
+            return True
+        else:
+            print(f"[FFmpeg] Conversion warning (code {res.returncode}): {res.stderr.decode('utf-8', errors='ignore')[:200]}")
+            return False
+    except Exception as e:
+        print(f"[FFmpeg] Exception running ffmpeg: {e}")
+        return False
+
+
 @app.post("/clone")
 async def clone_voice(
     audio: UploadFile = File(...),
@@ -174,15 +200,22 @@ async def clone_voice(
     
     # Save uploaded reference audio
     upload_ext = Path(audio.filename or "sample.wav").suffix or ".wav"
-    upload_filename = f"ref_{uuid.uuid4().hex[:12]}{upload_ext}"
-    upload_path = UPLOADS_DIR / upload_filename
+    raw_filename = f"raw_{uuid.uuid4().hex[:12]}{upload_ext}"
+    raw_path = UPLOADS_DIR / raw_filename
 
-    with open(upload_path, "wb") as buffer:
+    with open(raw_path, "wb") as buffer:
         shutil.copyfileobj(audio.file, buffer)
+
+    # Convert/Normalize to standard 24kHz 16-bit PCM WAV to eliminate any Libsndfile / codec incompatibility
+    clean_wav_filename = f"ref_{uuid.uuid4().hex[:12]}.wav"
+    clean_wav_path = UPLOADS_DIR / clean_wav_filename
+
+    converted = convert_audio_to_pcm_wav(raw_path, clean_wav_path)
+    audio_for_model = clean_wav_path if converted else raw_path
 
     try:
         client = get_cosyvoice_client()
-        print(f"Running CosyVoice 3.0 inference for text: '{text[:50]}...' with reference audio: {upload_path}")
+        print(f"Running CosyVoice 3.0 inference for text: '{text[:50]}...' with reference audio: {audio_for_model}")
         
         loop = asyncio.get_event_loop()
         # Run predict in thread pool because it's synchronous blocking
@@ -191,7 +224,7 @@ async def clone_voice(
                 tts_text=text,
                 mode_value="zero_shot",
                 prompt_text=prompt_text or "",
-                prompt_wav_upload=handle_file(str(upload_path)),
+                prompt_wav_upload=handle_file(str(audio_for_model)),
                 prompt_wav_record=None,
                 instruct_text="You are a helpful assistant. Please say a sentence as loudly as possible.<|endofprompt|>",
                 seed=float(seed or 0),
@@ -213,7 +246,7 @@ async def clone_voice(
             "filename": out_id,
             "audio_url": f"/api/voice/audio/{out_id}",
             "text": text,
-            "reference_file": upload_filename,
+            "reference_file": raw_filename,
             "engine": "Alibaba CosyVoice 3.0 (Zero-shot)"
         }
     except Exception as e:
