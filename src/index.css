@@ -15,15 +15,97 @@
     text-size-adjust: 100%;
     transition: background-color 0.25s ease, color 0.25s ease;
   }
+  /* ========================================================
+     GOOGLE STITCH DESIGN SYSTEM: COMPREHENSIVE THEME ENGINE
+     ======================================================== */
   html.dark, html.dark body {
-    background-color: #111319;
-    color: #e2e2ea;
+    background-color: #111319 !important;
+    color: #e2e2ea !important;
     color-scheme: dark;
   }
   html.light, html.light body {
-    background-color: #faf8ff;
-    color: #131b2e;
+    background-color: #faf8ff !important;
+    color: #131b2e !important;
     color-scheme: light;
+  }
+
+  /* In Dark Mode: adapt legacy white & beige surfaces to Stitch Dark (#191b22 / #1d1f26) */
+  html.dark .bg-white {
+    background-color: #191b22 !important;
+    color: #e2e2ea;
+  }
+  html.dark .bg-\[\#f6f5f4\] {
+    background-color: #111319 !important;
+    color: #e2e2ea;
+  }
+  html.dark .bg-\[\#ffffff\] {
+    background-color: #191b22 !important;
+    color: #e2e2ea;
+  }
+  html.dark .bg-\[\#f2f3ff\],
+  html.dark .bg-\[\#eaedff\] {
+    background-color: #1d1f26 !important;
+  }
+  html.dark .border-\[\#e6e6e6\],
+  html.dark .border-\[\#dae2fd\] {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+  html.dark .text-\[\#31302e\],
+  html.dark .text-\[\#131b2e\],
+  html.dark .text-\[\#000000\] {
+    color: #e2e2ea !important;
+  }
+  html.dark .text-\[\#615d59\],
+  html.dark .text-\[\#475569\],
+  html.dark .text-\[\#707881\] {
+    color: #94a3b8 !important;
+  }
+  html.dark .text-\[\#a39e98\],
+  html.dark .text-\[\#64748b\] {
+    color: #64748b !important;
+  }
+  html.dark .hover\:bg-\[\#f6f5f4\]:hover,
+  html.dark .hover\:bg-white:hover {
+    background-color: #282a30 !important;
+  }
+  html.dark input:not([type="checkbox"]):not([type="radio"]),
+  html.dark select,
+  html.dark textarea {
+    background-color: #1d1f26 !important;
+    color: #e2e2ea !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+  }
+  html.dark input::placeholder,
+  html.dark textarea::placeholder {
+    color: #64748b !important;
+  }
+  html.dark option {
+    background-color: #191b22 !important;
+    color: #e2e2ea !important;
+  }
+
+  /* In Light Mode: adapt dark cards to Stitch Light (#ffffff / #faf8ff) */
+  html.light .bg-\[\#111319\] {
+    background-color: #faf8ff !important;
+    color: #131b2e;
+  }
+  html.light .bg-\[\#191b22\],
+  html.light .bg-\[\#1d1f26\] {
+    background-color: #ffffff !important;
+    color: #131b2e;
+  }
+  html.light .border-white\/\[0\.06\],
+  html.light .border-white\/10 {
+    border-color: #dae2fd !important;
+  }
+  html.light .text-\[\#e2e2ea\] {
+    color: #131b2e !important;
+  }
+  html.light .text-\[\#c1c6d5\] {
+    color: #475569 !important;
+  }
+  html.light .text-\[\#94A3B8\] {
+    color: #64748b !important;
   }
   #root {
     min-height: 100%;

@@ -64,6 +64,8 @@ interface NavbarProps {
   onOpenAdminLogin?: () => void;
   onOpenSupport?: () => void;
   onShowToast: (msg: string, type?: 'info' | 'success' | 'warning') => void;
+  theme?: 'dark' | 'light';
+  onToggleTheme?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -99,6 +101,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAdminLogin,
   onOpenSupport,
   onShowToast,
+  theme = 'dark',
+  onToggleTheme,
 }) => {
   const [copied, setCopied] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -184,7 +188,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, [isMobileMenuOpen]);
 
   return (
-    <header className="sticky top-0 h-14 shrink-0 bg-white/95 backdrop-blur-md border-b border-[#e6e6e6] px-2.5 sm:px-4 flex items-center justify-between z-40 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+    <header className="sticky top-0 h-14 shrink-0 bg-white/95 dark:bg-[#111319]/90 backdrop-blur-md border-b border-[#e6e6e6] dark:border-white/[0.06] text-[#31302e] dark:text-[#e2e2ea] px-2.5 sm:px-4 flex items-center justify-between z-40 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-colors duration-300">
       {/* Left: Brand Logo & Room Info */}
       <div className="flex items-center gap-1.5 xs:gap-2.5 sm:gap-3 min-w-0">
         {/* Brand (Acts as Home button & Stealth Admin Easter Egg on 5 clicks) */}
@@ -340,6 +344,33 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <LogIn className="w-3.5 h-3.5" />
             <span className="hidden xs:inline">เข้าสู่ระบบ</span>
+          </button>
+        )}
+
+        {/* Theme Switcher Toggle (โหมดมืด / โหมดสว่าง) */}
+        {onToggleTheme && (
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all duration-300 text-xs font-semibold select-none shadow-xs shrink-0 cursor-pointer ${
+              theme === 'light'
+                ? 'bg-white border-[#dae2fd] text-[#131b2e] hover:bg-[#eaedff]'
+                : 'bg-[#191b22] border-white/10 text-[#e2e2ea] hover:bg-[#282a30]'
+            }`}
+            title={theme === 'light' ? 'สลับเป็นโหมดมืด (Dark Mode)' : 'สลับเป็นโหมดสว่าง (Light Mode)'}
+          >
+            <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-transform duration-300 ${
+              theme === 'light' ? 'bg-[#eef0ff]' : 'bg-[#282a30]'
+            }`}>
+              {theme === 'light' ? (
+                <span className="material-symbols-outlined text-[14px] text-[#006194]">light_mode</span>
+              ) : (
+                <span className="material-symbols-outlined text-[14px] text-[#ffb955]">dark_mode</span>
+              )}
+            </div>
+            <span className="font-medium text-[11px] hidden sm:inline">
+              {theme === 'light' ? 'โหมดสว่าง' : 'โหมดมืด'}
+            </span>
           </button>
         )}
 

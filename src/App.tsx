@@ -2180,7 +2180,7 @@ export function App() {
   }
 
   return (
-    <div className={`w-full min-h-screen bg-[#111319] text-gray-100 flex flex-col selection:bg-[#0075de] selection:text-white ${
+    <div className={`w-full min-h-screen ${theme === 'dark' ? 'bg-[#111319] text-[#e2e2ea]' : 'bg-[#faf8ff] text-[#131b2e]'} flex flex-col selection:bg-[#0075de] selection:text-white transition-colors duration-300 ${
       currentView === 'home' ? 'overflow-visible' : 'h-[100dvh] max-h-[100dvh] overflow-hidden'
     }`}>
       {/* Toast Notifications */}
@@ -2241,6 +2241,8 @@ export function App() {
           }}
           onOpenSupport={() => setIsSupportModalOpen(true)}
           onShowToast={showToast}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
       )}
 
@@ -2441,7 +2443,9 @@ export function App() {
 
       {(currentView === 'room' || Boolean(roomId)) && (
         <main
-          className={`flex-1 min-h-0 max-w-[1920px] w-full mx-auto p-2 sm:p-3 lg:p-3.5 flex flex-col lg:grid lg:grid-cols-12 gap-2 sm:gap-3 lg:gap-3.5 overflow-hidden bg-[#f6f5f4] ${
+          className={`flex-1 min-h-0 max-w-[1920px] w-full mx-auto p-2 sm:p-3 lg:p-3.5 flex flex-col lg:grid lg:grid-cols-12 gap-2 sm:gap-3 lg:gap-3.5 overflow-hidden transition-colors duration-300 ${
+            theme === 'dark' ? 'bg-[#111319] text-[#e2e2ea]' : 'bg-[#faf8ff] text-[#131b2e]'
+          } ${
             currentView === 'room'
               ? ''
               : 'fixed -left-[9999px] top-0 w-1 h-1 opacity-0 pointer-events-none overflow-hidden'
