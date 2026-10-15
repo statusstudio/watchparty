@@ -210,12 +210,12 @@ export const LiveChat: React.FC<LiveChatProps> = ({
   };
 
   return (
-    <div className="bg-white flex flex-col h-full min-h-0 overflow-hidden">
+    <div className="bg-white dark:bg-[#191b22] text-[#31302e] dark:text-[#e2e2ea] flex flex-col h-full min-h-0 overflow-hidden">
       {/* Tab Header - visible on desktop, or when clear chat available on mobile */}
-      <div className={`${canClearChat && onClearChat && messages.length > 1 ? 'flex' : 'hidden lg:flex'} px-3 sm:px-4 py-2 sm:py-2.5 border-b border-[#e6e6e6] bg-[#f6f5f4] items-center justify-between shrink-0`}>
+      <div className={`${canClearChat && onClearChat && messages.length > 1 ? 'flex' : 'hidden lg:flex'} px-3 sm:px-4 py-2 sm:py-2.5 border-b border-[#e6e6e6] dark:border-white/[0.08] bg-[#f6f5f4] dark:bg-[#1d1f26] items-center justify-between shrink-0`}>
         <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-[#0075de]" />
-          <h3 className="text-xs font-semibold text-[#000000] tracking-wide">
+          <MessageSquare className="w-4 h-4 text-[#0075de] dark:text-[#00daf3]" />
+          <h3 className="text-xs font-semibold text-[#000000] dark:text-[#e2e2ea] tracking-wide">
             แชทสด
           </h3>
         </div>
@@ -229,13 +229,13 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                 }
               }}
               title="ล้างข้อความแชททั้งหมดในห้อง"
-              className="text-[11px] font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200/80 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+              className="text-[11px] font-medium text-red-600 hover:text-red-700 bg-red-50 dark:bg-rose-950/40 hover:bg-red-100 dark:hover:bg-rose-900/60 border border-red-200/80 dark:border-rose-800/40 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
             >
               <Trash2 className="w-3 h-3" />
               ล้างแชท
             </button>
           )}
-          <span className="hidden sm:inline text-[11px] text-[#615d59]">Live Chat</span>
+          <span className="hidden sm:inline text-[11px] text-[#615d59] dark:text-[#94a3b8]">Live Chat</span>
         </div>
       </div>
 
@@ -258,7 +258,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
         id="live-chat-messages"
         data-chat-scroll="true"
         onScroll={handleScroll}
-        className="flex-1 min-h-0 p-3 sm:p-4 overflow-y-auto space-y-3 bg-[#f6f5f4]/50 overscroll-contain select-text"
+        className="flex-1 min-h-0 p-3 sm:p-4 overflow-y-auto space-y-3 bg-[#f6f5f4]/50 dark:bg-[#111319] overscroll-contain select-text"
         style={{ overscrollBehaviorY: 'contain' }}
       >
         {messages.map((msg) => {
@@ -274,7 +274,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
             return (
               <div
                 key={msg.id}
-                className="p-2 rounded-xl bg-white border border-[#e6e6e6] text-xs text-[#615d59] text-center font-medium shadow-xs"
+                className="p-2 rounded-xl bg-white dark:bg-[#1d1f26] border border-[#e6e6e6] dark:border-white/[0.08] text-xs text-[#615d59] dark:text-[#94a3b8] text-center font-medium shadow-xs"
               >
                 {msg.text}
               </div>
@@ -400,15 +400,15 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                   return (
                     <div className={`text-xs rounded-2xl rounded-tl-sm px-3 py-2 inline-block max-w-full break-words leading-relaxed border shadow-xs select-text ${
                       isMe
-                        ? 'bg-[#0075de]/8 text-[#000000] border-[#0075de]/20'
-                        : 'bg-white text-[#31302e] border-[#e6e6e6]'
+                        ? 'bg-[#0075de]/15 text-[#000000] dark:text-[#e2e2ea] border-[#0075de]/30'
+                        : 'bg-white dark:bg-[#1d1f26] text-[#31302e] dark:text-[#e2e2ea] border-[#e6e6e6] dark:border-white/[0.08]'
                     }`}>
                       {msg.imageUrl && (
                         <div className="relative mb-1.5 inline-block group/img">
                           <img
                             src={msg.imageUrl}
                             alt="แนบรูปภาพ"
-                            className="max-w-[200px] sm:max-w-[260px] max-h-60 rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity border border-black/10 shadow-xs"
+                            className="max-w-[200px] sm:max-w-[260px] max-h-60 rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity border border-black/10 dark:border-white/10 shadow-xs"
                             onClick={() => setLightboxImage(msg.imageUrl || null)}
                           />
                           {onDeleteMessage && isMe && (
@@ -442,20 +442,20 @@ export const LiveChat: React.FC<LiveChatProps> = ({
 
       {/* Image Preview Bar before sending */}
       {selectedImage && (
-        <div className="px-3 py-2 bg-[#f6f5f4] border-t border-[#e6e6e6] flex items-center justify-between shrink-0">
+        <div className="px-3 py-2 bg-[#f6f5f4] dark:bg-[#1d1f26] border-t border-[#e6e6e6] dark:border-white/[0.08] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <div className="w-11 h-11 rounded-lg overflow-hidden border border-[#e6e6e6] bg-white shrink-0 shadow-xs">
+            <div className="w-11 h-11 rounded-lg overflow-hidden border border-[#e6e6e6] dark:border-white/[0.08] bg-white dark:bg-[#191b22] shrink-0 shadow-xs">
               <img src={selectedImage} alt="Preview" className="w-full h-full object-cover" />
             </div>
-            <div className="text-[11px] text-[#615d59]">
-              <p className="font-semibold text-[#000000]">แนบรูปภาพพร้อมส่ง</p>
+            <div className="text-[11px] text-[#615d59] dark:text-[#94a3b8]">
+              <p className="font-semibold text-[#000000] dark:text-[#e2e2ea]">แนบรูปภาพพร้อมส่ง</p>
               <p>รูปภาพชั่วคราวจะถูกลบเมื่อปิดห้อง</p>
             </div>
           </div>
           <button
             type="button"
             onClick={() => setSelectedImage(null)}
-            className="p-1 rounded-full hover:bg-black/5 text-[#615d59] hover:text-rose-600 transition-colors cursor-pointer"
+            className="p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-[#615d59] dark:text-[#94a3b8] hover:text-rose-600 transition-colors cursor-pointer"
             title="ยกเลิกรูปภาพ"
           >
             <X className="w-4 h-4" />
@@ -465,7 +465,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
 
       {/* Quick Floating Reactions & Gifts Bar */}
       {onSendReaction && (
-        <div className="px-2.5 py-1 bg-[#f6f5f4] border-t border-[#e6e6e6] flex items-center justify-between gap-1 shrink-0 select-none">
+        <div className="px-2.5 py-1 bg-[#f6f5f4] dark:bg-[#1d1f26] border-t border-[#e6e6e6] dark:border-white/[0.08] flex items-center justify-between gap-1 shrink-0 select-none">
           <div className="flex items-center gap-1 overflow-x-auto py-0.5">
             {['❤️', '🔥', '👏', '🥳', '🎵', '💎'].map((em) => (
               <button
@@ -534,7 +534,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
       )}
 
       {/* Input Area with Profile Avatar in front */}
-      <form onSubmit={handleSend} className="p-2 sm:p-3 bg-white border-t border-[#e6e6e6] shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))] relative">
+      <form onSubmit={handleSend} className="p-2 sm:p-3 bg-white dark:bg-[#191b22] border-t border-[#e6e6e6] dark:border-white/[0.08] shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))] relative">
         <div className="flex items-center gap-2">
           {/* User Profile Avatar in front of chat input */}
           <button
@@ -566,7 +566,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                 disabled={isCompressingImage}
                 onClick={() => fileInputRef.current?.click()}
                 title="แนบรูปภาพส่งในแชท (ลบอัตโนมัติเมื่อห้องปิด)"
-                className="p-2 rounded-full text-[#615d59] hover:text-[#0075de] hover:bg-[#0075de]/10 border border-[#e6e6e6] transition-colors cursor-pointer shrink-0 disabled:opacity-50 shadow-xs"
+                className="p-2 rounded-full text-[#615d59] dark:text-[#94a3b8] hover:text-[#0075de] hover:bg-[#0075de]/10 border border-[#e6e6e6] dark:border-white/[0.08] transition-colors cursor-pointer shrink-0 disabled:opacity-50 shadow-xs"
               >
                 {isCompressingImage ? (
                   <Loader2 className="w-4 h-4 animate-spin text-[#0075de]" />
@@ -586,7 +586,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
               className={`p-2 rounded-full border transition-all cursor-pointer shrink-0 shadow-xs flex items-center justify-center ${
                 isStickerPickerOpen
                   ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
-                  : 'text-[#615d59] hover:text-amber-500 hover:bg-amber-500/10 border-[#e6e6e6]'
+                  : 'text-[#615d59] dark:text-[#94a3b8] hover:text-amber-500 hover:bg-amber-500/10 border-[#e6e6e6] dark:border-white/[0.08]'
               }`}
             >
               <Smile className={`w-4 h-4 ${isStickerPickerOpen ? 'animate-bounce' : ''}`} />
@@ -598,7 +598,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                 type="button"
                 onClick={() => onSendReaction('❤️')}
                 title="ส่งหัวใจโคมลอย ❤️"
-                className="p-2 rounded-full border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-600 transition-all cursor-pointer shrink-0 shadow-xs flex items-center justify-center active:scale-90"
+                className="p-2 rounded-full border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-500 hover:text-rose-600 transition-all cursor-pointer shrink-0 shadow-xs flex items-center justify-center active:scale-90"
               >
                 <Heart className="w-4 h-4 fill-rose-500 animate-pulse" />
               </button>
@@ -609,27 +609,27 @@ export const LiveChat: React.FC<LiveChatProps> = ({
               <>
                 {/* Mobile & Tablet Backdrop to tap outside and dismiss cleanly */}
                 <div
-                  className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[1px] lg:hidden animate-fade-in"
+                  className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[1px] lg:hidden animate-fade-in"
                   onClick={() => setIsStickerPickerOpen(false)}
                   onTouchStart={() => setIsStickerPickerOpen(false)}
                 />
 
-                <div className="fixed inset-x-2 sm:inset-x-8 md:inset-x-16 lg:inset-x-2 bottom-2 z-50 max-h-[75vh] lg:absolute lg:bottom-full lg:mb-2 lg:max-h-[380px] bg-white border border-[#e6e6e6] rounded-2xl shadow-2xl p-2.5 sm:p-3 animate-scale-up text-[#31302e] flex flex-col overflow-hidden">
+                <div className="fixed inset-x-2 sm:inset-x-8 md:inset-x-16 lg:inset-x-2 bottom-2 z-50 max-h-[75vh] lg:absolute lg:bottom-full lg:mb-2 lg:max-h-[380px] bg-white dark:bg-[#191b22] border border-[#e6e6e6] dark:border-white/[0.08] rounded-2xl shadow-2xl p-2.5 sm:p-3 animate-scale-up text-[#31302e] dark:text-[#e2e2ea] flex flex-col overflow-hidden">
                   {/* Header with Segmented Category Tabs and Close Button */}
-                  <div className="flex items-center justify-between gap-1.5 pb-2 mb-2 border-b border-[#f0efed] shrink-0">
-                    <div className="grid grid-cols-2 gap-1 flex-1 bg-[#f0efed] p-1 rounded-xl">
+                  <div className="flex items-center justify-between gap-1.5 pb-2 mb-2 border-b border-[#f0efed] dark:border-white/[0.08] shrink-0">
+                    <div className="grid grid-cols-2 gap-1 flex-1 bg-[#f0efed] dark:bg-[#111319] p-1 rounded-xl">
                       <button
                         type="button"
                         onClick={() => setActiveStickerTab('emoji')}
                         className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                           activeStickerTab === 'emoji'
-                            ? 'bg-white text-amber-600 shadow-xs'
-                            : 'text-[#615d59] hover:text-[#000000]'
+                            ? 'bg-white dark:bg-[#282a30] text-amber-600 dark:text-amber-400 shadow-xs'
+                            : 'text-[#615d59] dark:text-[#94a3b8] hover:text-[#000000] dark:hover:text-white'
                         }`}
                       >
                         <span>😀 อีโมจิ</span>
                         <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                          activeStickerTab === 'emoji' ? 'bg-amber-100 text-amber-700' : 'bg-black/5 text-[#888]'
+                          activeStickerTab === 'emoji' ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300' : 'bg-black/5 dark:bg-white/10 text-[#888]'
                         }`}>
                           {ANIMATED_EMOJIS.length}
                         </span>
@@ -640,13 +640,13 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                         onClick={() => setActiveStickerTab('graffiti')}
                         className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                           activeStickerTab === 'graffiti'
-                            ? 'bg-white text-amber-600 shadow-xs'
-                            : 'text-[#615d59] hover:text-[#000000]'
+                            ? 'bg-white dark:bg-[#282a30] text-amber-600 dark:text-amber-400 shadow-xs'
+                            : 'text-[#615d59] dark:text-[#94a3b8] hover:text-[#000000] dark:hover:text-white'
                         }`}
                       >
                         <span>🎨 กราฟฟิตี้</span>
                         <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                          activeStickerTab === 'graffiti' ? 'bg-amber-100 text-amber-700' : 'bg-black/5 text-[#888]'
+                          activeStickerTab === 'graffiti' ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300' : 'bg-black/5 dark:bg-white/10 text-[#888]'
                         }`}>
                           {GRAFFITI_STICKERS.length}
                         </span>
@@ -656,7 +656,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                     <button
                       type="button"
                       onClick={() => setIsStickerPickerOpen(false)}
-                      className="p-1.5 rounded-full text-[#a39e98] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer shrink-0 ml-0.5"
+                      className="p-1.5 rounded-full text-[#a39e98] hover:text-[#000000] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer shrink-0 ml-0.5"
                       title="ปิด"
                     >
                       <X className="w-4 h-4" />
@@ -686,7 +686,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                                 setTimeout(() => scrollToBottom('smooth'), 50);
                                 onShowToast(`ส่ง ${stk.name} เรียบร้อย ✨`, 'success');
                               }}
-                              className="group/stk flex flex-col items-center justify-center p-1.5 rounded-xl hover:bg-amber-50/90 border border-transparent hover:border-amber-300 transition-all cursor-pointer relative active:scale-95"
+                              className="group/stk flex flex-col items-center justify-center p-1.5 rounded-xl hover:bg-amber-50/90 dark:hover:bg-amber-500/10 border border-transparent hover:border-amber-300 dark:hover:border-amber-500/30 transition-all cursor-pointer relative active:scale-95"
                               title={stk.name}
                             >
                               <img
@@ -701,7 +701,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                                   }
                                 }}
                               />
-                              <span className="text-[9px] text-[#888] truncate max-w-full mt-0.5 group-hover/stk:text-amber-700">
+                              <span className="text-[9px] text-[#888] dark:text-[#94a3b8] truncate max-w-full mt-0.5 group-hover/stk:text-amber-700 dark:group-hover/stk:text-amber-300">
                                 {stk.name}
                               </span>
                             </button>
@@ -712,14 +712,14 @@ export const LiveChat: React.FC<LiveChatProps> = ({
                   })()}
 
                   {/* Footer with Performance Mode Toggle */}
-                  <div className="mt-2 pt-1.5 border-t border-[#f0efed] flex items-center justify-between text-[10px] text-[#a39e98] px-1 shrink-0">
+                  <div className="mt-2 pt-1.5 border-t border-[#f0efed] dark:border-white/[0.08] flex items-center justify-between text-[10px] text-[#a39e98] px-1 shrink-0">
                     <span>
                       {activeStickerTab === 'emoji' ? 'อีโมจิ 3D 54 แบบ' : 'สติกเกอร์กราฟฟิตี้ 45 แบบ'} (แตะเพื่อส่ง)
                     </span>
                     <button
                       type="button"
                       onClick={() => setAnimateAllStickers(!animateAllStickers)}
-                      className="text-[#0075de] hover:underline font-medium cursor-pointer"
+                      className="text-[#0075de] dark:text-[#00daf3] hover:underline font-medium cursor-pointer"
                       title={animateAllStickers ? 'สลับเป็นโหมดประหยัดพลังงาน (ไม่ค้าง)' : 'เล่นอนิเมชั่นทั้งหมดพร้อมกัน'}
                     >
                       {animateAllStickers ? '⚡ โหมดลื่นไหล' : '✨ ขยับทั้งหมด'}
@@ -737,7 +737,7 @@ export const LiveChat: React.FC<LiveChatProps> = ({
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder={selectedImage ? 'ใส่ข้อความบรรยายภาพ...' : 'พิมพ์ข้อความ... หรือใส่เวลา เช่น 01:23'}
-              className="w-full px-3.5 py-2 bg-white border border-[#e6e6e6] focus:border-[#0075de] rounded-full text-base sm:text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none shadow-xs transition-colors h-10 sm:h-9"
+              className="w-full px-3.5 py-2 bg-white dark:bg-[#1d1f26] border border-[#e6e6e6] dark:border-white/[0.12] focus:border-[#0075de] dark:focus:border-[#00daf3] rounded-full text-base sm:text-xs text-[#000000] dark:text-[#e2e2ea] placeholder-[#a39e98] dark:placeholder-[#64748b] focus:outline-none shadow-xs transition-colors h-10 sm:h-9"
             />
           </div>
 

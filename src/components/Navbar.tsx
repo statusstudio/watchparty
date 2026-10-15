@@ -203,15 +203,15 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* If inside a Room: Room Badge & Desktop Invite */}
         {currentView === 'room' && (
           <>
-            <div className="h-4 w-[1px] bg-[#e6e6e6] shrink-0 hidden xs:block" />
+            <div className="h-4 w-[1px] bg-[#e6e6e6] dark:bg-white/10 shrink-0 hidden xs:block" />
 
-            <div className="flex items-center gap-1.5 bg-[#f6f5f4] border border-[#e6e6e6] px-2 py-1 rounded-md min-w-0 shrink-0">
+            <div className="flex items-center gap-1.5 bg-[#f6f5f4] dark:bg-[#191b22] border border-[#e6e6e6] dark:border-white/[0.08] px-2 py-1 rounded-md min-w-0 shrink-0">
               {isPrivate ? (
                 <Lock className="w-3 h-3 text-[#dd5b00] shrink-0" />
               ) : (
                 <Radio className="w-3 h-3 text-[#1aae39] animate-pulse shrink-0" />
               )}
-              <span className="font-medium text-[11px] sm:text-xs text-[#31302e] truncate max-w-[75px] xs:max-w-[110px] sm:max-w-[160px]">
+              <span className="font-medium text-[11px] sm:text-xs text-[#31302e] dark:text-[#e2e2ea] truncate max-w-[75px] xs:max-w-[110px] sm:max-w-[160px]">
                 {roomName || roomId}
               </span>
             </div>
@@ -226,10 +226,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setIsAnnouncementModalOpen(true);
                 }}
                 title={`📢 ประกาศประจำห้อง: ${roomAnnouncement} (คลิกเพื่ออ่านทั้งหมด)`}
-                className="flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 border border-amber-500/30 text-amber-900 px-2 py-1 rounded-md transition-all cursor-pointer min-w-0 max-w-[90px] xs:max-w-[140px] sm:max-w-[220px] md:max-w-[320px] shadow-xs group shrink"
+                className="flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 border border-amber-500/30 text-amber-900 dark:text-amber-200 px-2 py-1 rounded-md transition-all cursor-pointer min-w-0 max-w-[90px] xs:max-w-[140px] sm:max-w-[220px] md:max-w-[320px] shadow-xs group shrink"
               >
-                <Megaphone className="w-3.5 h-3.5 text-amber-600 shrink-0 group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] sm:text-xs font-medium truncate text-amber-950">
+                <Megaphone className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
+                <span className="text-[11px] sm:text-xs font-medium truncate text-amber-950 dark:text-amber-100">
                   {roomAnnouncement}
                 </span>
               </button>
@@ -243,9 +243,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     setIsAnnouncementModalOpen(true);
                   }}
                   title="ตั้งประกาศประจำห้อง"
-                  className="hidden xs:flex items-center gap-1 text-[11px] font-medium text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 border border-amber-300/70 px-2 py-1 rounded-md transition-colors cursor-pointer shadow-xs shrink-0"
+                  className="hidden xs:flex items-center gap-1 text-[11px] font-medium text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-amber-100 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-300/70 dark:border-amber-700/50 px-2 py-1 rounded-md transition-colors cursor-pointer shadow-xs shrink-0"
                 >
-                  <Megaphone className="w-3 h-3 text-amber-600" />
+                  <Megaphone className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                   <span className="hidden sm:inline">ตั้งประกาศ</span>
                 </button>
               )
@@ -259,8 +259,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title={isFavoriteRoom ? 'เลิกติดตามห้องนี้' : 'บันทึกเป็นห้องโปรด ⭐'}
                 className={`p-1.5 rounded-md border text-xs transition-colors cursor-pointer shrink-0 shadow-xs flex items-center justify-center ${
                   isFavoriteRoom
-                    ? 'bg-amber-500/10 text-amber-600 border-amber-500/30'
-                    : 'bg-white hover:bg-[#f6f5f4] text-[#a39e98] border-[#e6e6e6]'
+                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                    : 'bg-white dark:bg-[#191b22] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#a39e98] dark:text-[#94a3b8] border-[#e6e6e6] dark:border-white/[0.08]'
                 }`}
               >
                 <Star className={`w-3.5 h-3.5 ${isFavoriteRoom ? 'fill-current text-amber-500' : ''}`} />
@@ -274,13 +274,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               className={`hidden md:flex px-2.5 py-1 rounded-md border text-xs font-medium transition-all items-center gap-1.5 cursor-pointer shrink-0 shadow-xs ${
                 copied
                   ? 'bg-[#1aae39]/10 text-[#1aae39] border-[#1aae39]/30'
-                  : 'bg-white hover:bg-[#f6f5f4] text-[#31302e] border-[#e6e6e6] hover:text-[#000000]'
+                  : 'bg-white dark:bg-[#191b22] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#31302e] dark:text-[#e2e2ea] border-[#e6e6e6] dark:border-white/[0.08] hover:text-[#000000] dark:hover:text-white'
               }`}
             >
               {copied ? (
                 <Check className="w-3.5 h-3.5 text-[#1aae39]" />
               ) : (
-                <Copy className="w-3.5 h-3.5 text-[#0075de]" />
+                <Copy className="w-3.5 h-3.5 text-[#0075de] dark:text-[#00daf3]" />
               )}
               <span>{copied ? 'คัดลอกแล้ว' : 'ชวนเพื่อน'}</span>
             </button>
@@ -295,11 +295,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           <>
             {/* Online Count Badge */}
             <div
-              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 bg-[#f6f5f4] border border-[#e6e6e6] rounded-full text-xs text-[#31302e] shadow-xs"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 bg-[#f6f5f4] dark:bg-[#191b22] border border-[#e6e6e6] dark:border-white/[0.08] rounded-full text-xs text-[#31302e] dark:text-[#e2e2ea] shadow-xs"
               title={`มีคนอยู่ในห้อง ${onlineCount} คน`}
             >
-              <Users className="w-3.5 h-3.5 text-[#2a9d99]" />
-              <span className="font-semibold text-[#000000]">{onlineCount}</span>
+              <Users className="w-3.5 h-3.5 text-[#2a9d99] dark:text-[#00daf3]" />
+              <span className="font-semibold text-[#000000] dark:text-[#e2e2ea]">{onlineCount}</span>
             </div>
 
             {/* Desktop / Tablet Invite Button */}

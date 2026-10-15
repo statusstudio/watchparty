@@ -344,18 +344,18 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-white text-[#31302e] overflow-hidden">
+    <div className="flex flex-col h-full bg-white dark:bg-[#191b22] text-[#31302e] dark:text-[#e2e2ea] overflow-hidden">
       {/* Unified Search & Add Bar at Top (No duplicate sub-tabs) */}
-      <div className="p-2.5 border-b border-[#e6e6e6] bg-[#f6f5f4] shrink-0">
+      <div className="p-2.5 border-b border-[#e6e6e6] dark:border-white/[0.08] bg-[#f6f5f4] dark:bg-[#1d1f26] shrink-0">
         <form onSubmit={handleSearch} className="flex items-center gap-1.5">
           <div className="relative flex-1">
-            <Search className="w-3.5 h-3.5 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-[#a39e98] dark:text-[#64748b] absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="ค้นหาชื่อเพลง หรือ วางลิงก์ YouTube..."
-              className="w-full pl-8 pr-16 py-1.5 bg-white border border-[#e6e6e6] rounded-full text-xs text-[#000000] placeholder-[#a39e98] focus:outline-none focus:border-[#0075de] shadow-xs"
+              className="w-full pl-8 pr-16 py-1.5 bg-white dark:bg-[#111319] border border-[#e6e6e6] dark:border-white/[0.12] rounded-full text-xs text-[#000000] dark:text-[#e2e2ea] placeholder-[#a39e98] dark:placeholder-[#64748b] focus:outline-none focus:border-[#0075de] dark:focus:border-[#00daf3] shadow-xs"
             />
             {searchQuery && (
               <button
@@ -365,7 +365,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                   setSearchResults([]);
                   setActiveTab('queue');
                 }}
-                className="absolute right-12 top-1/2 -translate-y-1/2 text-[#a39e98] hover:text-[#000000] p-1 cursor-pointer"
+                className="absolute right-12 top-1/2 -translate-y-1/2 text-[#a39e98] hover:text-[#000000] dark:hover:text-white p-1 cursor-pointer"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -393,7 +393,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
             className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs shrink-0 ${
               activeTab === 'favorites'
                 ? 'bg-rose-500 text-white border-rose-500'
-                : 'bg-white hover:bg-rose-50 text-rose-500 border-[#e6e6e6]'
+                : 'bg-white dark:bg-[#191b22] hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 border-[#e6e6e6] dark:border-white/[0.08]'
             }`}
           >
             <Heart className="w-3.5 h-3.5 fill-current" />
@@ -417,7 +417,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
             className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs shrink-0 ${
               activeTab === 'saved_playlists'
                 ? 'bg-purple-600 text-white border-purple-600'
-                : 'bg-white hover:bg-purple-50 text-purple-600 border-[#e6e6e6]'
+                : 'bg-white dark:bg-[#191b22] hover:bg-purple-50 dark:hover:bg-purple-950/30 text-purple-600 dark:text-purple-400 border-[#e6e6e6] dark:border-white/[0.08]'
             }`}
           >
             <FolderHeart className="w-3.5 h-3.5" />
@@ -437,8 +437,8 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
 
             {/* Currently Playing Card */}
             {currentVideo.videoId && (
-              <div className="p-2.5 rounded-xl bg-[#f6f5f4] border border-[#e6e6e6] shadow-xs">
-                <div className="flex items-center gap-1.5 mb-1.5 text-[#0075de] text-[10px] font-bold tracking-wider uppercase">
+              <div className="p-2.5 rounded-xl bg-[#f6f5f4] dark:bg-[#1d1f26] border border-[#e6e6e6] dark:border-white/[0.08] shadow-xs">
+                <div className="flex items-center gap-1.5 mb-1.5 text-[#0075de] dark:text-[#00daf3] text-[10px] font-bold tracking-wider uppercase">
                   <span className="w-2 h-2 rounded-full bg-[#1aae39] animate-ping" />
                   <span>กำลังเล่นอยู่ (Now Playing)</span>
                 </div>
@@ -451,10 +451,10 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-xs font-semibold text-[#000000] truncate">
+                    <h4 className="text-xs font-semibold text-[#000000] dark:text-[#e2e2ea] truncate">
                       {currentVideo.title}
                     </h4>
-                    <p className="text-[10px] text-[#615d59] truncate">
+                    <p className="text-[10px] text-[#615d59] dark:text-[#94a3b8] truncate">
                       {currentVideo.channel}
                     </p>
                   </div>
@@ -465,14 +465,14 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
             {/* Queue List Header & Controls */}
             <div className="flex items-center justify-between pt-1">
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-semibold text-[#000000]">คิวถัดไป</span>
-                <span className="text-[10px] text-[#615d59]">({playlist.length} เพลง)</span>
+                <span className="text-xs font-semibold text-[#000000] dark:text-[#e2e2ea]">คิวถัดไป</span>
+                <span className="text-[10px] text-[#615d59] dark:text-[#94a3b8]">({playlist.length} เพลง)</span>
                 {playlist.length > 0 && (
                   <button
                     type="button"
                     onClick={handleSaveQueueAsPlaylist}
                     title="บันทึกคิวเพลงทั้งหมดนี้เป็นเพลย์ลิสต์ส่วนตัว"
-                    className="ml-1 px-2 py-0.5 rounded-md bg-[#0075de]/10 hover:bg-[#0075de]/20 text-[#0075de] text-[10px] font-semibold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                    className="ml-1 px-2 py-0.5 rounded-md bg-[#0075de]/10 dark:bg-[#00daf3]/10 hover:bg-[#0075de]/20 dark:hover:bg-[#00daf3]/20 text-[#0075de] dark:text-[#00daf3] text-[10px] font-semibold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
                   >
                     <Save className="w-3 h-3" />
                     <span>บันทึกคิว</span>
@@ -494,7 +494,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                   className={`p-1 rounded-md text-xs border transition-colors cursor-pointer shadow-xs ${
                     loopMode !== 'off'
                       ? 'bg-[#1aae39]/10 text-[#1aae39] border-[#1aae39]/30'
-                      : 'bg-white hover:bg-[#f6f5f4] text-[#a39e98] border-[#e6e6e6]'
+                      : 'bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#a39e98] dark:text-[#94a3b8] border-[#e6e6e6] dark:border-white/[0.08]'
                   }`}
                 >
                   {loopMode === 'single' ? (
@@ -511,8 +511,8 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                   title={`สุ่มเพลง: ${isShuffle ? 'เปิด' : 'ปิด'}`}
                   className={`p-1 rounded-md text-xs border transition-colors cursor-pointer shadow-xs ${
                     isShuffle
-                      ? 'bg-[#0075de]/10 text-[#0075de] border-[#0075de]/30'
-                      : 'bg-white hover:bg-[#f6f5f4] text-[#a39e98] border-[#e6e6e6]'
+                      ? 'bg-[#0075de]/10 text-[#0075de] dark:text-[#00daf3] border-[#0075de]/30 dark:border-[#00daf3]/30'
+                      : 'bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#a39e98] dark:text-[#94a3b8] border-[#e6e6e6] dark:border-white/[0.08]'
                   }`}
                 >
                   <Shuffle className="w-3.5 h-3.5" />
@@ -524,7 +524,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                   onClick={onNextTrack}
                   disabled={playlist.length === 0}
                   title="เล่นเพลงถัดไป"
-                  className="p-1 rounded-md bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] disabled:opacity-30 cursor-pointer shadow-xs"
+                  className="p-1 rounded-md bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#31302e] dark:text-[#e2e2ea] border border-[#e6e6e6] dark:border-white/[0.08] disabled:opacity-30 cursor-pointer shadow-xs"
                 >
                   <SkipForward className="w-3.5 h-3.5" />
                 </button>
@@ -533,12 +533,12 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
 
             {/* Queue Items */}
             {playlist.length === 0 ? (
-              <div className="text-center py-8 px-4 border border-dashed border-[#e6e6e6] rounded-xl bg-[#f6f5f4]">
-                <Music className="w-8 h-8 text-[#a39e98] mx-auto mb-2 opacity-60" />
-                <p className="text-xs font-medium text-[#615d59]">
+              <div className="text-center py-8 px-4 border border-dashed border-[#e6e6e6] dark:border-white/10 rounded-xl bg-[#f6f5f4] dark:bg-white/[0.02]">
+                <Music className="w-8 h-8 text-[#a39e98] dark:text-[#64748b] mx-auto mb-2 opacity-60" />
+                <p className="text-xs font-medium text-[#615d59] dark:text-[#94a3b8]">
                   ยังไม่มีเพลงในคิว
                 </p>
-                <p className="text-[11px] text-[#a39e98] mt-1">
+                <p className="text-[11px] text-[#a39e98] dark:text-[#64748b] mt-1">
                   ค้นหาเพลงด้านบนเพื่อเพิ่มเพลงเข้าคิวได้เลย
                 </p>
               </div>
@@ -547,9 +547,9 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                 {playlist.map((item, idx) => (
                   <div
                     key={item.id}
-                    className="flex items-center gap-2 p-1.5 rounded-xl bg-white hover:bg-[#f6f5f4] border border-[#e6e6e6] transition-colors group shadow-xs"
+                    className="flex items-center gap-2 p-1.5 rounded-xl bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] border border-[#e6e6e6] dark:border-white/[0.08] transition-colors group shadow-xs"
                   >
-                    <span className="w-5 text-center font-mono text-xs text-[#a39e98] shrink-0">
+                    <span className="w-5 text-center font-mono text-xs text-[#a39e98] dark:text-[#64748b] shrink-0">
                       {idx + 1}
                     </span>
 
@@ -557,7 +557,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                     <div
                       onClick={() => onPlayNow(item.videoId, item.title, item.channel)}
                       title={`คลิกเพื่อเล่นเพลง: ${item.title}`}
-                      className="w-14 h-9.5 rounded-lg overflow-hidden shrink-0 bg-black relative shadow-2xs group/thumb cursor-pointer border border-[#e6e6e6]/60"
+                      className="w-14 h-9.5 rounded-lg overflow-hidden shrink-0 bg-black relative shadow-2xs group/thumb cursor-pointer border border-[#e6e6e6]/60 dark:border-white/10"
                     >
                       <img
                         src={item.thumbnail}
@@ -572,12 +572,12 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                     <div className="flex-1 min-w-0 pr-1">
                       <h5
                         onClick={() => onPlayNow(item.videoId, item.title, item.channel)}
-                        className="text-xs font-semibold text-[#000000] hover:text-[#0075de] transition-colors truncate cursor-pointer"
+                        className="text-xs font-semibold text-[#000000] dark:text-[#e2e2ea] hover:text-[#0075de] dark:hover:text-[#00daf3] transition-colors truncate cursor-pointer"
                         title={item.title}
                       >
                         {item.title}
                       </h5>
-                      <div className="flex items-center gap-1.5 text-[10px] text-[#615d59]">
+                      <div className="flex items-center gap-1.5 text-[10px] text-[#615d59] dark:text-[#94a3b8]">
                         <span className="truncate max-w-[100px]">{item.channel}</span>
                         <span>•</span>
                         <span>{item.duration}</span>
@@ -593,8 +593,8 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                         title={favIds.has(item.videoId) ? 'ลบออกจากเพลงโปรด' : 'บันทึกเป็นเพลงโปรด ❤️'}
                         className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95 ${
                           favIds.has(item.videoId)
-                            ? 'bg-rose-50 text-rose-500 hover:bg-rose-100 border border-rose-200'
-                            : 'bg-white hover:bg-rose-50 text-[#a39e98] hover:text-rose-500 border border-[#e6e6e6]'
+                            ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900/50'
+                            : 'bg-white dark:bg-[#191b22] hover:bg-rose-50 dark:hover:bg-rose-950/40 text-[#a39e98] hover:text-rose-500 border border-[#e6e6e6] dark:border-white/[0.08]'
                         }`}
                       >
                         <Heart className={`w-3.5 h-3.5 ${favIds.has(item.videoId) ? 'fill-current text-rose-500' : ''}`} />
@@ -613,14 +613,14 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                       {/* Protective Separator Line between Play and Destructive Delete */}
                       {canManagePlaylist && (
                         <>
-                          <span className="h-4 w-px bg-[#e6e6e6] mx-0.5 hidden sm:inline-block" />
+                          <span className="h-4 w-px bg-[#e6e6e6] dark:bg-white/10 mx-0.5 hidden sm:inline-block" />
 
                           {/* Delete Button - Distinct bordered styling, separated from Play */}
                           <button
                             type="button"
                             onClick={() => onRemoveItem(item.id)}
                             title="ลบเพลงนี้ออกจากคิว"
-                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white hover:bg-rose-50 text-[#a39e98] hover:text-rose-600 border border-[#e6e6e6] hover:border-rose-300 flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
+                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white dark:bg-[#191b22] hover:bg-rose-50 dark:hover:bg-rose-950/40 text-[#a39e98] hover:text-rose-600 border border-[#e6e6e6] dark:border-white/[0.08] hover:border-rose-300 dark:hover:border-rose-800 flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -638,9 +638,9 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
         {activeTab === 'search' && (
           <div className="space-y-3">
             {/* Search Results Header & Back Button */}
-            <div className="flex items-center justify-between pb-1 border-b border-[#e6e6e6]">
-              <span className="text-xs font-bold text-[#000000] flex items-center gap-1.5">
-                <Search className="w-3.5 h-3.5 text-[#0075de]" />
+            <div className="flex items-center justify-between pb-1 border-b border-[#e6e6e6] dark:border-white/[0.08]">
+              <span className="text-xs font-bold text-[#000000] dark:text-[#e2e2ea] flex items-center gap-1.5">
+                <Search className="w-3.5 h-3.5 text-[#0075de] dark:text-[#00daf3]" />
                 <span>ผลการค้นหา ({searchResults.length})</span>
               </span>
               <button
@@ -649,7 +649,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                   setActiveTab('queue');
                   setSearchResults([]);
                 }}
-                className="text-xs text-[#0075de] hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                className="text-xs text-[#0075de] dark:text-[#00daf3] hover:underline flex items-center gap-1 cursor-pointer font-medium"
               >
                 <X className="w-3.5 h-3.5" />
                 <span>กลับไปที่คิวเพลง</span>
@@ -657,12 +657,12 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
             </div>
 
             {/* YouTube Playlist Quick Importer Card */}
-            <div className="p-3 bg-[#f6f5f4] border border-[#e6e6e6] rounded-xl space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-[#000000]">
-                <ListPlus className="w-4 h-4 text-[#0075de]" />
+            <div className="p-3 bg-[#f6f5f4] dark:bg-[#1d1f26] border border-[#e6e6e6] dark:border-white/[0.08] rounded-xl space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#000000] dark:text-[#e2e2ea]">
+                <ListPlus className="w-4 h-4 text-[#0075de] dark:text-[#00daf3]" />
                 <span>นำเข้า YouTube Playlist ทั้งชุด</span>
               </div>
-              <p className="text-[10px] text-[#615d59]">
+              <p className="text-[10px] text-[#615d59] dark:text-[#94a3b8]">
                 วางลิงก์ YouTube Playlist เพื่อดึงเพลงทั้งหมดเข้าคิวห้องในคลิกเดียว
               </p>
               <form
@@ -679,7 +679,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                   value={playlistUrlInput}
                   onChange={(e) => setPlaylistUrlInput(e.target.value)}
                   placeholder="https://www.youtube.com/playlist?list=..."
-                  className="flex-1 px-3 py-1.5 bg-white border border-[#e6e6e6] rounded-lg text-xs text-[#000000] focus:outline-none focus:border-[#0075de]"
+                  className="flex-1 px-3 py-1.5 bg-white dark:bg-[#111319] border border-[#e6e6e6] dark:border-white/[0.12] rounded-lg text-xs text-[#000000] dark:text-[#e2e2ea] placeholder-[#a39e98] dark:placeholder-[#64748b] focus:outline-none focus:border-[#0075de] dark:focus:border-[#00daf3]"
                 />
                 <button
                   type="submit"
@@ -700,7 +700,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
 
             {/* Search Results */}
             {isSearching ? (
-              <div className="text-center py-8 text-[#615d59] text-xs">
+              <div className="text-center py-8 text-[#615d59] dark:text-[#94a3b8] text-xs">
                 กำลังค้นหาเพลงจาก YouTube...
               </div>
             ) : searchResults.length > 0 ? (
@@ -711,7 +711,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                   return (
                     <div
                       key={res.videoId}
-                      className="flex items-center gap-2 p-1.5 rounded-xl bg-white hover:bg-[#f6f5f4] border border-[#e6e6e6] transition-colors shadow-xs group"
+                      className="flex items-center gap-2 p-1.5 rounded-xl bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] border border-[#e6e6e6] dark:border-white/[0.08] transition-colors shadow-xs group"
                     >
                       <div className="w-14 h-9 rounded-lg overflow-hidden shrink-0 bg-black relative shadow-xs">
                         <img
@@ -725,10 +725,10 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <h5 className="text-xs font-medium text-[#000000] truncate" title={res.title}>
+                        <h5 className="text-xs font-medium text-[#000000] dark:text-[#e2e2ea] truncate" title={res.title}>
                           {res.title}
                         </h5>
-                        <p className="text-[10px] text-[#615d59] truncate">
+                        <p className="text-[10px] text-[#615d59] dark:text-[#94a3b8] truncate">
                           {res.channel}
                         </p>
                       </div>
@@ -739,7 +739,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                           type="button"
                           onClick={() => onPlayNow(res.videoId, res.title, res.channel)}
                           title="เล่นเพลงนี้ทันที"
-                          className="p-1.5 rounded-md hover:bg-[#0075de]/10 text-[#0075de] transition-colors cursor-pointer"
+                          className="p-1.5 rounded-md hover:bg-[#0075de]/10 text-[#0075de] dark:text-[#00daf3] transition-colors cursor-pointer"
                         >
                           <Play className="w-3.5 h-3.5 fill-current" />
                         </button>
@@ -752,7 +752,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                           className={`p-1.5 rounded-md transition-colors cursor-pointer ${
                             isAdded
                               ? 'bg-[#1aae39]/10 text-[#1aae39]'
-                              : 'hover:bg-black/5 text-[#31302e]'
+                              : 'hover:bg-black/5 dark:hover:bg-white/5 text-[#31302e] dark:text-[#e2e2ea]'
                           }`}
                         >
                           {isAdded ? (
@@ -771,8 +771,8 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
             {/* Quick Suggestions when no search */}
             {!isSearching && searchResults.length === 0 && (
               <div className="space-y-2 pt-2">
-                <span className="text-[11px] font-semibold text-[#615d59] px-1 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-[#0075de]" />
+                <span className="text-[11px] font-semibold text-[#615d59] dark:text-[#94a3b8] px-1 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-[#0075de] dark:text-[#00daf3]" />
                   แนวเพลงยอดนิยม
                 </span>
                 <div className="flex flex-wrap gap-1.5">
@@ -785,7 +785,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                           setSearchQuery(tag);
                           handleSearch();
                         }}
-                        className="px-2.5 py-1 rounded-full bg-white hover:bg-[#f6f5f4] hover:text-[#0075de] hover:border-[#0075de]/30 border border-[#e6e6e6] text-[#615d59] text-[11px] font-medium transition-all cursor-pointer shadow-xs"
+                        className="px-2.5 py-1 rounded-full bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] hover:text-[#0075de] dark:hover:text-[#00daf3] hover:border-[#0075de]/30 border border-[#e6e6e6] dark:border-white/[0.08] text-[#615d59] dark:text-[#94a3b8] text-[11px] font-medium transition-all cursor-pointer shadow-xs"
                       >
                         {tag}
                       </button>
@@ -800,11 +800,11 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
         {/* ==================== FAVORITES TAB ==================== */}
         {activeTab === 'favorites' && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between pb-1 border-b border-[#e6e6e6]">
+            <div className="flex items-center justify-between pb-1 border-b border-[#e6e6e6] dark:border-white/[0.08]">
               <div className="flex items-center gap-1.5">
                 <Heart className="w-3.5 h-3.5 text-rose-500 fill-current" />
-                <span className="text-xs font-bold text-[#000000]">เพลงโปรดของฉัน</span>
-                <span className="text-[10px] text-[#615d59]">({favoriteSongs.length})</span>
+                <span className="text-xs font-bold text-[#000000] dark:text-[#e2e2ea]">เพลงโปรดของฉัน</span>
+                <span className="text-[10px] text-[#615d59] dark:text-[#94a3b8]">({favoriteSongs.length})</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -828,7 +828,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                       onShowToast(`เพิ่มเพลงโปรดทั้งหมด (${itemsToAdd.length} เพลง) เข้าคิวแล้ว ❤️`, 'success');
                       setActiveTab('queue');
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                    className="px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
                   >
                     <Plus className="w-3 h-3" />
                     <span>เพิ่มทั้งหมดเข้าคิว</span>
@@ -838,7 +838,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveTab('queue')}
-                  className="text-xs text-[#0075de] hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                  className="text-xs text-[#0075de] dark:text-[#00daf3] hover:underline flex items-center gap-1 cursor-pointer font-medium"
                 >
                   <X className="w-3.5 h-3.5" />
                   <span>กลับคิวเพลง</span>
@@ -847,16 +847,16 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
             </div>
 
             {loadingFavorites ? (
-              <div className="text-center py-8 text-xs text-[#615d59]">
+              <div className="text-center py-8 text-xs text-[#615d59] dark:text-[#94a3b8]">
                 กำลังโหลดคลังเพลงโปรด...
               </div>
             ) : favoriteSongs.length === 0 ? (
-              <div className="text-center py-10 px-4 border border-dashed border-[#e6e6e6] rounded-xl bg-[#f6f5f4] space-y-2">
-                <Heart className="w-8 h-8 text-[#a39e98] mx-auto opacity-50" />
-                <p className="text-xs font-semibold text-[#000000]">
+              <div className="text-center py-10 px-4 border border-dashed border-[#e6e6e6] dark:border-white/10 rounded-xl bg-[#f6f5f4] dark:bg-white/[0.02] space-y-2">
+                <Heart className="w-8 h-8 text-[#a39e98] dark:text-[#64748b] mx-auto opacity-50" />
+                <p className="text-xs font-semibold text-[#000000] dark:text-[#e2e2ea]">
                   ยังไม่มีเพลงโปรดในคลัง
                 </p>
-                <p className="text-[11px] text-[#615d59] leading-relaxed">
+                <p className="text-[11px] text-[#615d59] dark:text-[#94a3b8] leading-relaxed">
                   กดปุ่ม ❤️ ที่เครื่องเล่นเพลง หรือในรายการคิวเพลง เพื่อบันทึกเพลงที่ชอบไว้ฟังและเพิ่มเข้าคิวได้ทุกเมื่อ
                 </p>
               </div>
@@ -865,7 +865,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                 {favoriteSongs.map((fav) => (
                   <div
                     key={fav.id || fav.videoId}
-                    className="flex items-center gap-2 p-1.5 rounded-xl bg-white hover:bg-[#f6f5f4] border border-[#e6e6e6] transition-colors shadow-xs group"
+                    className="flex items-center gap-2 p-1.5 rounded-xl bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] border border-[#e6e6e6] dark:border-white/[0.08] transition-colors shadow-xs group"
                   >
                     <div className="w-14 h-9 rounded-lg overflow-hidden shrink-0 bg-black relative shadow-xs">
                       <img
@@ -879,10 +879,10 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h5 className="text-xs font-medium text-[#000000] truncate" title={fav.title}>
+                      <h5 className="text-xs font-medium text-[#000000] dark:text-[#e2e2ea] truncate" title={fav.title}>
                         {fav.title}
                       </h5>
-                      <p className="text-[10px] text-[#615d59] truncate">
+                      <p className="text-[10px] text-[#615d59] dark:text-[#94a3b8] truncate">
                         {fav.channel || 'YouTube'}
                       </p>
                     </div>
@@ -915,18 +915,18 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                           onShowToast(`เพิ่ม "${fav.title.substring(0, 25)}..." เข้าคิวแล้ว ❤️`, 'success');
                         }}
                         title="เพิ่มเข้าคิว"
-                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white dark:bg-[#191b22] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#31302e] dark:text-[#e2e2ea] border border-[#e6e6e6] dark:border-white/[0.08] flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
 
-                      <span className="h-4 w-px bg-[#e6e6e6] mx-0.5 hidden sm:inline-block" />
+                      <span className="h-4 w-px bg-[#e6e6e6] dark:bg-white/10 mx-0.5 hidden sm:inline-block" />
 
                       <button
                         type="button"
                         onClick={() => handleToggleFavoriteItem(fav)}
                         title="ลบออกจากเพลงโปรด"
-                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white hover:bg-rose-50 text-[#a39e98] hover:text-rose-600 border border-[#e6e6e6] hover:border-rose-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white dark:bg-[#191b22] hover:bg-rose-50 dark:hover:bg-rose-950/40 text-[#a39e98] hover:text-rose-600 border border-[#e6e6e6] dark:border-white/[0.08] hover:border-rose-200 dark:hover:border-rose-800 flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -941,17 +941,17 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
         {/* ==================== SAVED PLAYLISTS TAB ==================== */}
         {activeTab === 'saved_playlists' && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between pb-1 border-b border-[#e6e6e6]">
+            <div className="flex items-center justify-between pb-1 border-b border-[#e6e6e6] dark:border-white/[0.08]">
               <div className="flex items-center gap-1.5">
-                <FolderHeart className="w-3.5 h-3.5 text-purple-600" />
-                <span className="text-xs font-bold text-[#000000]">เพลย์ลิสต์ส่วนตัว</span>
-                <span className="text-[10px] text-[#615d59]">({savedPlaylists.length})</span>
+                <FolderHeart className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                <span className="text-xs font-bold text-[#000000] dark:text-[#e2e2ea]">เพลย์ลิสต์ส่วนตัว</span>
+                <span className="text-[10px] text-[#615d59] dark:text-[#94a3b8]">({savedPlaylists.length})</span>
               </div>
 
               <button
                 type="button"
                 onClick={() => setActiveTab('queue')}
-                className="text-xs text-[#0075de] hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                className="text-xs text-[#0075de] dark:text-[#00daf3] hover:underline flex items-center gap-1 cursor-pointer font-medium"
               >
                 <X className="w-3.5 h-3.5" />
                 <span>กลับคิวเพลง</span>
@@ -959,13 +959,13 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
             </div>
 
             {savedPlaylists.length === 0 ? (
-              <div className="text-center py-10 px-4 border border-dashed border-[#e6e6e6] rounded-xl bg-[#f6f5f4] space-y-2">
-                <FolderHeart className="w-8 h-8 text-[#a39e98] mx-auto opacity-50 text-purple-400" />
-                <p className="text-xs font-semibold text-[#000000]">
+              <div className="text-center py-10 px-4 border border-dashed border-[#e6e6e6] dark:border-white/10 rounded-xl bg-[#f6f5f4] dark:bg-white/[0.02] space-y-2">
+                <FolderHeart className="w-8 h-8 text-[#a39e98] dark:text-[#64748b] mx-auto opacity-50 text-purple-400" />
+                <p className="text-xs font-semibold text-[#000000] dark:text-[#e2e2ea]">
                   ยังไม่มีเพลย์ลิสต์ที่บันทึกไว้
                 </p>
-                <p className="text-[11px] text-[#615d59] leading-relaxed">
-                  เมื่อคุณจัดคิวเพลงไว้ในห้อง สามารถกดปุ่ม <span className="font-semibold text-[#0075de]">"บันทึกคิว"</span> ที่แท็บคิวเพลง เพื่อเก็บชุดเพลงโปรดไว้เปิดฟังในห้องใดก็ได้ตลอดเวลา!
+                <p className="text-[11px] text-[#615d59] dark:text-[#94a3b8] leading-relaxed">
+                  เมื่อคุณจัดคิวเพลงไว้ในห้อง สามารถกดปุ่ม <span className="font-semibold text-[#0075de] dark:text-[#00daf3]">"บันทึกคิว"</span> ที่แท็บคิวเพลง เพื่อเก็บชุดเพลงโปรดไว้เปิดฟังในห้องใดก็ได้ตลอดเวลา!
                 </p>
               </div>
             ) : (
@@ -973,15 +973,15 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                 {savedPlaylists.map((pl) => (
                   <div
                     key={pl.id}
-                    className="p-3 rounded-xl bg-white hover:bg-[#f6f5f4] border border-[#e6e6e6] transition-all shadow-xs group space-y-2"
+                    className="p-3 rounded-xl bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] border border-[#e6e6e6] dark:border-white/[0.08] transition-all shadow-xs group space-y-2"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <h5 className="text-xs font-bold text-[#000000] truncate">
+                        <h5 className="text-xs font-bold text-[#000000] dark:text-[#e2e2ea] truncate">
                           {pl.name}
                         </h5>
-                        <div className="flex items-center gap-2 text-[10px] text-[#615d59] mt-0.5">
-                          <span className="font-semibold text-purple-600">{pl.items.length} เพลง</span>
+                        <div className="flex items-center gap-2 text-[10px] text-[#615d59] dark:text-[#94a3b8] mt-0.5">
+                          <span className="font-semibold text-purple-600 dark:text-purple-400">{pl.items.length} เพลง</span>
                           <span>•</span>
                           <span>{new Date(pl.createdAt).toLocaleDateString('th-TH')}</span>
                         </div>
@@ -1002,7 +1002,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                           type="button"
                           onClick={() => handleDeleteSavedPlaylist(pl.id, pl.name)}
                           title="ลบเพลย์ลิสต์นี้"
-                          className="p-1.5 rounded-lg text-[#a39e98] hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-[#a39e98] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1015,7 +1015,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                         {pl.items.slice(0, 4).map((it, i) => (
                           <div
                             key={i}
-                            className="w-12 h-8 rounded-md bg-black overflow-hidden shrink-0 border border-black/10 relative"
+                            className="w-12 h-8 rounded-md bg-black overflow-hidden shrink-0 border border-black/10 dark:border-white/10 relative"
                             title={it.title}
                           >
                             <img
@@ -1026,7 +1026,7 @@ export const SidebarQueue: React.FC<SidebarQueueProps> = ({
                           </div>
                         ))}
                         {pl.items.length > 4 && (
-                          <div className="w-10 h-8 rounded-md bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500 shrink-0">
+                          <div className="w-10 h-8 rounded-md bg-zinc-100 dark:bg-white/10 flex items-center justify-center text-[10px] font-bold text-zinc-500 dark:text-zinc-300 shrink-0">
                             +{pl.items.length - 4}
                           </div>
                         )}

@@ -2443,7 +2443,7 @@ export function App() {
 
       {(currentView === 'room' || Boolean(roomId)) && (
         <main
-          className={`flex-1 min-h-0 max-w-[1920px] w-full mx-auto p-2 sm:p-3 lg:p-3.5 flex flex-col lg:grid lg:grid-cols-12 gap-2 sm:gap-3 lg:gap-3.5 overflow-hidden transition-colors duration-300 ${
+          className={`flex-1 min-h-0 max-w-[1920px] w-full mx-auto p-2 sm:p-3 lg:p-3.5 flex flex-col lg:grid lg:grid-cols-12 gap-2 sm:gap-3 lg:gap-3.5 overflow-hidden transition-colors duration-300 relative ${
             theme === 'dark' ? 'bg-[#111319] text-[#e2e2ea]' : 'bg-[#faf8ff] text-[#131b2e]'
           } ${
             currentView === 'room'
@@ -2451,12 +2451,16 @@ export function App() {
               : 'fixed -left-[9999px] top-0 w-1 h-1 opacity-0 pointer-events-none overflow-hidden'
           }`}
         >
+          {/* Dynamic Ambient Glow Scrim behind Player Stage (From Stitch Screen 8) */}
+          <div className="absolute top-0 left-1/3 w-[600px] h-[350px] bg-[#0075de]/10 blur-[130px] rounded-full pointer-events-none -z-10" />
+          <div className="absolute top-20 right-1/4 w-[420px] h-[260px] bg-[#00daf3]/10 blur-[100px] rounded-full pointer-events-none -z-10" />
+
           {/* Left Column: Synchronized Video Player & Open Voice Bar (Desktop: 8 cols) */}
           <div className="w-full lg:col-span-8 flex flex-col shrink-0 lg:shrink lg:h-full min-h-0 gap-2 sm:gap-2.5">
             {/* Synchronized YouTube Video Player */}
             <div
               id="video-player-container"
-              className={`w-full aspect-video max-h-[25vh] sm:max-h-[30vh] md:max-h-[32vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black rounded-xl overflow-hidden border border-[#e6e6e6] shadow-[0_4px_12px_rgba(0,0,0,0.06)] relative shrink-0 ${
+              className={`w-full aspect-video max-h-[25vh] sm:max-h-[30vh] md:max-h-[32vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black rounded-xl overflow-hidden border border-[#e6e6e6] dark:border-white/[0.08] shadow-[0_4px_12px_rgba(0,0,0,0.06)] relative shrink-0 ${
                 gameState?.isActive ? 'fixed -left-[9999px] top-0 w-1 h-1 opacity-0 pointer-events-none' : ''
               }`}
             >
@@ -2513,14 +2517,14 @@ export function App() {
               </div>
             )}
 
-            {/* Current Video Info Banner & Quick Controls - Notion White Surface */}
-            <div className="bg-white border border-[#e6e6e6] rounded-xl px-2.5 py-2 sm:px-3 sm:py-2.5 flex flex-col gap-2 shrink-0 shadow-xs">
+            {/* Current Video Info Banner & Quick Controls - Stitch Studio Card */}
+            <div className="bg-white dark:bg-[#191b22] border border-[#e6e6e6] dark:border-white/[0.08] text-[#31302e] dark:text-[#e2e2ea] rounded-xl px-2.5 py-2 sm:px-3 sm:py-2.5 flex flex-col gap-2 shrink-0 shadow-xs transition-colors">
               {/* Top Row: Video Title, Channel, Playlist position & Action Controls */}
               <div className="flex items-center justify-between gap-1.5 sm:gap-2">
                 {/* Video Title, Channel & Favorite Song Button */}
                 <div className="min-w-0 flex-1 pr-2">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <h2 className="text-xs sm:text-sm font-bold text-[#000000] truncate" title={video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}>
+                    <h2 className="text-xs sm:text-sm font-bold text-[#000000] dark:text-[#e2e2ea] truncate" title={video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}>
                       {video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}
                     </h2>
                     {video.videoId && (
@@ -2538,7 +2542,7 @@ export function App() {
                       </button>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 text-[11px] text-[#615d59] mt-0.5">
+                  <div className="flex items-center gap-2 text-[11px] text-[#615d59] dark:text-[#94A3B8] mt-0.5">
                     <span className="truncate max-w-[140px] sm:max-w-[200px]">{video.channel || 'pleng.online'}</span>
                     {playlist.length > 0 && (
                       <span className="text-[10px] text-[#0075de] font-mono bg-[#0075de]/10 px-1.5 py-0.5 rounded border border-[#0075de]/20 shrink-0">
@@ -2556,7 +2560,7 @@ export function App() {
                     onClick={handlePrevTrack}
                     title="เพลงก่อนหน้า (Previous Track)"
                     disabled={playlist.length === 0}
-                    className="p-1.5 rounded-md bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] disabled:opacity-30 transition-all cursor-pointer shadow-xs"
+                    className="p-1.5 rounded-md bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#31302e] dark:text-[#e2e2ea] border border-[#e6e6e6] dark:border-white/[0.08] disabled:opacity-30 transition-all cursor-pointer shadow-xs"
                   >
                     <SkipBack className="w-3.5 h-3.5" />
                   </button>
@@ -2568,11 +2572,11 @@ export function App() {
                     title={isShuffle ? 'สุ่มเพลง: เปิด (คลิกเพื่อปิด)' : 'สุ่มเพลง: ปิด (คลิกเพื่อเปิด)'}
                     className={`p-1.5 rounded-md border transition-all cursor-pointer shadow-xs ${
                       isShuffle
-                        ? 'bg-[#0075de]/10 text-[#0075de] border-[#0075de]/30'
-                        : 'bg-white hover:bg-[#f6f5f4] text-[#a39e98] border-[#e6e6e6]'
+                        ? 'bg-[#0075de]/10 text-[#0075de] dark:text-[#00daf3] border-[#0075de]/30 dark:border-[#00daf3]/30'
+                        : 'bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#a39e98] dark:text-[#94a3b8] border-[#e6e6e6] dark:border-white/[0.08]'
                     }`}
                   >
-                    <Shuffle className={`w-3.5 h-3.5 ${isShuffle ? 'text-[#0075de]' : 'opacity-60'}`} />
+                    <Shuffle className={`w-3.5 h-3.5 ${isShuffle ? 'text-[#0075de] dark:text-[#00daf3]' : 'opacity-60'}`} />
                   </button>
 
                   {/* Loop Mode Cycle Button */}
@@ -2590,7 +2594,7 @@ export function App() {
                     className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1 transition-all cursor-pointer shadow-xs ${
                       loopMode !== 'off'
                         ? 'bg-[#1aae39]/10 text-[#1aae39] border-[#1aae39]/30'
-                        : 'bg-white hover:bg-[#f6f5f4] text-[#a39e98] border-[#e6e6e6]'
+                        : 'bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#a39e98] dark:text-[#94a3b8] border-[#e6e6e6] dark:border-white/[0.08]'
                     }`}
                   >
                     {loopMode === 'single' ? (
@@ -2617,7 +2621,7 @@ export function App() {
                     onClick={handleNextTrack}
                     title="เพลงถัดไป (Next Track)"
                     disabled={playlist.length === 0}
-                    className="p-1.5 rounded-md bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] disabled:opacity-30 transition-all cursor-pointer shadow-xs"
+                    className="p-1.5 rounded-md bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#31302e] dark:text-[#e2e2ea] border border-[#e6e6e6] dark:border-white/[0.08] disabled:opacity-30 transition-all cursor-pointer shadow-xs"
                   >
                     <SkipForward className="w-3.5 h-3.5" />
                   </button>
@@ -2630,9 +2634,9 @@ export function App() {
                       showToast('เข้าสู่โหมดพักหน้าจอ (OLED Black) แตะหน้าจอเพื่อปลดล็อค 🌙', 'info');
                     }}
                     title="โหมดพักหน้าจอประหยัดแบตเตอรี่ (หน้าจอดำสนิท ฟังเพลงไม่ตัด)"
-                    className="px-2 py-1 rounded-md bg-white hover:bg-[#f6f5f4] text-[#615d59] border border-[#e6e6e6] text-xs font-medium transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-xs"
+                    className="px-2 py-1 rounded-md bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#615d59] dark:text-[#94a3b8] border border-[#e6e6e6] dark:border-white/[0.08] text-xs font-medium transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-xs"
                   >
-                    <Moon className="w-3.5 h-3.5 text-[#615d59]" />
+                    <Moon className="w-3.5 h-3.5 text-[#615d59] dark:text-[#94a3b8]" />
                     <span className="text-[10px] hidden sm:inline">พักจอ</span>
                   </button>
 
@@ -2647,7 +2651,7 @@ export function App() {
                       setIsKaraokeModalOpen(true);
                     }}
                     title="โหมดคาราโอเกะ & เนื้อเพลงสด (Synced Lyrics)"
-                    className="px-2.5 py-1 rounded-md bg-pink-500/10 hover:bg-pink-500/20 text-pink-600 border border-pink-500/30 text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs active:scale-95"
+                    className="px-2.5 py-1 rounded-md bg-pink-500/10 hover:bg-pink-500/20 text-pink-600 dark:text-pink-400 border border-pink-500/30 text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs active:scale-95"
                   >
                     <Mic2 className="w-3.5 h-3.5 text-pink-500 animate-pulse" />
                     <span className="text-[11px]">เนื้อเพลง</span>
@@ -2661,7 +2665,7 @@ export function App() {
                     className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs active:scale-95 border ${
                       (sleepTimerSecondsLeft !== null && sleepTimerSecondsLeft > 0) || sleepTimerStopAtEnd
                         ? 'bg-indigo-600 text-white border-indigo-700 animate-pulse'
-                        : 'bg-white hover:bg-[#f6f5f4] text-[#615d59] border-[#e6e6e6]'
+                        : 'bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#615d59] dark:text-[#94a3b8] border-[#e6e6e6] dark:border-white/[0.08]'
                     }`}
                   >
                     <Clock className="w-3.5 h-3.5" />
@@ -2688,7 +2692,7 @@ export function App() {
                     className={`px-2 py-1 rounded-md text-xs font-semibold border flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-xs active:scale-95 ${
                       isAudioDuckingEnabled
                         ? 'bg-[#1aae39]/10 text-[#1aae39] border-[#1aae39]/30'
-                        : 'bg-white hover:bg-[#f6f5f4] text-[#a39e98] border-[#e6e6e6]'
+                        : 'bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#a39e98] dark:text-[#94a3b8] border-[#e6e6e6] dark:border-white/[0.08]'
                     }`}
                   >
                     <Headphones className={`w-3.5 h-3.5 ${isAudioDuckingEnabled ? 'text-[#1aae39]' : 'opacity-60'}`} />
@@ -2725,7 +2729,7 @@ export function App() {
               </div>
 
               {/* Bottom Row: Scrubber Timeline, -10s, Play/Pause, +10s, Time Display (3.00/15.00) */}
-              <div className="pt-1.5 border-t border-[#f0efed] flex items-center gap-2 sm:gap-2.5">
+              <div className="pt-1.5 border-t border-[#f0efed] dark:border-white/[0.08] flex items-center gap-2 sm:gap-2.5">
                 {/* Play / Pause Toggle Button */}
                 <button
                   type="button"
@@ -2762,7 +2766,7 @@ export function App() {
                   }}
                   disabled={!video.videoId}
                   title="ย้อนหลัง 10 วินาที (-10s)"
-                  className="p-1.5 rounded-lg bg-white hover:bg-[#f6f5f4] text-[#615d59] hover:text-[#000000] border border-[#e6e6e6] active:scale-95 transition-all cursor-pointer disabled:opacity-30 flex items-center gap-1 shrink-0 shadow-xs"
+                  className="p-1.5 rounded-lg bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#615d59] dark:text-[#94a3b8] hover:text-[#000000] dark:hover:text-white border border-[#e6e6e6] dark:border-white/[0.08] active:scale-95 transition-all cursor-pointer disabled:opacity-30 flex items-center gap-1 shrink-0 shadow-xs"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span className="text-[10px] font-mono font-bold leading-none hidden sm:inline">-10s</span>
@@ -2782,7 +2786,7 @@ export function App() {
                   }}
                   disabled={!video.videoId}
                   title="ไปข้างหน้า 10 วินาที (+10s)"
-                  className="p-1.5 rounded-lg bg-white hover:bg-[#f6f5f4] text-[#615d59] hover:text-[#000000] border border-[#e6e6e6] active:scale-95 transition-all cursor-pointer disabled:opacity-30 flex items-center gap-1 shrink-0 shadow-xs"
+                  className="p-1.5 rounded-lg bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#615d59] dark:text-[#94a3b8] hover:text-[#000000] dark:hover:text-white border border-[#e6e6e6] dark:border-white/[0.08] active:scale-95 transition-all cursor-pointer disabled:opacity-30 flex items-center gap-1 shrink-0 shadow-xs"
                 >
                   <RotateCw className="w-3.5 h-3.5" />
                   <span className="text-[10px] font-mono font-bold leading-none hidden sm:inline">+10s</span>
@@ -2820,17 +2824,17 @@ export function App() {
                       setPlaybackCurrentTime(seekTo);
                       handleVideoSeek(seekTo, playbackDuration || video.duration || 0);
                     }}
-                    className="w-full h-1.5 sm:h-2 bg-[#e6e6e6] rounded-full appearance-none cursor-pointer accent-[#0075de] disabled:opacity-30 transition-all"
+                    className="w-full h-1.5 sm:h-2 bg-[#e6e6e6] dark:bg-white/10 rounded-full appearance-none cursor-pointer accent-[#0075de] dark:accent-[#00daf3] disabled:opacity-30 transition-all"
                   />
                 </div>
 
                 {/* Current Time / Total Duration Display (e.g. 3.00/15.00) */}
-                <div className="font-mono text-xs font-semibold text-[#31302e] whitespace-nowrap px-2 py-0.5 bg-[#f6f5f4] rounded-md border border-[#e6e6e6] shrink-0 tracking-tight">
-                  <span className="text-[#0075de] font-bold">
+                <div className="font-mono text-xs font-semibold text-[#31302e] dark:text-[#e2e2ea] whitespace-nowrap px-2 py-0.5 bg-[#f6f5f4] dark:bg-[#1d1f26] rounded-md border border-[#e6e6e6] dark:border-white/[0.08] shrink-0 tracking-tight">
+                  <span className="text-[#0075de] dark:text-[#00daf3] font-bold">
                     {formatTime(isScrubbing ? scrubValue : playbackCurrentTime)}
                   </span>
-                  <span className="text-[#a39e98] mx-1">/</span>
-                  <span className="text-[#615d59]">
+                  <span className="text-[#a39e98] dark:text-[#64748b] mx-1">/</span>
+                  <span className="text-[#615d59] dark:text-[#94a3b8]">
                     {formatTime(playbackDuration || video.duration || 0)}
                   </span>
                 </div>
@@ -2850,15 +2854,15 @@ export function App() {
                   type="button"
                   onClick={handleToggleFullscreen}
                   title="ขยายเต็มจอ (Fullscreen)"
-                  className="p-1.5 rounded-lg bg-white hover:bg-[#f6f5f4] text-[#615d59] hover:text-[#000000] border border-[#e6e6e6] active:scale-95 transition-all cursor-pointer shrink-0 shadow-xs"
+                  className="p-1.5 rounded-lg bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#615d59] dark:text-[#94a3b8] hover:text-[#000000] dark:hover:text-white border border-[#e6e6e6] dark:border-white/[0.08] active:scale-95 transition-all cursor-pointer shrink-0 shadow-xs"
                 >
                   <Maximize className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
 
-            {/* Mobile / Tablet Tab Switcher (Visible on < lg screens only) - Notion Style */}
-            <div className="flex lg:hidden items-center bg-white border border-[#e6e6e6] rounded-xl p-1 shrink-0 overflow-x-auto shadow-xs">
+            {/* Mobile / Tablet Tab Switcher (Visible on < lg screens only) - Stitch Style */}
+            <div className="flex lg:hidden items-center bg-white dark:bg-[#191b22] border border-[#e6e6e6] dark:border-white/[0.08] rounded-xl p-1 shrink-0 overflow-x-auto shadow-xs">
               {isVoiceStageEnabled && (
                 <button
                   type="button"
@@ -2866,7 +2870,7 @@ export function App() {
                   className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                     activeMobileTab === 'voice'
                       ? 'bg-[#0075de] text-white shadow-xs'
-                      : 'text-[#615d59] hover:text-[#000000]'
+                      : 'text-[#615d59] dark:text-[#94a3b8] hover:text-[#000000] dark:hover:text-white'
                   }`}
                 >
                   <Radio className="w-3.5 h-3.5" />
@@ -2881,7 +2885,7 @@ export function App() {
                   className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                     activeMobileTab === 'queue'
                       ? 'bg-[#0075de] text-white shadow-xs'
-                      : 'text-[#615d59] hover:text-[#000000]'
+                      : 'text-[#615d59] dark:text-[#94a3b8] hover:text-[#000000] dark:hover:text-white'
                   }`}
                 >
                   <ListMusic className="w-3.5 h-3.5" />
@@ -2899,7 +2903,7 @@ export function App() {
                   className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap relative ${
                     activeMobileTab === 'chat'
                       ? 'bg-[#0075de] text-white shadow-xs'
-                      : 'text-[#615d59] hover:text-[#000000]'
+                      : 'text-[#615d59] dark:text-[#94a3b8] hover:text-[#000000] dark:hover:text-white'
                   }`}
                 >
                   <div className="relative flex items-center">
@@ -2920,7 +2924,7 @@ export function App() {
                 className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   activeMobileTab === 'members'
                     ? 'bg-[#0075de] text-white shadow-xs'
-                    : 'text-[#615d59] hover:text-[#000000]'
+                    : 'text-[#615d59] dark:text-[#94a3b8] hover:text-[#000000] dark:hover:text-white'
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
@@ -2955,25 +2959,25 @@ export function App() {
             )}
           </div>
 
-          {/* Right Column: GroupTube Multi-Tab Sidebar (Desktop 4 cols, Mobile conditional) - Notion Card Style */}
-          <div className={`w-full lg:col-span-4 flex-1 lg:h-full min-h-0 flex flex-col bg-white rounded-xl border border-[#e6e6e6] shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden ${
+          {/* Right Column: GroupTube Multi-Tab Sidebar (Desktop 4 cols, Mobile conditional) - Stitch Card Style */}
+          <div className={`w-full lg:col-span-4 flex-1 lg:h-full min-h-0 flex flex-col bg-white dark:bg-[#191b22] text-[#31302e] dark:text-[#e2e2ea] rounded-xl border border-[#e6e6e6] dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden transition-colors ${
             activeMobileTab === 'voice' ? 'hidden lg:flex' : 'flex'
           }`}>
             {/* Desktop Tab Switcher */}
-            <div className="hidden lg:flex items-center p-1.5 border-b border-[#e6e6e6] bg-[#f6f5f4] shrink-0 gap-1">
+            <div className="hidden lg:flex items-center p-1.5 border-b border-[#e6e6e6] dark:border-white/[0.08] bg-[#f6f5f4] dark:bg-[#1d1f26] shrink-0 gap-1">
               {isQueueEnabled && (
                 <button
                   type="button"
                   onClick={() => setActiveSidebarTab('queue')}
                   className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                     activeSidebarTab === 'queue'
-                      ? 'bg-white text-[#0075de] border border-[#e6e6e6] shadow-xs'
-                      : 'text-[#615d59] hover:text-[#000000] hover:bg-black/5'
+                      ? 'bg-white dark:bg-[#191b22] text-[#0075de] dark:text-[#00daf3] border border-[#e6e6e6] dark:border-white/[0.08] shadow-xs'
+                      : 'text-[#615d59] dark:text-[#94a3b8] hover:text-[#000000] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
                   }`}
                 >
                   <ListMusic className="w-3.5 h-3.5" />
                   <span>คิวเพลง</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-[#f6f5f4] text-[#615d59] text-[10px] font-mono border border-[#e6e6e6]">
+                  <span className="px-1.5 py-0.2 rounded-full bg-[#f6f5f4] dark:bg-[#111319] text-[#615d59] dark:text-[#94a3b8] text-[10px] font-mono border border-[#e6e6e6] dark:border-white/[0.08]">
                     {playlist.length}
                   </span>
                 </button>
@@ -2988,8 +2992,8 @@ export function App() {
                   }}
                   className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer relative ${
                     activeSidebarTab === 'chat'
-                      ? 'bg-white text-[#0075de] border border-[#e6e6e6] shadow-xs'
-                      : 'text-[#615d59] hover:text-[#000000] hover:bg-black/5'
+                      ? 'bg-white dark:bg-[#191b22] text-[#0075de] dark:text-[#00daf3] border border-[#e6e6e6] dark:border-white/[0.08] shadow-xs'
+                      : 'text-[#615d59] dark:text-[#94a3b8] hover:text-[#000000] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
                   }`}
                 >
                   <div className="relative flex items-center">
@@ -3009,13 +3013,13 @@ export function App() {
                 onClick={() => setActiveSidebarTab('members')}
                 className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   activeSidebarTab === 'members'
-                    ? 'bg-white text-[#0075de] border border-[#e6e6e6] shadow-xs'
-                    : 'text-[#615d59] hover:text-[#000000] hover:bg-black/5'
+                    ? 'bg-white dark:bg-[#191b22] text-[#0075de] dark:text-[#00daf3] border border-[#e6e6e6] dark:border-white/[0.08] shadow-xs'
+                    : 'text-[#615d59] dark:text-[#94a3b8] hover:text-[#000000] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
                 <span>สมาชิก</span>
-                <span className="px-1.5 py-0.2 rounded-full bg-[#f6f5f4] text-[#615d59] text-[10px] font-mono border border-[#e6e6e6]">
+                <span className="px-1.5 py-0.2 rounded-full bg-[#f6f5f4] dark:bg-[#111319] text-[#615d59] dark:text-[#94a3b8] text-[10px] font-mono border border-[#e6e6e6] dark:border-white/[0.08]">
                   {members.length || onlineCount}
                 </span>
               </button>
@@ -3084,9 +3088,9 @@ export function App() {
                 ? 'block'
                 : 'hidden'
             }`}>
-              <div className="flex items-center justify-between pb-2 border-b border-[#e6e6e6]">
-                <span className="text-xs font-bold text-[#000000]">สมาชิกออนไลน์ทั้งหมด</span>
-                <span className="text-[11px] text-[#0075de] font-semibold font-mono bg-[#0075de]/10 px-2 py-0.5 rounded-full border border-[#0075de]/20">
+              <div className="flex items-center justify-between pb-2 border-b border-[#e6e6e6] dark:border-white/[0.08]">
+                <span className="text-xs font-bold text-[#000000] dark:text-[#e2e2ea]">สมาชิกออนไลน์ทั้งหมด</span>
+                <span className="text-[11px] text-[#0075de] dark:text-[#00daf3] font-semibold font-mono bg-[#0075de]/10 dark:bg-[#00daf3]/10 px-2 py-0.5 rounded-full border border-[#0075de]/20 dark:border-[#00daf3]/20">
                   {uniqueMembers.length || onlineCount} คน
                 </span>
               </div>
@@ -3106,12 +3110,12 @@ export function App() {
                         handleOpenUserCard(m.user);
                       }
                     }}
-                    className="flex items-center justify-between p-2.5 rounded-2xl bg-[#f6f5f4] hover:bg-white border border-[#e6e6e6] hover:border-[#0075de]/30 hover:shadow-xs transition-all cursor-pointer group"
+                    className="flex items-center justify-between p-2.5 rounded-2xl bg-[#f6f5f4] dark:bg-[#1d1f26] hover:bg-white dark:hover:bg-[#282a30] border border-[#e6e6e6] dark:border-white/[0.08] hover:border-[#0075de]/30 dark:hover:border-[#00daf3]/30 hover:shadow-xs transition-all cursor-pointer group"
                     title={`ดูโปรไฟล์ของ ${m.user.name}`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div
-                        className="w-9 h-9 rounded-full overflow-hidden shrink-0 border-2 relative shadow-2xs bg-white"
+                        className="w-9 h-9 rounded-full overflow-hidden shrink-0 border-2 relative shadow-2xs bg-white dark:bg-[#111319]"
                         style={{ borderColor: m.user.color || '#0075de' }}
                       >
                         <img
@@ -3127,28 +3131,28 @@ export function App() {
                       <div className="flex flex-col min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span
-                            className="text-xs font-bold text-[#000000] group-hover:text-[#0075de] transition-colors truncate max-w-[120px]"
+                            className="text-xs font-bold text-[#000000] dark:text-[#e2e2ea] group-hover:text-[#0075de] dark:group-hover:text-[#00daf3] transition-colors truncate max-w-[120px]"
                           >
                             {m.user.name}
                           </span>
                           {m.user.id === currentUser.id && (
-                            <span className="text-[10px] text-[#0075de] font-semibold bg-[#0075de]/10 px-1.5 py-0.2 rounded-full">(คุณ)</span>
+                            <span className="text-[10px] text-[#0075de] dark:text-[#00daf3] font-semibold bg-[#0075de]/10 dark:bg-[#00daf3]/10 px-1.5 py-0.2 rounded-full">(คุณ)</span>
                           )}
                         </div>
 
                         <div className="flex items-center gap-1 mt-0.5">
                           {m.role === 'owner' ? (
-                            <span className="px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-700 text-[9px] font-bold border border-amber-500/25 flex items-center gap-0.5">
-                              <Crown className="w-2.5 h-2.5 text-amber-600" />
+                            <span className="px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[9px] font-bold border border-amber-500/25 flex items-center gap-0.5">
+                              <Crown className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
                               เจ้าของ
                             </span>
                           ) : m.role === 'admin' ? (
-                            <span className="px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 text-[9px] font-bold border border-purple-500/25 flex items-center gap-0.5">
-                              <Shield className="w-2.5 h-2.5 text-purple-600" />
+                            <span className="px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 text-[9px] font-bold border border-purple-500/25 flex items-center gap-0.5">
+                              <Shield className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400" />
                               แอดมิน
                             </span>
                           ) : (
-                            <span className="text-[10px] text-[#615d59]">สมาชิก</span>
+                            <span className="text-[10px] text-[#615d59] dark:text-[#94a3b8]">สมาชิก</span>
                           )}
                         </div>
                       </div>
@@ -3157,12 +3161,12 @@ export function App() {
                     {/* Voice indicator tag */}
                     <div>
                       {isMemberInVoice ? (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold flex items-center gap-1">
-                          <Mic className="w-3 h-3 text-emerald-600" />
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 text-[10px] font-semibold flex items-center gap-1">
+                          <Mic className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                           <span>ในสาย</span>
                         </span>
                       ) : (
-                        <span className="text-[10px] text-[#a39e98] group-hover:text-[#615d59] font-medium transition-colors">ผู้ฟัง</span>
+                        <span className="text-[10px] text-[#a39e98] dark:text-[#64748b] group-hover:text-[#615d59] dark:group-hover:text-[#94a3b8] font-medium transition-colors">ผู้ฟัง</span>
                       )}
                     </div>
                   </div>
