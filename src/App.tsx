@@ -60,6 +60,12 @@ const SuperAdminDashboardModal = React.lazy(() => import('./components/SuperAdmi
 const DrawAndGuessStage = React.lazy(() => import('./components/DrawAndGuessStage.js').then((m) => ({ default: m.DrawAndGuessStage })));
 import { FloatingItem, GiftEvent, LiveReactionsDock } from './components/FloatingReactions.js';
 import { ToastContainer, ToastItem } from './components/Toast.js';
+import { StitchHeader } from './components/stitch/StitchHeader.js';
+import { StitchHomeView } from './components/stitch/StitchHomeView.js';
+import { StitchRoomStudioView } from './components/stitch/StitchRoomStudioView.js';
+import { StitchLiveStageView } from './components/stitch/StitchLiveStageView.js';
+import { StitchRoomCodeModal } from './components/stitch/StitchRoomCodeModal.js';
+import { StitchMobileBottomNav } from './components/stitch/StitchMobileBottomNav.js';
 import {
   isSupabaseConfigured,
   supabase,
@@ -80,6 +86,15 @@ function isLineStudioPath(): boolean {
   return (
     window.location.pathname.startsWith('/line') ||
     window.location.hash.startsWith('#line')
+  );
+}
+
+function isKaraokePath(): boolean {
+  return (
+    window.location.pathname.startsWith('/karaoke') ||
+    window.location.hash.startsWith('#karaoke') ||
+    window.location.pathname.startsWith('/party') ||
+    window.location.hash.startsWith('#party')
   );
 }
 
@@ -154,6 +169,36 @@ export function App() {
   isStealthInspectionRef.current = isStealthInspection;
   const [currentUser, setCurrentUser] = useState<UserProfile>(getStoredUser);
   const [onlineCount, setOnlineCount] = useState<number>(1);
+  const [stitchTab, setStitchTab] = useState<'explore' | 'favorites' | 'popular' | 'my-rooms' | 'live-stage'>('explore');
+  const [stitchSearchQuery, setStitchSearchQuery] = useState<string>('');
+  const [isStitchRoomCodeModalOpen, setIsStitchRoomCodeModalOpen] = useState<boolean>(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('pleng_theme');
+    return (saved === 'light' || saved === 'dark') ? saved : 'dark';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('pleng_theme', theme);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+      document.body.classList.add('dark');
+      document.body.classList.remove('light');
+      document.body.style.backgroundColor = '#111319';
+      document.body.style.color = '#e2e2ea';
+    } else {
+      document.documentElement.classList.add('light');
+      document.documentElement.classList.remove('dark');
+      document.body.classList.add('light');
+      document.body.classList.remove('dark');
+      document.body.style.backgroundColor = '#faf8ff';
+      document.body.style.color = '#131b2e';
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   // Home Directory Rooms
   const [roomsList, setRoomsList] = useState<RoomSummary[]>([]);
@@ -2135,65 +2180,69 @@ export function App() {
   }
 
   return (
-    <div className="h-[100dvh] max-h-[100dvh] bg-[#0f0f13] text-gray-100 flex flex-col overflow-hidden selection:bg-purple-500 selection:text-white">
+    <div className={`w-full min-h-screen bg-[#111319] text-gray-100 flex flex-col selection:bg-[#0075de] selection:text-white ${
+      currentView === 'home' ? 'overflow-visible' : 'h-[100dvh] max-h-[100dvh] overflow-hidden'
+    }`}>
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      {/* Top Navbar */}
-      <Navbar
-        currentView={currentView}
-        roomId={roomId}
-        roomName={roomMetadata.name}
-        roomAnnouncement={roomMetadata.announcement}
-        onSetAnnouncement={handleSetRoomAnnouncement}
-        isPrivate={roomMetadata.isPrivate}
-        onlineCount={onlineCount}
-        currentUser={currentUser}
-        myRole={myRole}
-        isSuperAdmin={isSuperAdmin}
-        isRefreshing={isRefreshing}
-        isFavoriteRoom={favoriteRoomIds.has(roomId)}
-        isGameActive={Boolean(gameState?.isActive)}
-        onToggleGame={() => {
-          if (gameState?.isActive) {
-            if (window.confirm('คุณต้องการยุติเกมวาดรูปสำหรับทุกคนใช่หรือไม่?')) {
-              handleStopGame();
+      {/* Top Navbar for Room */}
+      {currentView === 'room' && (
+        <Navbar
+          currentView={currentView}
+          roomId={roomId}
+          roomName={roomMetadata.name}
+          roomAnnouncement={roomMetadata.announcement}
+          onSetAnnouncement={handleSetRoomAnnouncement}
+          isPrivate={roomMetadata.isPrivate}
+          onlineCount={onlineCount}
+          currentUser={currentUser}
+          myRole={myRole}
+          isSuperAdmin={isSuperAdmin}
+          isRefreshing={isRefreshing}
+          isFavoriteRoom={favoriteRoomIds.has(roomId)}
+          isGameActive={Boolean(gameState?.isActive)}
+          onToggleGame={() => {
+            if (gameState?.isActive) {
+              if (window.confirm('คุณต้องการยุติเกมวาดรูปสำหรับทุกคนใช่หรือไม่?')) {
+                handleStopGame();
+              }
+            } else {
+              handleStartGame(3);
             }
-          } else {
-            handleStartGame(3);
-          }
-        }}
-        onToggleFavoriteRoom={handleToggleFavoriteCurrentRoom}
-        onRefreshRoom={handleRefresh}
-        onToggleOledSleep={() => setIsOledSleepMode(true)}
-        onOpenShareCard={() => setIsShareCardModalOpen(true)}
-        onInstallApp={() => setIsInstallModalOpen(true)}
-        onOpenLiveTV={() => setIsLiveTVModalOpen(true)}
-        onMinimizeRoom={handleMinimizeRoom}
-        onLeaveRoom={handleLeaveRoom}
-        onNavigateHome={handleNavigateHome}
-        onOpenProfile={() => setIsProfileModalOpen(true)}
-        onOpenFullProfile={() => {
-          setSelectedUserForProfile(currentUser);
-          setIsUserProfileModalOpen(true);
-        }}
-        onOpenAuth={() => {
-          setAuthModalInitialTab('member');
-          setIsAuthModalOpen(true);
-        }}
-        onLogout={handleLogout}
-        onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
-        onOpenSuperAdminDashboard={() => {
-          window.history.pushState({}, '', '/admin');
-          setIsAdminRoute(true);
-        }}
-        onOpenAdminLogin={() => {
-          window.history.pushState({}, '', '/admin');
-          setIsAdminRoute(true);
-        }}
-        onOpenSupport={() => setIsSupportModalOpen(true)}
-        onShowToast={showToast}
-      />
+          }}
+          onToggleFavoriteRoom={handleToggleFavoriteCurrentRoom}
+          onRefreshRoom={handleRefresh}
+          onToggleOledSleep={() => setIsOledSleepMode(true)}
+          onOpenShareCard={() => setIsShareCardModalOpen(true)}
+          onInstallApp={() => setIsInstallModalOpen(true)}
+          onOpenLiveTV={() => setIsLiveTVModalOpen(true)}
+          onMinimizeRoom={handleMinimizeRoom}
+          onLeaveRoom={handleLeaveRoom}
+          onNavigateHome={handleNavigateHome}
+          onOpenProfile={() => setIsProfileModalOpen(true)}
+          onOpenFullProfile={() => {
+            setSelectedUserForProfile(currentUser);
+            setIsUserProfileModalOpen(true);
+          }}
+          onOpenAuth={() => {
+            setAuthModalInitialTab('member');
+            setIsAuthModalOpen(true);
+          }}
+          onLogout={handleLogout}
+          onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
+          onOpenSuperAdminDashboard={() => {
+            window.history.pushState({}, '', '/admin');
+            setIsAdminRoute(true);
+          }}
+          onOpenAdminLogin={() => {
+            window.history.pushState({}, '', '/admin');
+            setIsAdminRoute(true);
+          }}
+          onOpenSupport={() => setIsSupportModalOpen(true)}
+          onShowToast={showToast}
+        />
+      )}
 
       {/* Admin Stealth Inspection HUD Banner */}
       {isStealthInspection && currentView === 'room' && (
@@ -2336,16 +2385,58 @@ export function App() {
           </div>
         )}
 
-      {/* Main View Router */}
+      {/* Main View Router - Google Stitch Redesigned Interface */}
       {currentView === 'home' && (
-        <HomeView
-          rooms={roomsList}
-          currentUser={currentUser}
-          onSelectRoom={handleSelectRoom}
-          onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
-          onOpenInstallModal={() => setIsInstallModalOpen(true)}
-          onOpenLiveTV={() => setIsLiveTVModalOpen(true)}
-        />
+        stitchTab === 'live-stage' ? (
+          <StitchLiveStageView
+            onBack={() => setStitchTab('explore')}
+            currentUser={currentUser}
+            listenersCount={onlineCount}
+            theme={theme}
+          />
+        ) : (
+          <div className="min-h-screen dark:bg-[#111319] dark:text-[#e2e2ea] bg-[#faf8ff] text-[#131b2e] flex flex-col selection:bg-[#0075de] selection:text-white transition-colors duration-300">
+            <StitchHeader
+              currentTab={stitchTab}
+              onTabChange={(tab) => setStitchTab(tab)}
+              onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
+              onOpenRoomCodeModal={() => setIsStitchRoomCodeModalOpen(true)}
+              onOpenProfile={() => setIsProfileModalOpen(true)}
+              currentUser={currentUser}
+              searchQuery={stitchSearchQuery}
+              onSearchChange={setStitchSearchQuery}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+            />
+
+            <StitchHomeView
+              rooms={roomsList}
+              currentUser={currentUser}
+              onSelectRoom={handleSelectRoom}
+              onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
+              onOpenRoomCodeModal={() => setIsStitchRoomCodeModalOpen(true)}
+              theme={theme}
+            />
+
+            <StitchMobileBottomNav
+              currentTab={stitchTab === 'favorites' ? 'favorites' : 'explore'}
+              onTabChange={(t) => {
+                if (t === 'profile') setIsProfileModalOpen(true);
+                else if (t === 'create') setIsCreateRoomModalOpen(true);
+                else setStitchTab(t as any);
+              }}
+              onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
+              onOpenProfile={() => setIsProfileModalOpen(true)}
+              theme={theme}
+            />
+
+            <StitchRoomCodeModal
+              isOpen={isStitchRoomCodeModalOpen}
+              onClose={() => setIsStitchRoomCodeModalOpen(false)}
+              onJoinRoom={(code) => handleSelectRoom(code.toLowerCase())}
+            />
+          </div>
+        )
       )}
 
       {(currentView === 'room' || Boolean(roomId)) && (

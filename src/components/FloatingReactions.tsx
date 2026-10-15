@@ -58,11 +58,32 @@ export const FloatingReactions: React.FC<FloatingReactionsProps> = ({
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden z-30">
       <style>{`
-        @keyframes floatReactionAnim {
-          0% { transform: translateY(0) scale(0.65); opacity: 0; }
-          12% { transform: translateY(-25px) scale(1.15); opacity: 1; }
-          80% { opacity: 0.95; }
-          100% { transform: translateY(-340px) scale(1.35); opacity: 0; }
+        @keyframes skyLanternAnim {
+          0% {
+            transform: translate3d(0, 0, 0) rotate(0deg) scale(0.65);
+            opacity: 0;
+            filter: drop-shadow(0 0 6px rgba(251, 146, 60, 0.4));
+          }
+          12% {
+            transform: translate3d(var(--drift-x1, 15px), -55px, 0) rotate(var(--rot-1, 6deg)) scale(1.1);
+            opacity: 0.98;
+            filter: drop-shadow(0 0 16px rgba(251, 191, 36, 0.85));
+          }
+          45% {
+            transform: translate3d(var(--drift-x2, -20px), -180px, 0) rotate(var(--rot-2, -6deg)) scale(1.18);
+            opacity: 0.92;
+            filter: drop-shadow(0 0 14px rgba(245, 158, 11, 0.7));
+          }
+          75% {
+            transform: translate3d(var(--drift-x3, 25px), -310px, 0) rotate(var(--rot-3, 5deg)) scale(1.08);
+            opacity: 0.65;
+            filter: drop-shadow(0 0 10px rgba(251, 146, 60, 0.45));
+          }
+          100% {
+            transform: translate3d(var(--drift-x4, -30px), -450px, 0) rotate(calc(var(--rot-3, 5deg) * 0.5)) scale(0.92);
+            opacity: 0;
+            filter: drop-shadow(0 0 2px rgba(251, 146, 60, 0));
+          }
         }
       `}</style>
       {/* Floating Bubbles */}
@@ -139,26 +160,47 @@ const FloatingBubble: React.FC<{ item: FloatingItem; onFinish: () => void }> = (
   const onFinishRef = useRef(onFinish);
   onFinishRef.current = onFinish;
 
+  // Randomized lantern wind drift parameters for this specific bubble
+  const config = useRef(() => {
+    const dir = Math.random() > 0.5 ? 1 : -1;
+    const driftX1 = Math.round((Math.random() * 25 + 15) * dir);
+    const driftX2 = Math.round((Math.random() * 40 + 20) * -dir);
+    const driftX3 = Math.round((Math.random() * 55 + 25) * dir);
+    const driftX4 = Math.round((Math.random() * 70 + 35) * (Math.random() > 0.5 ? 1 : -1));
+    const rot1 = Math.round((Math.random() * 10 + 4) * dir);
+    const rot2 = Math.round((Math.random() * 12 + 5) * -dir);
+    const rot3 = Math.round((Math.random() * 8 + 3) * dir);
+    const duration = +(3.4 + Math.random() * 0.9).toFixed(2); // 3.4s - 4.3s for smooth floating
+    return { driftX1, driftX2, driftX3, driftX4, rot1, rot2, rot3, duration };
+  }).current();
+
   useEffect(() => {
-    const removeTimer = setTimeout(() => onFinishRef.current(), 2800);
+    const removeTimer = setTimeout(() => onFinishRef.current(), config.duration * 1000);
     return () => clearTimeout(removeTimer);
-  }, [item.id]);
+  }, [item.id, config.duration]);
 
   return (
     <div
-      className="absolute bottom-6 flex flex-col items-center pointer-events-none select-none"
+      className="absolute bottom-4 flex flex-col items-center pointer-events-none select-none"
       style={{
         left: `${item.leftPercent}%`,
-        animation: 'floatReactionAnim 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+        animation: `skyLanternAnim ${config.duration}s cubic-bezier(0.25, 0.1, 0.25, 1) forwards`,
+        ['--drift-x1' as any]: `${config.driftX1}px`,
+        ['--drift-x2' as any]: `${config.driftX2}px`,
+        ['--drift-x3' as any]: `${config.driftX3}px`,
+        ['--drift-x4' as any]: `${config.driftX4}px`,
+        ['--rot-1' as any]: `${config.rot1}deg`,
+        ['--rot-2' as any]: `${config.rot2}deg`,
+        ['--rot-3' as any]: `${config.rot3}deg`,
       }}
     >
-      <span className="text-3xl filter drop-shadow-[0_2px_10px_rgba(0,0,0,0.85)] animate-bounce">
+      <span className="text-3xl filter drop-shadow-[0_2px_12px_rgba(251,146,60,0.55)]">
         {item.emoji}
       </span>
       {item.senderName && (
         <span
-          className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-black/85 text-white shadow-md mt-0.5 border"
-          style={{ borderColor: item.senderColor || '#8b5cf6' }}
+          className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-black/80 backdrop-blur-xs text-white shadow-md mt-0.5 border"
+          style={{ borderColor: item.senderColor || '#f59e0b' }}
         >
           {item.senderName}
         </span>

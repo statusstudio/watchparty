@@ -27,6 +27,7 @@ import {
   VolumeX,
   Key,
   X,
+  RefreshCw,
 } from 'lucide-react';
 
 interface VoiceOption {
@@ -120,14 +121,36 @@ export default function VoiceCloneStudio() {
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [recordingSeconds, setRecordingSeconds] = useState<number>(0);
 
+  // Natural Cadence & Expressiveness Parameters for Voice Clone
+  const [cloneSpeed, setCloneSpeed] = useState<number>(0.96); // -4% default (relaxed natural conversational)
+  const [clonePitch, setClonePitch] = useState<number>(0);
+  const [cloneBaseVoice, setCloneBaseVoice] = useState<string>('auto');
+  const [cloneStyle, setCloneStyle] = useState<'conversational' | 'narrative' | 'energetic' | 'calm'>('conversational');
+  const [enableNaturalCadence, setEnableNaturalCadence] = useState<boolean>(true);
+
   // Generation status
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [currentAudioUrl, setCurrentAudioUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [audioDuration, setAudioDuration] = useState<number>(0);
   const [audioCurrentTime, setAudioCurrentTime] = useState<number>(0);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
+
+  // Timer for elapsed generation time
+  useEffect(() => {
+    let timer: any = null;
+    if (isGenerating) {
+      setElapsedSeconds(0);
+      timer = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+    } else {
+      setElapsedSeconds(0);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isGenerating]);
 
   // Hugging Face Token for personal ZeroGPU quota
   const [hfToken, setHfToken] = useState<string>(() => {
@@ -138,6 +161,48 @@ export default function VoiceCloneStudio() {
     }
   });
   const [showTokenModal, setShowTokenModal] = useState<boolean>(false);
+
+  // Compute Engine: 'local' (RTX 4060) or 'cloud' (A100)
+  const [engineMode, setEngineMode] = useState<'cloud' | 'local'>('local');
+  const [isLocalGpuOnline, setIsLocalGpuOnline] = useState<boolean>(false);
+
+  // Auto-detect local RTX 4060 GPU engine and auto-load latest sample
+  useEffect(() => {
+    fetch('http://127.0.0.1:8006/health')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status === 'online' && data.cuda) {
+          setIsLocalGpuOnline(true);
+          setEngineMode('local');
+        }
+      })
+      .catch(() => {
+        // Also check via proxy /api/voice/health or fallback
+        fetch('/api/voice/health')
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.status === 'online' && data.cuda) {
+              setIsLocalGpuOnline(true);
+              setEngineMode('local');
+            }
+          })
+          .catch(() => {
+            setIsLocalGpuOnline(false);
+            setEngineMode('cloud');
+          });
+      });
+    document.title = 'AI Voice Clone Studio – RTX 4060 Local (0 บาท)';
+
+    // Auto-load latest sample if available
+    fetch('/api/voice/samples')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.samples && data.samples.length > 0 && !currentAudioUrl) {
+          setCurrentAudioUrl(data.samples[0].audio_url);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Save HF token to localStorage
   const handleSaveToken = (val: string) => {
@@ -315,14 +380,34 @@ export default function VoiceCloneStudio() {
       formData.append('prompt_text', promptText.trim());
     }
 
+    // Natural Cadence & Voice Expressiveness
+    const ratePercent = Math.round((cloneSpeed - 1.0) * 100);
+    const rateStr = ratePercent >= 0 ? `+${ratePercent}%` : `${ratePercent}%`;
+    formData.append('rate', rateStr);
+    const pitchStr = clonePitch >= 0 ? `+${clonePitch}Hz` : `${clonePitch}Hz`;
+    formData.append('pitch', pitchStr);
+    formData.append('base_voice', cloneBaseVoice);
+    formData.append('natural_cadence', String(enableNaturalCadence));
+
     try {
-      setStatusMessage('กำลังสังเคราะห์เสียงด้วย CosyVoice 3.0 Zero-Shot (ใช้เวลาประมาณ 10-20 วินาที)...');
+      const isLocal = engineMode === 'local';
+      setStatusMessage(
+        isLocal
+          ? 'กำลังประมวลผลบนการ์ดจอ NVIDIA GeForce RTX 4060 (Local GPU)...'
+          : 'กำลังสังเคราะห์เสียงด้วย CosyVoice 3.0 บนคลาวด์ A100...'
+      );
+
       const headers: Record<string, string> = {};
-      if (hfToken.trim()) {
+      if (!isLocal && hfToken.trim()) {
         headers['X-HF-Token'] = hfToken.trim();
       }
 
-      const response = await fetch('/api/voice/clone', {
+      let apiEndpoint = isLocal ? 'http://127.0.0.1:8006/api/voice/clone' : '/api/voice/clone';
+      if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        apiEndpoint = '/api/voice/clone';
+      }
+
+      const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers,
         body: formData,
@@ -346,7 +431,7 @@ export default function VoiceCloneStudio() {
         id: 'hist_' + Date.now(),
         text: text.trim(),
         audioUrl: data.audio_url,
-        voiceName: 'CosyVoice 3.0 (โคลนเสียงสด)',
+        voiceName: isLocal ? 'Local RTX 4060 (โคลนเสียงสด)' : 'CosyVoice 3.0 (Cloud A100)',
         mode: 'clone',
         createdAt: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
       };
@@ -372,7 +457,11 @@ export default function VoiceCloneStudio() {
     }
 
     setIsGenerating(true);
-    setStatusMessage('กำลังประมวลผล Neural Speech...');
+    setStatusMessage(
+      engineMode === 'local'
+        ? 'กำลังประมวลผลบนการ์ดจอ RTX 4060...'
+        : 'กำลังประมวลผล Neural Speech...'
+    );
 
     // Convert speed to edge-tts percentage string (1.0 = +0%, 1.2 = +20%, 0.8 = -20%)
     const ratePercent = Math.round((speed - 1.0) * 100);
@@ -382,7 +471,11 @@ export default function VoiceCloneStudio() {
     const pitchStr = pitch >= 0 ? `+${pitch}Hz` : `${pitch}Hz`;
 
     try {
-      const response = await fetch('/api/voice/synthesize', {
+      let apiEndpoint = engineMode === 'local' ? 'http://127.0.0.1:8006/api/voice/synthesize' : '/api/voice/synthesize';
+      if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        apiEndpoint = '/api/voice/synthesize';
+      }
+      const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -484,12 +577,14 @@ export default function VoiceCloneStudio() {
             <span>ต้นทุน 0 บาท</span>
           </div>
 
-          <a
-            href="/"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-xs text-zinc-300 transition-all"
+          <button
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-xs text-zinc-300 transition-all border border-zinc-700/50"
+            title="รีเฟรช / ล้างค่าหน้าจอ"
           >
-            <span>กลับหน้าหลัก</span>
-          </a>
+            <RefreshCw className="w-3.5 h-3.5 text-zinc-400" />
+            <span className="hidden sm:inline">รีเฟรช</span>
+          </button>
         </div>
       </header>
 
@@ -497,6 +592,61 @@ export default function VoiceCloneStudio() {
       <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Controls & Input (8 Cols) */}
         <div className="lg:col-span-8 flex flex-col gap-5">
+          {/* Hardware Engine Selector Bar */}
+          <div className="bg-[#121724]/90 border border-zinc-800/80 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between shadow-xl flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all ${
+                engineMode === 'local'
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+                  : 'bg-purple-500/15 border-purple-500/40 text-purple-400'
+              }`}>
+                <Cpu className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-zinc-100">หน่วยประมวลผล (Compute Engine)</span>
+                  {isLocalGpuOnline && (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      RTX 4060 Online (8GB VRAM)
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-400 mt-0.5">
+                  {engineMode === 'local'
+                    ? '⚡ รันบนการ์ดจอ RTX 4060 ในเครื่องของคุณ (โควต้าไม่จำกัด 100% ส่วนตัว)'
+                    : '🌐 รันบนคลาวด์ A100 (Hugging Face ZeroGPU)'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 bg-zinc-900/90 p-1 rounded-xl border border-zinc-800">
+              <button
+                onClick={() => setEngineMode('local')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                  engineMode === 'local'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/30'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Cpu className="w-3.5 h-3.5" />
+                <span>การ์ดจอในเครื่อง (RTX 4060)</span>
+              </button>
+
+              <button
+                onClick={() => setEngineMode('cloud')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                  engineMode === 'cloud'
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-600/30'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Cloud A100</span>
+              </button>
+            </div>
+          </div>
+
           {/* Mode Switcher Tabs */}
           <div className="bg-[#121724]/90 border border-zinc-800/80 rounded-2xl p-1.5 flex gap-1.5 shadow-xl">
             <button
@@ -646,6 +796,145 @@ export default function VoiceCloneStudio() {
                   placeholder="เช่น: สวัสดีครับ ยินดีต้อนรับสู่..."
                   className="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-purple-500/60"
                 />
+              </div>
+
+              {/* Natural Cadence & Expressiveness Panel */}
+              <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 flex flex-col gap-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-purple-400" />
+                    <span className="text-xs font-semibold text-zinc-200">ปรับแต่งความเป็นธรรมชาติและจังหวะพูด (Natural Cadence)</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 font-medium">
+                    Catfufu Style
+                  </span>
+                </div>
+
+                {/* Style Presets */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: 'conversational', label: '🗣️ พูดคุยธรรมชาติ', desc: 'จังหวะสบายๆ มีจังหวะหายใจ', speed: 0.96, pitch: 0 },
+                    { id: 'narrative', label: '🎙️ บรรยาย / อ่านข่าว', desc: 'ชัดถ้อยชัดคำ เป็นทางการ', speed: 1.0, pitch: 0 },
+                    { id: 'energetic', label: '⚡ สดใส / รวดเร็ว', desc: 'กระตือรือร้น ทันสมัย', speed: 1.05, pitch: 2 },
+                    { id: 'calm', label: '🌙 นุ่มนวล / สบายๆ', desc: 'โทนทุ้ม อบอุ่น ฟังสบาย', speed: 0.92, pitch: -2 },
+                  ].map((st) => (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => {
+                        setCloneStyle(st.id as any);
+                        setCloneSpeed(st.speed);
+                        setClonePitch(st.pitch);
+                        setEnableNaturalCadence(true);
+                      }}
+                      className={`p-2.5 rounded-xl border text-left transition-all ${
+                        cloneStyle === st.id
+                          ? 'bg-purple-950/40 border-purple-500/60 shadow-md shadow-purple-500/10'
+                          : 'bg-zinc-900/80 border-zinc-800 hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="text-xs font-semibold text-zinc-200">{st.label}</div>
+                      <div className="text-[10px] text-zinc-400 mt-0.5">{st.desc}</div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Speed & Pitch Controls */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="bg-zinc-950/40 border border-zinc-800/80 rounded-xl p-3 flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between text-xs text-zinc-300">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <Clock className="w-3.5 h-3.5 text-purple-400" />
+                        ความเร็วในการพูด (Speed)
+                      </span>
+                      <span className="text-purple-300 font-bold">{cloneSpeed.toFixed(2)}x</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.80"
+                      max="1.25"
+                      step="0.02"
+                      value={cloneSpeed}
+                      onChange={(e) => setCloneSpeed(parseFloat(e.target.value))}
+                      className="w-full accent-purple-500 cursor-pointer h-1.5 bg-zinc-800 rounded-lg"
+                    />
+                    <div className="flex justify-between text-[10px] text-zinc-500">
+                      <span>0.80x (ช้าผ่อนคลาย)</span>
+                      <span>0.96x (พูดคุย)</span>
+                      <span>1.25x (เร็ว)</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-zinc-950/40 border border-zinc-800/80 rounded-xl p-3 flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between text-xs text-zinc-300">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                        คีย์ระดับเสียง (Pitch)
+                      </span>
+                      <span className="text-cyan-300 font-bold">{clonePitch >= 0 ? `+${clonePitch}Hz` : `${clonePitch}Hz`}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-15"
+                      max="15"
+                      step="1"
+                      value={clonePitch}
+                      onChange={(e) => setClonePitch(parseInt(e.target.value))}
+                      className="w-full accent-cyan-500 cursor-pointer h-1.5 bg-zinc-800 rounded-lg"
+                    />
+                    <div className="flex justify-between text-[10px] text-zinc-500">
+                      <span>-15Hz (ทุ้มลึก)</span>
+                      <span>0Hz (ธรรมชาติ)</span>
+                      <span>+15Hz (เสียงสูง)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Base Voice & Auto Breathing Switch */}
+                <div className="flex items-center justify-between flex-wrap gap-2 pt-1 border-t border-zinc-800/50">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-zinc-400">โทนเสียงฐาน:</span>
+                    <div className="inline-flex rounded-lg bg-zinc-950/60 p-0.5 border border-zinc-800">
+                      <button
+                        type="button"
+                        onClick={() => setCloneBaseVoice('auto')}
+                        className={`px-2.5 py-1 text-[11px] rounded-md transition-all ${
+                          cloneBaseVoice === 'auto' ? 'bg-purple-600 text-white font-medium' : 'text-zinc-400 hover:text-zinc-200'
+                        }`}
+                      >
+                        🤖 ตรวจจับอัตโนมัติ
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCloneBaseVoice('female')}
+                        className={`px-2.5 py-1 text-[11px] rounded-md transition-all ${
+                          cloneBaseVoice === 'female' ? 'bg-purple-600 text-white font-medium' : 'text-zinc-400 hover:text-zinc-200'
+                        }`}
+                      >
+                        👩 เสียงหญิง (Premwadee)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCloneBaseVoice('male')}
+                        className={`px-2.5 py-1 text-[11px] rounded-md transition-all ${
+                          cloneBaseVoice === 'male' ? 'bg-purple-600 text-white font-medium' : 'text-zinc-400 hover:text-zinc-200'
+                        }`}
+                      >
+                        👨 เสียงชาย (Niwat)
+                      </button>
+                    </div>
+                  </div>
+
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={enableNaturalCadence}
+                      onChange={(e) => setEnableNaturalCadence(e.target.checked)}
+                      className="accent-purple-500 rounded"
+                    />
+                    <span className="text-xs text-zinc-300">จังหวะหายใจและเว้นวรรคอัตโนมัติ (แนะนำ)</span>
+                  </label>
+                </div>
               </div>
             </div>
           )}
@@ -816,25 +1105,56 @@ export default function VoiceCloneStudio() {
                 {isGenerating ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    <span>กำลังสร้างเสียง AI... กรุณารอสักครู่</span>
+                    <span>
+                      กำลังประมวลผลบนการ์ดจอ RTX 4060... (
+                      {Math.floor(elapsedSeconds / 60).toString().padStart(2, '0')}:
+                      {(elapsedSeconds % 60).toString().padStart(2, '0')})
+                    </span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-5 h-5 animate-pulse" />
                     <span>
                       {activeTab === 'clone'
-                        ? 'เริ่มโคลนเสียง AI ด้วย CosyVoice 3.0'
+                        ? 'เริ่มโคลนเสียง AI ด้วย CosyVoice 3.0 (RTX 4060)'
                         : 'สร้างเสียงพากย์ Neural Speech ทันที'}
                     </span>
                   </>
                 )}
               </button>
 
-              {statusMessage && (
-                <p className="text-center text-xs text-purple-300/90 mt-2.5 flex items-center justify-center gap-1.5 animate-pulse">
-                  <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>{statusMessage}</span>
-                </p>
+              {isGenerating && (
+                <div className="mt-3.5 p-4 rounded-xl bg-purple-950/40 border border-purple-500/40 space-y-2.5 shadow-lg">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-2 text-purple-300 font-semibold">
+                      <Cpu className="w-4 h-4 text-cyan-400 animate-spin" />
+                      <span>{statusMessage || 'กำลังประมวลผลโมเดล AI...'}</span>
+                    </span>
+                    <span className="font-mono text-xs px-2.5 py-0.5 rounded-lg bg-zinc-900 border border-purple-500/50 text-cyan-300 font-bold">
+                      ⏱️ {Math.floor(elapsedSeconds / 60).toString().padStart(2, '0')}:
+                      {(elapsedSeconds % 60).toString().padStart(2, '0')}
+                    </span>
+                  </div>
+
+                  <div className="w-full bg-zinc-900/90 rounded-full h-2 overflow-hidden border border-zinc-800">
+                    <div
+                      className="bg-gradient-to-r from-purple-500 via-cyan-400 to-emerald-400 h-full rounded-full transition-all duration-500 animate-pulse"
+                      style={{ width: `${Math.min(95, Math.max(10, elapsedSeconds * 2.2))}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-zinc-400 pt-0.5">
+                    <span>
+                      ขั้นตอน:{' '}
+                      {elapsedSeconds < 8
+                        ? '1/3 วิเคราะห์เวกเตอร์เสียงต้นแบบ'
+                        : elapsedSeconds < 25
+                        ? '2/3 รัน CosyVoice บน CUDA RTX 4060'
+                        : '3/3 สังเคราะห์คลื่นเสียง HiFT (ใกล้เสร็จ)'}
+                    </span>
+                    <span className="text-zinc-500">ใช้เวลาประมาณ ~30-60 วินาที</span>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -948,12 +1268,23 @@ export default function VoiceCloneStudio() {
                 </div>
               </div>
             ) : (
-              <div className="py-12 flex flex-col items-center justify-center text-center text-zinc-500 gap-2">
+              <div className="py-8 flex flex-col items-center justify-center text-center text-zinc-500 gap-2.5">
                 <FileAudio className="w-10 h-10 stroke-[1.2] text-zinc-600" />
-                <p className="text-xs text-zinc-400 font-medium">ยังไม่มีไฟล์เสียงที่สร้าง</p>
-                <p className="text-[11px] text-zinc-500 max-w-[200px]">
-                  กรอกข้อความและกดปุ่มสร้างเสียงเพื่อฟังผลลัพธ์
+                <p className="text-xs text-zinc-300 font-medium">พร้อมสร้างเสียงโคลนและเสียงพากย์</p>
+                <p className="text-[11px] text-zinc-500 max-w-[240px]">
+                  เลือกไฟล์เสียงต้นแบบ กรอกข้อความ แล้วกดปุ่มเพื่อเริ่มประมวลผลบนการ์ดจอ RTX 4060
                 </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentAudioUrl('/audio/rtx4060_clone_ab3c866f5d84.wav');
+                    setIsPlaying(true);
+                  }}
+                  className="mt-2 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/40 text-purple-300 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-purple-600/10 active:scale-95"
+                >
+                  <Play className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>ฟังตัวอย่างเสียงโคลนล่าสุด (RTX 4060)</span>
+                </button>
               </div>
             )}
           </div>

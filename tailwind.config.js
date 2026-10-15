@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,6 +8,47 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Google Stitch Design Tokens
+        "surface-container-lowest": "#0c0e14",
+        "surface-dim": "#111319",
+        "surface": "#111319",
+        "surface-container-low": "#191b22",
+        "surface-container": "#1d1f26",
+        "surface-container-high": "#282a30",
+        "surface-container-highest": "#33343b",
+        "surface-bright": "#373940",
+        "surface-variant": "#33343b",
+        "surface-elevated": "#1A1F2C",
+        "surface-glass": "rgba(22, 27, 38, 0.72)",
+        "border-glass": "rgba(255, 255, 255, 0.08)",
+        "on-surface": "#e2e2ea",
+        "on-surface-variant": "#c1c6d5",
+        "primary": "#a8c8ff",
+        "primary-container": "#0075de",
+        "primary-fixed": "#d5e3ff",
+        "primary-fixed-dim": "#a8c8ff",
+        "on-primary": "#003061",
+        "on-primary-container": "#fffeff",
+        "inverse-primary": "#005eb4",
+        "secondary": "#ffb955",
+        "secondary-container": "#dc9100",
+        "secondary-fixed": "#ffddb4",
+        "secondary-fixed-dim": "#ffb955",
+        "on-secondary": "#452b00",
+        "on-secondary-container": "#4f3100",
+        "tertiary": "#00daf3",
+        "tertiary-container": "#008291",
+        "tertiary-fixed": "#9cf0ff",
+        "tertiary-fixed-dim": "#00daf3",
+        "on-tertiary": "#00363d",
+        "on-tertiary-container": "#feffff",
+        "sync-cyan": "#06B6D4",
+        "live-emerald": "#10B981",
+        "text-secondary": "#94A3B8",
+        outline: "#8b919e",
+        "outline-variant": "#414753",
+        background: "#111319",
+
         notion: {
           primary: "#0075de",
           "primary-active": "#005bab",
@@ -28,16 +70,24 @@ export default {
           green: "#1aae39",
           brown: "#523410",
         },
-        background: "#f6f5f4",
-        surface: "#ffffff",
-        "surface-card": "#ffffff",
-        "surface-light": "#f6f5f4",
         accent: {
           pink: "#ff64c8",
           purple: "#d6b6f6",
           cyan: "#62aef0",
           emerald: "#1aae39",
         }
+      },
+      fontFamily: {
+        'display-hero': ['Plus Jakarta Sans', 'Prompt', 'sans-serif'],
+        'display-hero-mobile': ['Plus Jakarta Sans', 'Prompt', 'sans-serif'],
+        'headline-lg': ['Plus Jakarta Sans', 'Prompt', 'sans-serif'],
+        'headline-md': ['Plus Jakarta Sans', 'Prompt', 'sans-serif'],
+        'headline-sm': ['Plus Jakarta Sans', 'Prompt', 'sans-serif'],
+        'body-lg': ['Plus Jakarta Sans', 'Prompt', 'sans-serif'],
+        'body-md': ['Plus Jakarta Sans', 'Prompt', 'sans-serif'],
+        'body-sm': ['Plus Jakarta Sans', 'Prompt', 'sans-serif'],
+        'label-mono': ['Space Mono', 'monospace'],
+        'label-mono-sm': ['Space Mono', 'monospace'],
       },
       boxShadow: {
         'notion-soft': '0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.02)',

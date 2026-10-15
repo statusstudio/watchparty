@@ -26,6 +26,7 @@ import {
   Download,
   Smartphone,
   Tv,
+  Trophy,
 } from 'lucide-react';
 import { PlengLogo } from './PlengLogo.js';
 import { UserProfile, UserRole } from '../types/index.js';
@@ -283,190 +284,69 @@ export const Navbar: React.FC<NavbarProps> = ({
         )}
       </div>
 
-      {/* Right Controls: Responsive Layout */}
+      {/* Right Controls: Streamlined & Clean Minimalist Layout */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        {/* --- DESKTOP ONLY CONTROLS (hidden md:flex) --- */}
-        {/* Refresh Button */}
-        {onRefreshRoom && (
-          <button
-            onClick={onRefreshRoom}
-            disabled={isRefreshing}
-            className="hidden md:flex px-2.5 py-1 rounded-md bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] hover:text-[#000000] text-xs font-medium transition-all cursor-pointer items-center gap-1.5 disabled:opacity-50 shrink-0 shadow-xs"
-            title={currentView === 'home' ? 'รีเฟรชรายการห้อง' : 'รีเฟรชข้อมูลห้อง (Sync ใหม่)'}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-[#0075de] ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>{isRefreshing ? 'รีเฟรช...' : 'รีเฟรช'}</span>
-          </button>
-        )}
-
-        {/* Desktop In-Room Controls */}
+        {/* Core In-Room Status: Online Count, Invite & Live TV */}
         {currentView === 'room' && (
           <>
             {/* Online Count Badge */}
             <div
-              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-[#f6f5f4] border border-[#e6e6e6] rounded-md text-xs text-[#31302e]"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 bg-[#f6f5f4] border border-[#e6e6e6] rounded-full text-xs text-[#31302e] shadow-xs"
               title={`มีคนอยู่ในห้อง ${onlineCount} คน`}
             >
               <Users className="w-3.5 h-3.5 text-[#2a9d99]" />
               <span className="font-semibold text-[#000000]">{onlineCount}</span>
             </div>
 
-            {/* Share Card Modal Button */}
-            {onOpenShareCard && (
-              <button
-                type="button"
-                onClick={onOpenShareCard}
-                className="hidden md:flex px-2.5 py-1 rounded-md bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold transition-all cursor-pointer items-center gap-1.5 shrink-0 shadow-xs"
-                title="สร้างการ์ดแชร์ห้องแบบมีสไตล์ (Social Story Card & QR Code)"
-              >
-                <Share2 className="w-3.5 h-3.5 text-purple-600" />
-                <span>แชร์การ์ด</span>
-              </button>
-            )}
-
-            {/* Install App / Download APK Button */}
-            {onInstallApp && (
-              <button
-                type="button"
-                onClick={onInstallApp}
-                className="hidden md:flex px-2.5 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300/80 text-xs font-semibold transition-all cursor-pointer items-center gap-1.5 shrink-0 shadow-xs"
-                title="ดาวน์โหลดแอป pleng.online สำหรับ Android และวิธีติดตั้ง"
-              >
-                <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
-                <span>โหลดแอป APK</span>
-              </button>
-            )}
+            {/* Desktop / Tablet Invite Button */}
+            <button
+              onClick={handleCopyLink}
+              title="คัดลอกลิงก์ชวนเพื่อน"
+              className={`hidden sm:flex px-2.5 py-1 rounded-full border text-xs font-medium transition-all items-center gap-1.5 cursor-pointer shrink-0 shadow-xs ${
+                copied
+                  ? 'bg-[#1aae39]/10 text-[#1aae39] border-[#1aae39]/30'
+                  : 'bg-white hover:bg-[#f6f5f4] text-[#31302e] border-[#e6e6e6] hover:text-[#000000]'
+              }`}
+            >
+              {copied ? (
+                <Check className="w-3.5 h-3.5 text-[#1aae39]" />
+              ) : (
+                <Copy className="w-3.5 h-3.5 text-[#0075de]" />
+              )}
+              <span>{copied ? 'คัดลอกแล้ว' : 'ชวนเพื่อน'}</span>
+            </button>
 
             {/* Live TV Button */}
             {onOpenLiveTV && (
               <button
                 type="button"
                 onClick={onOpenLiveTV}
-                className="hidden md:flex px-2.5 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300/80 text-xs font-semibold transition-all cursor-pointer items-center gap-1.5 shrink-0 shadow-xs"
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition-all cursor-pointer shrink-0 shadow-xs active:scale-95"
                 title="ดูทีวีดิจิทัล & ช่องสดออนไลน์พร้อมกัน (Live TV 623 ช่อง)"
               >
                 <Tv className="w-3.5 h-3.5 text-rose-600" />
-                <span>ดูทีวีสด 📺</span>
-              </button>
-            )}
-
-            {/* OLED Sleep Mode Button */}
-            {onToggleOledSleep && (
-              <button
-                onClick={onToggleOledSleep}
-                className="hidden md:flex px-2.5 py-1 rounded-md bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] text-xs font-medium transition-all cursor-pointer items-center gap-1.5 shrink-0 shadow-xs"
-                title="โหมดพักหน้าจอประหยัดแบตเตอรี่ (หน้าจอดำสนิท ฟังเพลงไม่ตัด)"
-              >
-                <Moon className="w-3.5 h-3.5 text-[#615d59]" />
-                <span>พักจอ</span>
-              </button>
-            )}
-
-            {/* 2D Draw and Guess Game Button (Host & Admin only) */}
-            {(isAdminOrOwner || isSuperAdmin) && onToggleGame && (
-              <button
-                type="button"
-                onClick={onToggleGame}
-                className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer shadow-xs border ${
-                  isGameActive
-                    ? 'bg-rose-500 hover:bg-rose-600 text-white border-rose-600 animate-pulse'
-                    : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700'
-                }`}
-                title={isGameActive ? 'ยุติเกมวาดรูปทายคำ' : 'เริ่มเกมวาดรูปทายคำ (Game Stage Mode)'}
-              >
-                <Gamepad2 className="w-3.5 h-3.5" />
-                <span>{isGameActive ? 'ยุติเกม' : 'เกมวาดรูป'}</span>
-              </button>
-            )}
-
-            {/* Room Owner / Admin Management Button */}
-            {isAdminOrOwner && onOpenAdminPanel && (
-              <button
-                onClick={onOpenAdminPanel}
-                className="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#d6b6f6]/25 hover:bg-[#d6b6f6]/40 text-[#391c57] border border-[#d6b6f6]/60 text-xs font-medium transition-colors cursor-pointer shadow-xs"
-                title="จัดการห้อง"
-              >
-                {myRole === 'owner' ? (
-                  <Crown className="w-3.5 h-3.5 text-[#dd5b00]" />
-                ) : (
-                  <Shield className="w-3.5 h-3.5 text-[#391c57]" />
-                )}
-                <span>จัดการห้อง</span>
-              </button>
-            )}
-
-            {/* Minimize Room Button */}
-            {onMinimizeRoom && (
-              <button
-                type="button"
-                onClick={onMinimizeRoom}
-                className="hidden md:flex px-2.5 py-1 rounded-md bg-white hover:bg-[#f6f5f4] text-[#31302e] border border-[#e6e6e6] text-xs font-medium transition-all cursor-pointer items-center gap-1.5 shrink-0 shadow-xs"
-                title="ย่อห้องปาร์ตี้ไว้มุมล่างซ้าย (ไปดูหน้าหลัก)"
-              >
-                <Minimize2 className="w-3.5 h-3.5 text-[#0075de]" />
-                <span>ย่อห้อง</span>
-              </button>
-            )}
-
-            {/* Leave Room Button */}
-            {onLeaveRoom && (
-              <button
-                type="button"
-                onClick={onLeaveRoom}
-                className="hidden md:flex px-2.5 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-medium transition-all cursor-pointer items-center gap-1.5 shrink-0 shadow-xs"
-                title="ออกจากห้องปาร์ตี้"
-              >
-                <LogOut className="w-3.5 h-3.5 text-rose-500" />
-                <span>ออกจากห้อง</span>
+                <span className="hidden xs:inline">ดูทีวีสด 📺</span>
               </button>
             )}
           </>
         )}
 
-        {/* Support / Feedback Button (Desktop) */}
-        {onOpenSupport && (
-          <button
-            onClick={onOpenSupport}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white hover:bg-[#f6f5f4] text-[#615d59] hover:text-[#000000] border border-[#e6e6e6] text-xs font-medium transition-colors cursor-pointer shadow-xs"
-            title="แจ้งปัญหา / ส่งข้อเสนอแนะ"
-          >
-            <HelpCircle className="w-3.5 h-3.5 text-[#0075de]" />
-            <span>แจ้งปัญหา</span>
-          </button>
-        )}
-
-        {/* Super Admin Dashboard Trigger (Visible ONLY when logged in as Super Admin) */}
-        {isSuperAdmin && onOpenSuperAdminDashboard && (
-          <button
-            onClick={onOpenSuperAdminDashboard}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#dd5b00]/10 text-[#dd5b00] border border-[#dd5b00]/30 text-xs font-semibold hover:bg-[#dd5b00]/20 transition-colors cursor-pointer shadow-xs"
-            title="ระบบหลังบ้าน & ผู้ดูแลระบบ (Backoffice)"
-          >
-            <Crown className="w-3.5 h-3.5 text-[#dd5b00]" />
-            <span>ระบบหลังบ้าน</span>
-          </button>
-        )}
-
-        {/* Desktop Guest Sign In Button - Notion Blue Pill */}
+        {/* Guest Sign In Button (When not logged in) */}
         {!isMember && onOpenAuth && (
           <button
             onClick={onOpenAuth}
-            className="hidden md:flex px-3.5 py-1.5 rounded-full bg-[#0075de] hover:bg-[#005bab] text-white font-medium text-xs shadow-[0_1px_2px_rgba(0,117,222,0.2)] items-center gap-1.5 transition-all cursor-pointer shrink-0"
+            className="flex px-3 py-1 rounded-full bg-[#0075de] hover:bg-[#005bab] text-white font-medium text-xs shadow-xs items-center gap-1.5 transition-all cursor-pointer shrink-0"
             title="เข้าสู่ระบบสมาชิก"
           >
             <LogIn className="w-3.5 h-3.5" />
-            <span>เข้าสู่ระบบ</span>
+            <span className="hidden xs:inline">เข้าสู่ระบบ</span>
           </button>
         )}
 
-        {/* User Profile Pill (Visible on both desktop and mobile, with responsive width) */}
+        {/* User Profile Pill */}
         <button
           onClick={onOpenFullProfile || onOpenProfile}
-          title={
-            isMember
-              ? 'เปิดหน้าโปรไฟล์ส่วนตัวของคุณ'
-              : 'แก้ไขโปรไฟล์ / บัญชีของคุณ'
-          }
+          title={isMember ? 'เปิดหน้าโปรไฟล์ส่วนตัวของคุณ' : 'แก้ไขโปรไฟล์ / บัญชีของคุณ'}
           className="flex items-center gap-1.5 sm:gap-2 p-1 pr-2 sm:pr-2.5 rounded-full bg-white hover:bg-[#f6f5f4] border border-[#e6e6e6] transition-colors group cursor-pointer shrink-0 shadow-xs"
         >
           <div
@@ -475,7 +355,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
           </div>
-          <span className="text-[11px] sm:text-xs font-medium text-[#31302e] group-hover:text-[#000000] max-w-[60px] xs:max-w-[85px] sm:max-w-[120px] truncate">
+          <span className="text-[11px] sm:text-xs font-medium text-[#31302e] group-hover:text-[#000000] max-w-[60px] xs:max-w-[85px] sm:max-w-[110px] truncate">
             {currentUser.name}
           </span>
           {currentUser.provider === 'email' && (
@@ -489,28 +369,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </button>
 
-        {/* Desktop Quick Sign Out icon button */}
-        {isMember && onLogout && (
-          <button
-            onClick={onLogout}
-            title="ออกจากระบบ (Sign Out)"
-            className="hidden md:flex p-1.5 sm:p-2 rounded-md text-[#615d59] hover:text-rose-600 hover:bg-rose-50 border border-[#e6e6e6] hover:border-rose-200 transition-colors cursor-pointer shrink-0"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        )}
-
-        {/* --- MOBILE ONLY 3-DOTS MENU BUTTON (md:hidden) --- */}
-        <div className="relative md:hidden" ref={menuRef}>
+        {/* Unified Tools & Options Dropdown Menu Button (Universal for Desktop, Tablet & Mobile) */}
+        <div className="relative" ref={menuRef}>
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className={`px-2 py-1.5 rounded-md border transition-all cursor-pointer flex items-center justify-center gap-1 shadow-xs ${
+            className={`px-2 py-1.5 rounded-full border transition-all cursor-pointer flex items-center justify-center gap-1 shadow-xs ${
               isMobileMenuOpen
                 ? 'bg-[#0075de]/10 text-[#0075de] border-[#0075de]/40 ring-2 ring-[#0075de]/20'
                 : 'bg-white hover:bg-[#f6f5f4] text-[#31302e] border-[#e6e6e6]'
             }`}
-            aria-label="เมนูเพิ่มเติม (3 จุด)"
-            title="เมนูเพิ่มเติม"
+            aria-label="เมนูเครื่องมือ"
+            title="เครื่องมือและเมนูเพิ่มเติม"
           >
             {isMobileMenuOpen ? (
               <X className="w-4 h-4 text-[#0075de]" />
@@ -519,29 +388,29 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </button>
 
-          {/* Mobile Dropdown Popover */}
+          {/* Clean Dropdown Popover */}
           {isMobileMenuOpen && (
             <>
-              {/* Invisible touch backdrop */}
+              {/* Invisible backdrop to dismiss on outside click */}
               <div
                 className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
                 onClick={() => setIsMobileMenuOpen(false)}
               />
 
-              {/* Floating Dropdown Card - Notion Style */}
-              <div className="absolute right-0 top-full mt-2 w-64 rounded-xl bg-white border border-[#e6e6e6] shadow-[0_12px_32px_rgba(0,0,0,0.08),0_2px_6px_rgba(0,0,0,0.04)] z-50 p-1.5 animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-0.5">
-                {/* Header in dropdown */}
-                <div className="px-3 py-2 border-b border-[#e6e6e6] flex items-center justify-between">
+              {/* Floating Dropdown Card */}
+              <div className="absolute right-0 top-full mt-2 w-68 sm:w-72 rounded-2xl bg-white border border-[#e6e6e6] shadow-[0_16px_36px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.06)] z-50 p-2 animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-1 text-[#31302e] max-h-[85vh] overflow-y-auto">
+                {/* Dropdown Header */}
+                <div className="px-3 py-2 border-b border-[#f0efed] flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0">
                     {currentView === 'room' ? (
                       <>
                         <div className="w-2 h-2 rounded-full bg-[#1aae39] animate-pulse shrink-0" />
-                        <span className="text-xs font-semibold text-[#000000] truncate">
+                        <span className="text-xs font-bold text-[#000000] truncate">
                           {roomName || roomId}
                         </span>
                       </>
                     ) : (
-                      <span className="text-xs font-semibold text-[#31302e]">เมนูหลัก</span>
+                      <span className="text-xs font-bold text-[#000000]">เมนูและการตั้งค่า</span>
                     )}
                   </div>
                   {currentView === 'room' && (
@@ -552,16 +421,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                   )}
                 </div>
 
-                {/* Mobile Actions in Room */}
+                {/* Section 1: In-Room Tools & Features */}
                 {currentView === 'room' && (
-                  <>
+                  <div className="py-1 flex flex-col gap-0.5">
                     {/* Invite Link */}
                     <button
                       onClick={() => {
                         handleCopyLink();
                         setIsMobileMenuOpen(false);
                       }}
-                      className="w-full px-3 py-2 rounded-lg hover:bg-[#f6f5f4] text-left text-xs text-[#31302e] flex items-center justify-between transition-colors cursor-pointer"
+                      className="w-full px-2.5 py-2 rounded-xl hover:bg-[#f6f5f4] text-left text-xs text-[#31302e] flex items-center justify-between transition-colors cursor-pointer"
                     >
                       <div className="flex items-center gap-2.5">
                         <Copy className="w-4 h-4 text-[#0075de]" />
@@ -570,7 +439,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       {copied && <span className="text-[10px] text-[#1aae39] font-medium">คัดลอกแล้ว</span>}
                     </button>
 
-                    {/* Room Announcement in Mobile Dropdown */}
+                    {/* Room Announcement */}
                     {roomAnnouncement ? (
                       <button
                         onClick={() => {
@@ -579,13 +448,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setIsAnnouncementModalOpen(true);
                           setIsMobileMenuOpen(false);
                         }}
-                        className="w-full px-3 py-2 rounded-lg hover:bg-amber-50 text-left text-xs text-amber-950 flex items-center justify-between transition-colors cursor-pointer"
+                        className="w-full px-2.5 py-2 rounded-xl hover:bg-amber-50 text-left text-xs text-amber-950 flex items-center justify-between transition-colors cursor-pointer"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <Megaphone className="w-4 h-4 text-amber-600 shrink-0" />
                           <span className="font-medium">ประกาศประจำห้อง</span>
                         </div>
-                        <span className="text-[10px] text-amber-800 bg-amber-100 border border-amber-300/60 px-1.5 py-0.5 rounded-md font-medium truncate max-w-[90px]">
+                        <span className="text-[10px] text-amber-800 bg-amber-100 border border-amber-300/60 px-1.5 py-0.5 rounded-md font-medium truncate max-w-[80px]">
                           {roomAnnouncement}
                         </span>
                       </button>
@@ -598,26 +467,39 @@ export const Navbar: React.FC<NavbarProps> = ({
                             setIsAnnouncementModalOpen(true);
                             setIsMobileMenuOpen(false);
                           }}
-                          className="w-full px-3 py-2 rounded-lg hover:bg-amber-50 text-left text-xs text-amber-900 flex items-center gap-2.5 transition-colors cursor-pointer"
+                          className="w-full px-2.5 py-2 rounded-xl hover:bg-amber-50 text-left text-xs text-amber-900 flex items-center gap-2.5 transition-colors cursor-pointer"
                         >
                           <Megaphone className="w-4 h-4 text-amber-600 shrink-0" />
-                          <span className="font-medium">ตั้งประกาศประจำห้อง</span>
+                          <span>ตั้งประกาศประจำห้อง</span>
                         </button>
                       )
                     )}
 
-                    {/* Refresh Room Sync */}
-                    {onRefreshRoom && (
+                    {/* Live TV in Menu */}
+                    {onOpenLiveTV && (
                       <button
                         onClick={() => {
-                          onRefreshRoom();
+                          onOpenLiveTV();
                           setIsMobileMenuOpen(false);
                         }}
-                        disabled={isRefreshing}
-                        className="w-full px-3 py-2 rounded-lg hover:bg-[#f6f5f4] text-left text-xs text-[#31302e] flex items-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
+                        className="w-full px-2.5 py-2 rounded-xl hover:bg-rose-50 text-left text-xs text-rose-800 font-medium flex items-center gap-2.5 transition-colors cursor-pointer"
                       >
-                        <RefreshCw className={`w-4 h-4 text-[#0075de] ${isRefreshing ? 'animate-spin' : ''}`} />
-                        <span>{isRefreshing ? 'กำลังรีเฟรชข้อมูล...' : 'รีเฟรชข้อมูลห้อง (Sync ใหม่)'}</span>
+                        <Tv className="w-4 h-4 text-rose-600" />
+                        <span>ดูทีวีสด & ดิจิทัล (623 ช่อง) 📺</span>
+                      </button>
+                    )}
+
+                    {/* Install App APK */}
+                    {onInstallApp && (
+                      <button
+                        onClick={() => {
+                          onInstallApp();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full px-2.5 py-2 rounded-xl hover:bg-emerald-50 text-left text-xs text-emerald-800 font-medium flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <Smartphone className="w-4 h-4 text-emerald-600" />
+                        <span>ดาวน์โหลดแอป Android (.APK)</span>
                       </button>
                     )}
 
@@ -628,13 +510,47 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onToggleOledSleep();
                           setIsMobileMenuOpen(false);
                         }}
-                        className="w-full px-3 py-2 rounded-lg hover:bg-[#f6f5f4] text-left text-xs text-[#615d59] flex items-center gap-2.5 transition-colors cursor-pointer"
+                        className="w-full px-2.5 py-2 rounded-xl hover:bg-[#f6f5f4] text-left text-xs text-[#615d59] flex items-center gap-2.5 transition-colors cursor-pointer"
                       >
                         <Moon className="w-4 h-4 text-[#615d59]" />
                         <span>โหมดพักหน้าจอ (ประหยัดแบตเตอรี่)</span>
                       </button>
                     )}
 
+                    {/* Share Card Modal */}
+                    {onOpenShareCard && (
+                      <button
+                        onClick={() => {
+                          onOpenShareCard();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full px-2.5 py-2 rounded-xl hover:bg-purple-50 text-left text-xs text-purple-700 font-medium flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <Share2 className="w-4 h-4 text-purple-600" />
+                        <span>สร้างการ์ดแชร์ห้อง (Story & QR)</span>
+                      </button>
+                    )}
+
+                    {/* Refresh Room Sync */}
+                    {onRefreshRoom && (
+                      <button
+                        onClick={() => {
+                          onRefreshRoom();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        disabled={isRefreshing}
+                        className="w-full px-2.5 py-2 rounded-xl hover:bg-[#f6f5f4] text-left text-xs text-[#31302e] flex items-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-4 h-4 text-[#0075de] ${isRefreshing ? 'animate-spin' : ''}`} />
+                        <span>{isRefreshing ? 'กำลังรีเฟรชข้อมูล...' : 'รีเฟรชข้อมูลห้อง (Sync ใหม่)'}</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Section 2: Room Admin & Fun Games */}
+                {currentView === 'room' && (isAdminOrOwner || isSuperAdmin) && (
+                  <div className="border-t border-[#f0efed] pt-1 mt-1 flex flex-col gap-0.5">
                     {/* Admin Panel */}
                     {isAdminOrOwner && onOpenAdminPanel && (
                       <button
@@ -642,7 +558,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onOpenAdminPanel();
                           setIsMobileMenuOpen(false);
                         }}
-                        className="w-full px-3 py-2 rounded-lg hover:bg-[#d6b6f6]/20 text-left text-xs text-[#391c57] flex items-center gap-2.5 transition-colors cursor-pointer"
+                        className="w-full px-2.5 py-2 rounded-xl hover:bg-[#d6b6f6]/20 text-left text-xs text-[#391c57] font-medium flex items-center gap-2.5 transition-colors cursor-pointer"
                       >
                         {myRole === 'owner' ? (
                           <Crown className="w-4 h-4 text-[#dd5b00]" />
@@ -653,14 +569,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                       </button>
                     )}
 
-                    {/* 2D Draw and Guess Game Button in Mobile Menu (Host & Admin only) */}
-                    {(isAdminOrOwner || isSuperAdmin) && onToggleGame && (
+                    {/* 2D Draw and Guess Game */}
+                    {onToggleGame && (
                       <button
                         onClick={() => {
                           onToggleGame();
                           setIsMobileMenuOpen(false);
                         }}
-                        className={`w-full px-3 py-2 rounded-lg text-left text-xs font-semibold flex items-center gap-2.5 transition-colors cursor-pointer ${
+                        className={`w-full px-2.5 py-2 rounded-xl text-left text-xs font-semibold flex items-center gap-2.5 transition-colors cursor-pointer ${
                           isGameActive
                             ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
                             : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
@@ -670,163 +586,108 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <span>{isGameActive ? 'ยุติเกมวาดรูปทายคำ' : 'เริ่มเกมวาดรูปทายคำ (Game Mode)'}</span>
                       </button>
                     )}
-
-                    {/* Share Card Modal in Mobile */}
-                    {onOpenShareCard && (
-                      <button
-                        onClick={() => {
-                          onOpenShareCard();
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="w-full px-3 py-2 rounded-lg hover:bg-purple-50 text-left text-xs text-purple-700 font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
-                      >
-                        <Share2 className="w-4 h-4 text-purple-600" />
-                        <span>สร้างการ์ดแชร์ห้องปาร์ตี้ (Share Card)</span>
-                      </button>
-                    )}
-
-                    {/* Install App in Mobile */}
-                    {onInstallApp && (
-                      <button
-                        onClick={() => {
-                          onInstallApp();
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="w-full px-3 py-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-left text-xs text-emerald-850 font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
-                      >
-                        <Smartphone className="w-4 h-4 text-emerald-600" />
-                        <span>ดาวน์โหลดแอป Android (.APK) / ติดตั้ง</span>
-                      </button>
-                    )}
-
-                    {/* Live TV in Mobile */}
-                    {onOpenLiveTV && (
-                      <button
-                        onClick={() => {
-                          onOpenLiveTV();
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="w-full px-3 py-2.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-left text-xs text-rose-800 font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
-                      >
-                        <Tv className="w-4 h-4 text-rose-600" />
-                        <span>ดูทีวีดิจิทัล & ช่องสดออนไลน์ (623 ช่อง) 📺</span>
-                      </button>
-                    )}
-
-                    {/* Minimize Room */}
-                    {onMinimizeRoom && (
-                      <button
-                        onClick={() => {
-                          onMinimizeRoom();
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="w-full px-3 py-2 rounded-lg hover:bg-[#f6f5f4] text-left text-xs text-[#0075de] font-medium flex items-center gap-2.5 transition-colors cursor-pointer"
-                      >
-                        <Minimize2 className="w-4 h-4 text-[#0075de]" />
-                        <span>ย่อห้องไว้มุมจอ (ไปหน้าหลัก)</span>
-                      </button>
-                    )}
-
-                    {/* Leave Room */}
-                    {onLeaveRoom && (
-                      <button
-                        onClick={() => {
-                          onLeaveRoom();
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="w-full px-3 py-2 rounded-lg hover:bg-rose-50 text-left text-xs text-rose-600 font-medium flex items-center gap-2.5 transition-colors cursor-pointer"
-                      >
-                        <LogOut className="w-4 h-4 text-rose-500" />
-                        <span>ออกจากห้องปาร์ตี้</span>
-                      </button>
-                    )}
-                  </>
+                  </div>
                 )}
 
-                {/* Support / Feedback in Mobile Menu */}
-                {onOpenSupport && (
+                {/* Section 3: System & Profile Actions */}
+                <div className="border-t border-[#f0efed] pt-1 mt-1 flex flex-col gap-0.5">
+                  {/* Super Admin Dashboard (Super Admin only) */}
+                  {isSuperAdmin && onOpenSuperAdminDashboard && (
+                    <button
+                      onClick={() => {
+                        onOpenSuperAdminDashboard();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full px-2.5 py-2 rounded-xl hover:bg-[#dd5b00]/10 text-left text-xs text-[#dd5b00] font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <Crown className="w-4 h-4 text-[#dd5b00]" />
+                      <span>ระบบหลังบ้าน (Backoffice)</span>
+                    </button>
+                  )}
+
+                  {/* Support / Feedback */}
+                  {onOpenSupport && (
+                    <button
+                      onClick={() => {
+                        onOpenSupport();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full px-2.5 py-2 rounded-xl hover:bg-[#f6f5f4] text-left text-xs text-[#615d59] hover:text-[#000000] flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <HelpCircle className="w-4 h-4 text-[#0075de]" />
+                      <span>แจ้งปัญหา / ส่งข้อเสนอแนะ</span>
+                    </button>
+                  )}
+
+                  {/* Minimize Room */}
+                  {currentView === 'room' && onMinimizeRoom && (
+                    <button
+                      onClick={() => {
+                        onMinimizeRoom();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full px-2.5 py-2 rounded-xl hover:bg-[#f6f5f4] text-left text-xs text-[#0075de] font-medium flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <Minimize2 className="w-4 h-4 text-[#0075de]" />
+                      <span>ย่อห้องไว้มุมจอ (ไปหน้าหลัก)</span>
+                    </button>
+                  )}
+
+                  {/* Profile / Account */}
                   <button
                     onClick={() => {
-                      onOpenSupport();
+                      if (onOpenFullProfile) onOpenFullProfile();
+                      else onOpenProfile();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="w-full px-3 py-2 rounded-lg hover:bg-[#f6f5f4] text-left text-xs text-[#31302e] flex items-center gap-2.5 transition-colors cursor-pointer"
+                    className="w-full px-2.5 py-2 rounded-xl hover:bg-[#f6f5f4] text-left text-xs text-[#31302e] flex items-center gap-2.5 transition-colors cursor-pointer"
                   >
-                    <HelpCircle className="w-4 h-4 text-[#0075de]" />
-                    <span>แจ้งปัญหา / ข้อเสนอแนะ</span>
+                    <User className="w-4 h-4 text-[#0075de]" />
+                    <span>โปรไฟล์ของฉัน</span>
                   </button>
-                )}
 
-                {/* Super Admin Dashboard in Mobile (Visible ONLY to Super Admin) */}
-                {isSuperAdmin && onOpenSuperAdminDashboard && (
-                  <button
-                    onClick={() => {
-                      onOpenSuperAdminDashboard();
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="w-full px-3 py-2 rounded-lg hover:bg-[#dd5b00]/10 text-left text-xs text-[#dd5b00] font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <Crown className="w-4 h-4 text-[#dd5b00]" />
-                    <span>ระบบหลังบ้าน (Backoffice)</span>
-                  </button>
-                )}
+                  {isMember && (
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        const handle = currentUser.username || currentUser.name.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                        window.location.href = `/@${handle}`;
+                      }}
+                      className="w-full px-2.5 py-2 rounded-xl hover:bg-[#0075de]/10 text-left text-xs text-[#0075de] font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <ExternalLink className="w-4 h-4 text-[#0075de]" />
+                      <span>ดูหน้าเพจของฉัน (@{currentUser.username || 'user'})</span>
+                    </button>
+                  )}
 
-                <div className="h-[1px] bg-[#e6e6e6] my-1" />
+                  {/* Leave Room */}
+                  {currentView === 'room' && onLeaveRoom && (
+                    <button
+                      onClick={() => {
+                        onLeaveRoom();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full px-2.5 py-2 rounded-xl hover:bg-rose-50 text-left text-xs text-rose-600 font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4 text-rose-500" />
+                      <span>ออกจากห้องปาร์ตี้</span>
+                    </button>
+                  )}
 
-                {/* Profile / Account Settings */}
-                <button
-                  onClick={() => {
-                    if (onOpenFullProfile) onOpenFullProfile();
-                    else onOpenProfile();
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full px-3 py-2 rounded-lg hover:bg-[#f6f5f4] text-left text-xs text-[#31302e] flex items-center gap-2.5 transition-colors cursor-pointer"
-                >
-                  <User className="w-4 h-4 text-[#0075de]" />
-                  <span>โปรไฟล์ของฉัน</span>
-                </button>
-
-                {isMember && (
-                  <button
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      const handle = currentUser.username || currentUser.name.toLowerCase().replace(/[^a-z0-9_]/g, '');
-                      window.location.href = `/@${handle}`;
-                    }}
-                    className="w-full px-3 py-2 rounded-lg hover:bg-[#0075de]/10 text-left text-xs text-[#0075de] font-semibold flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <ExternalLink className="w-4 h-4 text-[#0075de]" />
-                    <span>ดูหน้าเพจของฉัน (@{currentUser.username || 'user'})</span>
-                  </button>
-                )}
-
-                {/* Auth / Login for Guest - Notion Blue Pill */}
-                {!isMember && onOpenAuth && (
-                  <button
-                    onClick={() => {
-                      onOpenAuth();
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="w-full px-3 py-2 rounded-full bg-[#0075de] hover:bg-[#005bab] text-left text-xs text-white font-medium flex items-center gap-2.5 transition-all cursor-pointer shadow-xs mt-1"
-                  >
-                    <LogIn className="w-4 h-4" />
-                    <span>เข้าสู่ระบบสมาชิก</span>
-                  </button>
-                )}
-
-                {/* Sign Out for Logged in user */}
-                {isMember && onLogout && (
-                  <button
-                    onClick={() => {
-                      onLogout();
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="w-full px-3 py-2 rounded-lg hover:bg-rose-50 text-left text-xs text-rose-600 flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>ออกจากระบบ</span>
-                  </button>
-                )}
+                  {/* Sign Out for Logged in user */}
+                  {isMember && onLogout && (
+                    <button
+                      onClick={() => {
+                        onLogout();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full px-2.5 py-2 rounded-xl hover:bg-rose-50 text-left text-xs text-rose-600 flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>ออกจากระบบ (Sign Out)</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </>
           )}

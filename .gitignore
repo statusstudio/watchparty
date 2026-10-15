@@ -46,3 +46,8 @@ android-package/
 # Local database and persistent storage
 server/data/
 server/data/*.json
+
+# Voice service local models and temp audio
+voice_service/
+stitch_export/
+sync_stitch.mjs

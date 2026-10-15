@@ -24,6 +24,16 @@ export default defineConfig({
   server: {
     port: 3000,
     strictPort: true,
+    proxy: {
+      '/api/voice': {
+        target: 'http://127.0.0.1:8006',
+        changeOrigin: true,
+      },
+      '/audio': {
+        target: 'http://127.0.0.1:8006',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     rollupOptions: {

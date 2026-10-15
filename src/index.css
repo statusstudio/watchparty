@@ -7,17 +7,29 @@
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
   }
-  html, body, #root {
-    height: 100%;
+  html, body {
+    min-height: 100%;
     margin: 0;
     padding: 0;
-    background-color: #f6f5f4;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
-    overscroll-behavior-y: none;
-    -webkit-user-select: none;
-    user-select: none;
-    -webkit-touch-callout: none;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+  html.dark, html.dark body {
+    background-color: #111319;
+    color: #e2e2ea;
+    color-scheme: dark;
+  }
+  html.light, html.light body {
+    background-color: #faf8ff;
+    color: #131b2e;
+    color-scheme: light;
+  }
+  #root {
+    min-height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
   }
 
   /* Allow text selection only where users need to type or copy text */

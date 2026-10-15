@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Hls from 'hls.js';
-import { Play, Pause, Volume1, Volume2, VolumeX, Maximize, Radio, VolumeOff, Headphones, Music, Heart, Tv } from 'lucide-react';
+import { Play, Pause, Volume1, Volume2, VolumeX, Maximize, Radio, VolumeOff, Headphones, Music, Heart, Tv, ExternalLink, SkipForward } from 'lucide-react';
 import { VideoState } from '../types/index.js';
-import { FloatingReactions, FloatingItem, LiveReactionsDock } from './FloatingReactions.js';
+import { FloatingReactions, FloatingItem } from './FloatingReactions.js';
 
 interface VideoPlayerProps {
   video: VideoState;
@@ -100,8 +100,59 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const lastDriftToastRef = useRef(0);
   const hasEndedRef = useRef(false);
 
+  const [embedError, setEmbedError] = useState<{
+    code: number;
+    videoId: string;
+    message: string;
+  } | null>(null);
+
+  // Screen Wake Lock API to prevent screen/display from turning off during playback
+  useEffect(() => {
+    let wakeLockSentinel: any = null;
+    let isReleased = false;
+
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator && (video.isPlaying || Boolean(video.streamUrl)) && document.visibilityState === 'visible') {
+          wakeLockSentinel = await (navigator as any).wakeLock.request('screen');
+          wakeLockSentinel.addEventListener?.('release', () => {
+            if (!isReleased) {
+              wakeLockSentinel = null;
+            }
+          });
+        }
+      } catch (err) {
+        // Handled silently if power saver or browser denies
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && (video.isPlaying || Boolean(video.streamUrl))) {
+        requestWakeLock();
+      }
+    };
+
+    if (video.isPlaying || Boolean(video.streamUrl)) {
+      requestWakeLock();
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    } else if (wakeLockSentinel) {
+      wakeLockSentinel.release().catch(() => {});
+      wakeLockSentinel = null;
+    }
+
+    return () => {
+      isReleased = true;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (wakeLockSentinel) {
+        wakeLockSentinel.release().catch(() => {});
+        wakeLockSentinel = null;
+      }
+    };
+  }, [video.isPlaying, video.streamUrl]);
+
   useEffect(() => {
     hasEndedRef.current = false;
+    setEmbedError(null);
     setTapRipple(null);
     if (tapRippleTimeoutRef.current) {
       clearTimeout(tapRippleTimeoutRef.current);
@@ -294,6 +345,25 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onStateChange: handlePlayerStateChange,
         onError: (e: any) => {
           console.warn('YouTube Player error:', e);
+          const errorCode = e?.data;
+          // Code 150 or 101: Embedding disabled by owner, or video is age-restricted (18+)
+          // Code 100: Video removed or private
+          // Code 2: Invalid video ID
+          if (errorCode === 150 || errorCode === 101 || errorCode === 100 || errorCode === 2) {
+            const isAgeRestricted = errorCode === 150 || errorCode === 101;
+            setEmbedError({
+              code: errorCode,
+              videoId: videoRef.current.videoId,
+              message: isAgeRestricted
+                ? 'วิดีโอนี้ติดจำกัดอายุ (18+) จาก YouTube หรือไม่อนุญาตให้เล่นผ่านหน้าเว็บ'
+                : 'ไม่สามารถเล่นวิดีโอนี้ได้ (วิดีโอถูกลบหรือไม่ถูกต้อง)',
+            });
+            if (isAgeRestricted) {
+              onShowToast('วิดีโอนี้ติดจำกัดอายุ (18+) จาก YouTube ไม่สามารถเล่นผ่านหน้าเว็บได้ 🔞', 'warning');
+            } else {
+              onShowToast('ไม่สามารถเล่นวิดีโอนี้ได้เนื่องจากข้อจำกัดของ YouTube', 'warning');
+            }
+          }
         },
       },
     });
@@ -971,16 +1041,39 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onRemove={onRemoveReaction}
       />
 
-      {/* Floating Live Reactions Dock (Emoji only, no gifts on video screen) */}
-      {onSendReaction && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
-          className="absolute bottom-3 right-3 z-40 pointer-events-auto"
-        >
-          <LiveReactionsDock onSendReaction={onSendReaction} />
+      {/* Age-Restricted (18+) / Embed Disabled Error Notification Overlay */}
+      {embedError && embedError.videoId === video.videoId && (
+        <div className="absolute inset-0 z-40 bg-zinc-950/92 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-6 text-center animate-fade-in pointer-events-auto">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center mb-3 text-amber-400 shadow-lg">
+            <span className="text-xl sm:text-2xl font-black">18+</span>
+          </div>
+          <h3 className="text-sm sm:text-base font-bold text-white mb-1">
+            วิดีโอนี้ติดจำกัดอายุ (18+) จาก YouTube
+          </h3>
+          <p className="text-[11px] sm:text-xs text-zinc-300 max-w-sm mb-4 leading-relaxed">
+            YouTube ไม่อนุญาตให้เล่นวิดีโอ 18+ หรือวิดีโอที่ปิดการฝังผ่านเว็บไซต์ภายนอกโดยตรง คุณสามารถเปิดดูบน YouTube หรือข้ามไปเพลงถัดไปได้ทันที
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2.5">
+            {onNextTrack && (
+              <button
+                type="button"
+                onClick={onNextTrack}
+                className="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-[#0075de] hover:bg-[#005bab] text-white text-xs sm:text-sm font-semibold transition-all cursor-pointer shadow-md active:scale-95 flex items-center gap-1.5"
+              >
+                <span>ข้ามไปเพลงถัดไป</span>
+                <SkipForward className="w-4 h-4" />
+              </button>
+            )}
+            <a
+              href={`https://www.youtube.com/watch?v=${video.videoId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs sm:text-sm font-semibold transition-all cursor-pointer shadow-md active:scale-95 flex items-center gap-1.5"
+            >
+              <span>เปิดดูบน YouTube</span>
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
         </div>
       )}
 
@@ -1005,83 +1098,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Quick Player Control Overlay (Top right) */}
-      <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-md p-1 rounded-full border border-[#e6e6e6] shadow-xs">
-        {video.videoId && onToggleFavorite && (
-          <button
-            onClick={onToggleFavorite}
-            title={isFavorite ? 'ลบออกจากเพลงโปรด' : 'บันทึกเพลงนี้เป็นเพลงโปรด ❤️'}
-            className={`p-1.5 rounded-full transition-colors cursor-pointer ${
-              isFavorite
-                ? 'text-rose-600 bg-rose-50'
-                : 'text-[#615d59] hover:text-rose-600 hover:bg-black/5'
-            }`}
-          >
-            <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-current' : ''}`} />
-          </button>
-        )}
-        <button
-          onClick={onToggleAudioDucking}
-          title={isAudioDuckingEnabled ? 'เปิดระบบลดเสียงคลิปเวลาคนพูดอยู่ (คลิกเพื่อปิด)' : 'ปิดระบบลดเสียงคลิปเวลาคนพูดอยู่ (คลิกเพื่อเปิด)'}
-          className={`p-1.5 rounded-full transition-colors cursor-pointer ${
-            isAudioDuckingEnabled ? 'text-[#1aae39] bg-[#1aae39]/10' : 'text-[#615d59] hover:text-[#000000] hover:bg-black/5'
-          }`}
-        >
-          <Headphones className="w-3.5 h-3.5" />
-        </button>
 
-        {/* Music Volume Control Slider */}
-        <div className="relative flex items-center group/vol">
-          <button
-            onClick={toggleMute}
-            title={isMuted ? 'เปิดเสียง' : `ระดับเสียงเพลง: ${musicVolume}% (เลื่อนเพื่อปรับ)`}
-            className="p-1.5 rounded-full text-[#615d59] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer flex items-center gap-1"
-          >
-            {isMuted || musicVolume === 0 ? (
-              <VolumeX className="w-3.5 h-3.5 text-rose-600" />
-            ) : (
-              <Volume2 className="w-3.5 h-3.5" />
-            )}
-            <span className="text-[10px] font-mono text-[#615d59] hidden sm:inline">
-              {isMuted ? '0%' : `${musicVolume}%`}
-            </span>
-          </button>
-
-          {/* Slider reveals on hover or touch */}
-          <div className="hidden group-hover/vol:flex items-center gap-1.5 px-2.5 py-1 bg-white/95 backdrop-blur-md rounded-full border border-[#e6e6e6] shadow-md absolute right-full mr-1.5 z-30">
-            <span className="text-[10px] text-[#615d59] whitespace-nowrap font-medium">เสียงเพลง:</span>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={isMuted ? 0 : musicVolume}
-              onChange={(e) => handleMusicVolumeChange(parseInt(e.target.value, 10))}
-              className="w-20 sm:w-24 h-1.5 bg-[#e6e6e6] rounded-lg appearance-none cursor-pointer accent-[#0075de]"
-            />
-            <span className="text-[10px] font-mono text-[#0075de] font-bold w-7 text-right">
-              {isMuted ? '0%' : `${musicVolume}%`}
-            </span>
-          </div>
-        </div>
-
-        {onOpenLiveTV && (
-          <button
-            onClick={onOpenLiveTV}
-            title="ทีวีดิจิทัล & ช่องสด (Live TV) 📺"
-            className="p-1.5 rounded-full text-[#615d59] hover:text-rose-600 hover:bg-black/5 transition-colors cursor-pointer"
-          >
-            <Tv className="w-3.5 h-3.5" />
-          </button>
-        )}
-
-        <button
-          onClick={handleFullscreen}
-          title="เต็มจอ (Fullscreen)"
-          className="p-1.5 rounded-full text-[#615d59] hover:text-[#000000] hover:bg-black/5 transition-colors cursor-pointer"
-        >
-          <Maximize className="w-3.5 h-3.5" />
-        </button>
-      </div>
     </div>
   );
 };
