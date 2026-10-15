@@ -25,7 +25,7 @@ import {
 import { getStoredUser, saveUser, clearUser } from './services/auth.js';
 import { socketService } from './services/socket.js';
 import { WebRTCVoiceEngine } from './services/webrtc.js';
-import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Mic2, Plus, Radio, RefreshCw, Moon, X, Ghost, LogOut, Play, Pause, RotateCcw, RotateCw, Gamepad2, Clock, Share2, Download, Gift, Maximize, Headphones, Heart } from 'lucide-react';
+import { ListMusic, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, MessageSquare, Users, Crown, Shield, Mic, Mic2, Plus, Radio, RefreshCw, Moon, X, Ghost, LogOut, Play, Pause, RotateCcw, RotateCw, Gamepad2, Clock, Share2, Download, Gift, Maximize, Headphones, Heart, SlidersHorizontal } from 'lucide-react';
 import { Navbar } from './components/Navbar.js';
 import { VideoPlayer } from './components/VideoPlayer.js';
 import { KaraokeLyricsModal } from './components/KaraokeLyricsModal.js';
@@ -272,6 +272,7 @@ export function App() {
   const [playbackDuration, setPlaybackDuration] = useState<number>(0);
   const [isScrubbing, setIsScrubbing] = useState<boolean>(false);
   const [scrubValue, setScrubValue] = useState<number>(0);
+  const [isPlayerToolsOpen, setIsPlayerToolsOpen] = useState<boolean>(false);
 
   // Time formatter: mm.ss or hh:mm:ss
   const formatTime = (seconds: number): string => {
@@ -2523,16 +2524,315 @@ export function App() {
             )}
 
             {/* Current Video Info Banner & Quick Controls - Clean Reorganized Layout */}
-            <div className="bg-white dark:bg-[#191b22] border border-[#e6e6e6] dark:border-white/[0.08] text-[#31302e] dark:text-[#e2e2ea] rounded-xl p-2.5 sm:p-3 flex flex-col gap-2.5 shrink-0 shadow-xs transition-colors">
-              {/* Row 1: Full-Width Scrubber Timeline with Left/Right Timestamps */}
-              <div className="flex items-center gap-2.5 w-full">
-                {/* Current Time (Left) */}
-                <span className="font-mono text-xs font-semibold text-[#0075de] dark:text-[#00daf3] w-10 text-right shrink-0">
+            <div className="bg-white dark:bg-[#191b22] border border-[#e6e6e6] dark:border-white/[0.08] text-[#31302e] dark:text-[#e2e2ea] rounded-xl p-2 sm:p-2.5 flex flex-col gap-1.5 shrink-0 shadow-xs transition-colors">
+              {/* Row 1: Playback Hero + Track Info + Action Buttons */}
+              <div className="flex items-center justify-between gap-2 min-w-0">
+                {/* Left: Play/Pause button + Track Info */}
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {/* Play / Pause Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!video.videoId) return;
+                      if (video.isPlaying) {
+                        handleVideoPause(playbackCurrentTime || video.currentTime || 0, playbackDuration || video.duration || 0);
+                      } else {
+                        handleVideoPlay(playbackCurrentTime || video.currentTime || 0, playbackDuration || video.duration || 0);
+                      }
+                    }}
+                    disabled={!video.videoId}
+                    title={video.isPlaying ? 'หยุดชั่วคราว (Pause)' : 'เล่นต่อ (Play)'}
+                    className="w-8 h-8 rounded-full bg-[#0075de] hover:bg-[#005bab] text-white flex items-center justify-center active:scale-90 shadow-xs transition-all cursor-pointer shrink-0 disabled:opacity-30"
+                  >
+                    {video.isPlaying ? (
+                      <Pause className="w-4 h-4 fill-current" />
+                    ) : (
+                      <Play className="w-4 h-4 fill-current translate-x-0.5" />
+                    )}
+                  </button>
+
+                  {/* Title & Channel */}
+                  <div className="min-w-0 flex-1 flex flex-col justify-center">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <h2
+                        className="text-xs sm:text-sm font-bold text-[#111319] dark:text-[#e2e2ea] truncate"
+                        title={video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}
+                      >
+                        {video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}
+                      </h2>
+                      {video.videoId && (
+                        <button
+                          type="button"
+                          onClick={handleToggleFavoriteCurrentSong}
+                          title={isVideoFavorite ? 'ลบออกจากเพลงโปรด' : 'บันทึกเพลงโปรด ❤️'}
+                          className={`p-0.5 rounded-full transition-all cursor-pointer shrink-0 ${
+                            isVideoFavorite
+                              ? 'text-rose-500'
+                              : 'text-[#a39e98] hover:text-rose-500'
+                          }`}
+                        >
+                          <Heart className={`w-3.5 h-3.5 ${isVideoFavorite ? 'fill-current' : ''}`} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-[#615d59] dark:text-[#94a3b8] leading-tight">
+                      <span className="truncate max-w-[120px] sm:max-w-[200px]">{video.channel || 'pleng.online'}</span>
+                      {playlist.length > 0 && (
+                        <span className="text-[9px] sm:text-[10px] text-[#0075de] dark:text-[#00daf3] font-mono bg-[#0075de]/10 dark:bg-[#00daf3]/10 px-1 py-0.2 rounded border border-[#0075de]/20 dark:border-[#00daf3]/20 shrink-0 font-semibold">
+                          {playlist.findIndex((p) => p.videoId === video.videoId) >= 0 ? playlist.findIndex((p) => p.videoId === video.videoId) + 1 : 1}/{playlist.length}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Quick Controls */}
+                <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+                  {/* Previous Track */}
+                  <button
+                    type="button"
+                    onClick={handlePrevTrack}
+                    title="เพลงก่อนหน้า"
+                    disabled={playlist.length === 0}
+                    className="p-1 sm:p-1.5 rounded-lg text-[#615d59] dark:text-[#94a3b8] hover:text-[#111319] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-25 transition-all cursor-pointer active:scale-95"
+                  >
+                    <SkipBack className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  </button>
+
+                  {/* Next Track */}
+                  <button
+                    type="button"
+                    onClick={handleNextTrack}
+                    title="เพลงถัดไป"
+                    disabled={playlist.length === 0}
+                    className="p-1 sm:p-1.5 rounded-lg text-[#615d59] dark:text-[#94a3b8] hover:text-[#111319] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-25 transition-all cursor-pointer active:scale-95"
+                  >
+                    <SkipForward className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  </button>
+
+                  {/* Loop Mode Cycle Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextMode: Record<LoopMode, LoopMode> = {
+                        off: 'all',
+                        all: 'single',
+                        single: 'off',
+                      };
+                      handleSetLoopMode(nextMode[loopMode]);
+                    }}
+                    title={`โหมดเล่นวน: ${loopMode === 'single' ? 'เล่นซ้ำเพลงเดิม' : loopMode === 'all' ? 'วนซ้ำทั้งคิว' : 'รอบเดียว'}`}
+                    className={`p-1 sm:p-1.5 rounded-lg transition-all cursor-pointer active:scale-95 ${
+                      loopMode !== 'off'
+                        ? 'bg-[#1aae39]/15 text-[#1aae39]'
+                        : 'text-[#615d59] dark:text-[#94a3b8] hover:text-[#111319] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
+                    }`}
+                  >
+                    {loopMode === 'single' ? (
+                      <Repeat1 className="w-3.5 h-3.5 text-[#1aae39]" />
+                    ) : (
+                      <Repeat className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+
+                  {/* Karaoke & Synced Lyrics */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!video.videoId) {
+                        showToast('ไม่มีเพลงที่กำลังเล่นอยู่ 🎵', 'info');
+                        return;
+                      }
+                      setIsKaraokeModalOpen(true);
+                    }}
+                    title="โหมดคาราโอเกะ & เนื้อเพลงสด"
+                    className="p-1 sm:p-1.5 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 text-pink-600 dark:text-pink-400 border border-pink-500/20 transition-all cursor-pointer active:scale-95"
+                  >
+                    <Mic2 className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Secondary Tools Popover Button */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsPlayerToolsOpen(!isPlayerToolsOpen)}
+                      title="เครื่องมือเพิ่มเติม (Shuffle, ตั้งเวลา, โหมดพักจอ, หรี่เสียง)"
+                      className={`p-1 sm:p-1.5 rounded-lg border transition-all cursor-pointer active:scale-95 ${
+                        isPlayerToolsOpen || isShuffle || (sleepTimerSecondsLeft !== null && sleepTimerSecondsLeft > 0) || isAudioDuckingEnabled
+                          ? 'bg-[#0075de]/10 border-[#0075de]/30 text-[#0075de] dark:text-[#00daf3]'
+                          : 'bg-transparent text-[#615d59] dark:text-[#94a3b8] hover:text-[#111319] dark:hover:text-white border-transparent hover:bg-black/5 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Secondary Tools Menu */}
+                    {isPlayerToolsOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40 bg-black/10"
+                          onClick={() => setIsPlayerToolsOpen(false)}
+                        />
+                        <div className="absolute right-0 bottom-full mb-2 w-64 bg-white dark:bg-[#191b22] border border-[#e6e6e6] dark:border-white/[0.08] rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-1 text-xs text-[#31302e] dark:text-[#e2e2ea]">
+                          <div className="px-2 py-1 text-[11px] font-bold text-[#a39e98] dark:text-[#94a3b8] border-b border-black/[0.04] dark:border-white/[0.04] flex items-center justify-between">
+                            <span>เครื่องมือการเล่น</span>
+                            <button
+                              type="button"
+                              onClick={() => setIsPlayerToolsOpen(false)}
+                              className="text-zinc-400 hover:text-black dark:hover:text-white"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {/* Shuffle */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleToggleShuffle();
+                            }}
+                            className={`px-2 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                              isShuffle ? 'bg-[#0075de]/10 text-[#0075de] dark:text-[#00daf3] font-semibold' : 'hover:bg-black/5 dark:hover:bg-white/5'
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              <Shuffle className="w-3.5 h-3.5" /> สุ่มเพลงในคิว
+                            </span>
+                            <span className="text-[10px] opacity-75">{isShuffle ? 'เปิด' : 'ปิด'}</span>
+                          </button>
+
+                          {/* -10s / +10s */}
+                          <div className="grid grid-cols-2 gap-1 py-0.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!video.videoId) return;
+                                const maxDur = playbackDuration || video.duration || 0;
+                                const current = isScrubbing ? scrubValue : (playbackCurrentTime || video.currentTime || 0);
+                                const newTarget = Math.max(0, current - 10);
+                                setPlaybackCurrentTime(newTarget);
+                                handleVideoSeek(newTarget, maxDur);
+                                showToast('ย้อน 10 วินาที ⏪', 'info');
+                              }}
+                              disabled={!video.videoId}
+                              className="px-2 py-1.5 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center gap-1 cursor-pointer disabled:opacity-30"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              <span className="text-[11px] font-mono">-10 วิ</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!video.videoId) return;
+                                const maxDur = playbackDuration || video.duration || 0;
+                                const current = isScrubbing ? scrubValue : (playbackCurrentTime || video.currentTime || 0);
+                                const newTarget = maxDur > 0 ? Math.min(maxDur, current + 10) : current + 10;
+                                setPlaybackCurrentTime(newTarget);
+                                handleVideoSeek(newTarget, maxDur);
+                                showToast('ข้าม 10 วินาที ⏩', 'info');
+                              }}
+                              disabled={!video.videoId}
+                              className="px-2 py-1.5 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center gap-1 cursor-pointer disabled:opacity-30"
+                            >
+                              <RotateCw className="w-3 h-3" />
+                              <span className="text-[11px] font-mono">+10 วิ</span>
+                            </button>
+                          </div>
+
+                          {/* Sleep Timer */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsSleepTimerModalOpen(true);
+                              setIsPlayerToolsOpen(false);
+                            }}
+                            className="px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-between cursor-pointer"
+                          >
+                            <span className="flex items-center gap-2">
+                              <Clock className="w-3.5 h-3.5 text-indigo-500" /> ตั้งเวลาปิดเพลง
+                            </span>
+                            {((sleepTimerSecondsLeft !== null && sleepTimerSecondsLeft > 0) || sleepTimerStopAtEnd) && (
+                              <span className="text-[10px] font-mono text-indigo-600 font-bold">
+                                {sleepTimerStopAtEnd ? 'จบเพลง' : `${Math.floor((sleepTimerSecondsLeft || 0) / 60)}m`}
+                              </span>
+                            )}
+                          </button>
+
+                          {/* Audio Ducking */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsAudioDuckingEnabled((prev) => !prev);
+                            }}
+                            className={`px-2 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                              isAudioDuckingEnabled ? 'bg-[#1aae39]/10 text-[#1aae39] font-semibold' : 'hover:bg-black/5 dark:hover:bg-white/5'
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              <Headphones className="w-3.5 h-3.5 text-[#1aae39]" /> ลดเสียงคลิปเมื่อมีคนพูด
+                            </span>
+                            <span className="text-[10px] opacity-75">{isAudioDuckingEnabled ? 'เปิด' : 'ปิด'}</span>
+                          </button>
+
+                          {/* OLED Sleep */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsOledSleepMode(true);
+                              setIsPlayerToolsOpen(false);
+                            }}
+                            className="px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center gap-2 cursor-pointer"
+                          >
+                            <Moon className="w-3.5 h-3.5 text-zinc-500" /> พักหน้าจอ OLED
+                          </button>
+
+                          {/* Draw & Guess 2D Party Game Toggle */}
+                          {(myRole === 'owner' || myRole === 'admin' || isSuperAdmin) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsPlayerToolsOpen(false);
+                                if (gameState?.isActive) {
+                                  if (window.confirm('คุณต้องการยุติเกมวาดรูปสำหรับทุกคนใช่หรือไม่?')) {
+                                    handleStopGame();
+                                  }
+                                } else {
+                                  handleStartGame(3);
+                                }
+                              }}
+                              className={`px-2 py-1.5 rounded-lg flex items-center justify-between cursor-pointer ${
+                                gameState?.isActive ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40' : 'hover:bg-black/5 dark:hover:bg-white/5'
+                              }`}
+                            >
+                              <span className="flex items-center gap-2">
+                                <Gamepad2 className="w-3.5 h-3.5" /> โหมดเกมวาดรูปทายคำ
+                              </span>
+                              <span className="text-[10px] opacity-75">{gameState?.isActive ? 'กำลังเล่น' : 'เริ่ม'}</span>
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Fullscreen Toggle */}
+                  <button
+                    type="button"
+                    onClick={handleToggleFullscreen}
+                    title="ขยายเต็มจอ"
+                    className="p-1 sm:p-1.5 rounded-lg text-[#615d59] dark:text-[#94a3b8] hover:text-[#111319] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-all cursor-pointer active:scale-95"
+                  >
+                    <Maximize className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 2: Slim Full-Width Scrubber Timeline */}
+              <div className="flex items-center gap-2 w-full pt-0.5">
+                <span className="font-mono text-[10px] sm:text-xs font-semibold text-[#0075de] dark:text-[#00daf3] w-8 sm:w-9 text-right shrink-0">
                   {formatTime(isScrubbing ? scrubValue : playbackCurrentTime)}
                 </span>
-
-                {/* Progress Slider (Scrubber Bar) */}
-                <div className="flex-1 relative flex items-center min-w-0 py-0.5">
+                <div className="flex-1 relative flex items-center min-w-0">
                   <input
                     type="range"
                     min="0"
@@ -2563,288 +2863,12 @@ export function App() {
                       setPlaybackCurrentTime(seekTo);
                       handleVideoSeek(seekTo, playbackDuration || video.duration || 0);
                     }}
-                    className="w-full h-1.5 hover:h-2 bg-[#e6e6e6] dark:bg-white/10 rounded-full appearance-none cursor-pointer accent-[#0075de] dark:accent-[#00daf3] disabled:opacity-30 transition-all"
+                    className="w-full h-1 hover:h-1.5 bg-[#e6e6e6] dark:bg-white/10 rounded-full appearance-none cursor-pointer accent-[#0075de] dark:accent-[#00daf3] disabled:opacity-30 transition-all"
                   />
                 </div>
-
-                {/* Total Duration (Right) */}
-                <span className="font-mono text-xs font-medium text-[#615d59] dark:text-[#94a3b8] w-10 text-left shrink-0">
+                <span className="font-mono text-[10px] sm:text-xs font-medium text-[#615d59] dark:text-[#94a3b8] w-8 sm:w-9 text-left shrink-0">
                   {formatTime(playbackDuration || video.duration || 0)}
                 </span>
-              </div>
-
-              {/* Row 2: Organized Controls & Track Info Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-[#f0efed] dark:border-white/[0.08]">
-                {/* Left Zone: Video Title, Channel, Favorite & Queue Badge */}
-                <div className="min-w-0 flex items-center justify-between sm:justify-start gap-2 sm:max-w-[240px] md:max-w-[280px] lg:max-w-[320px]">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <h2
-                        className="text-xs sm:text-sm font-bold text-[#111319] dark:text-[#e2e2ea] truncate"
-                        title={video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}
-                      >
-                        {video.title || 'ห้องสแตนด์บาย (ยังไม่มีเพลงเล่น)'}
-                      </h2>
-                      {video.videoId && (
-                        <button
-                          type="button"
-                          onClick={handleToggleFavoriteCurrentSong}
-                          title={isVideoFavorite ? 'ลบออกจากเพลงโปรด' : 'บันทึกเพลงโปรด ❤️'}
-                          className={`p-1 rounded-full transition-all cursor-pointer shrink-0 ${
-                            isVideoFavorite
-                              ? 'text-rose-500 bg-rose-500/10'
-                              : 'text-[#a39e98] hover:text-rose-500 hover:bg-black/5 dark:hover:bg-white/10'
-                          }`}
-                        >
-                          <Heart className={`w-3.5 h-3.5 ${isVideoFavorite ? 'fill-current' : ''}`} />
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-[11px] text-[#615d59] dark:text-[#94a3b8] mt-0.5">
-                      <span className="truncate max-w-[130px] sm:max-w-[180px]">{video.channel || 'pleng.online'}</span>
-                      {playlist.length > 0 && (
-                        <span className="text-[10px] text-[#0075de] dark:text-[#00daf3] font-mono bg-[#0075de]/10 dark:bg-[#00daf3]/10 px-1.5 py-0.2 rounded border border-[#0075de]/20 dark:border-[#00daf3]/20 shrink-0 font-semibold">
-                          คิว {playlist.findIndex((p) => p.videoId === video.videoId) >= 0 ? playlist.findIndex((p) => p.videoId === video.videoId) + 1 : 1}/{playlist.length}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Center Zone: Unified Core Playback Controls (Shuffle, Prev, -10s, Play/Pause, +10s, Next, Loop) */}
-                <div className="flex items-center justify-center gap-1 sm:gap-1.5 shrink-0 bg-[#f6f5f4]/80 dark:bg-[#15171e]/80 px-2 py-1 rounded-xl border border-black/[0.04] dark:border-white/[0.04]">
-                  {/* Shuffle Button */}
-                  <button
-                    type="button"
-                    onClick={handleToggleShuffle}
-                    title={isShuffle ? 'สุ่มเพลง: เปิด (คลิกเพื่อปิด)' : 'สุ่มเพลง: ปิด (คลิกเพื่อเปิด)'}
-                    className={`p-1.5 rounded-lg transition-all cursor-pointer active:scale-95 ${
-                      isShuffle
-                        ? 'bg-[#0075de]/15 text-[#0075de] dark:text-[#00daf3]'
-                        : 'text-[#615d59] dark:text-[#94a3b8] hover:text-[#111319] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
-                    }`}
-                  >
-                    <Shuffle className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Previous Track */}
-                  <button
-                    type="button"
-                    onClick={handlePrevTrack}
-                    title="เพลงก่อนหน้า (Previous Track)"
-                    disabled={playlist.length === 0}
-                    className="p-1.5 rounded-lg text-[#615d59] dark:text-[#94a3b8] hover:text-[#111319] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 transition-all cursor-pointer active:scale-95"
-                  >
-                    <SkipBack className="w-4 h-4" />
-                  </button>
-
-                  {/* Rewind 10 Seconds */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!video.videoId) return;
-                      const maxDur = playbackDuration || video.duration || 0;
-                      const current = isScrubbing ? scrubValue : (playbackCurrentTime || video.currentTime || 0);
-                      const newTarget = Math.max(0, current - 10);
-                      setPlaybackCurrentTime(newTarget);
-                      handleVideoSeek(newTarget, maxDur);
-                      showToast('ย้อนหลัง 10 วินาที ⏪', 'info');
-                    }}
-                    disabled={!video.videoId}
-                    title="ย้อนหลัง 10 วินาที (-10s)"
-                    className="p-1.5 rounded-lg text-[#615d59] dark:text-[#94a3b8] hover:text-[#111319] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 active:scale-95 transition-all cursor-pointer"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Play / Pause Toggle Button (Prominent Hero Circle) */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!video.videoId) return;
-                      if (video.isPlaying) {
-                        handleVideoPause(playbackCurrentTime || video.currentTime || 0, playbackDuration || video.duration || 0);
-                      } else {
-                        handleVideoPlay(playbackCurrentTime || video.currentTime || 0, playbackDuration || video.duration || 0);
-                      }
-                    }}
-                    disabled={!video.videoId}
-                    title={video.isPlaying ? 'หยุดชั่วคราว (Pause)' : 'เล่นต่อ (Play)'}
-                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#0075de] hover:bg-[#005bab] text-white flex items-center justify-center active:scale-90 shadow-md transition-all cursor-pointer disabled:opacity-30 mx-0.5"
-                  >
-                    {video.isPlaying ? (
-                      <Pause className="w-4 h-4 fill-current" />
-                    ) : (
-                      <Play className="w-4 h-4 fill-current translate-x-0.5" />
-                    )}
-                  </button>
-
-                  {/* Forward 10 Seconds */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!video.videoId) return;
-                      const maxDur = playbackDuration || video.duration || 0;
-                      const current = isScrubbing ? scrubValue : (playbackCurrentTime || video.currentTime || 0);
-                      const newTarget = maxDur > 0 ? Math.min(maxDur, current + 10) : current + 10;
-                      setPlaybackCurrentTime(newTarget);
-                      handleVideoSeek(newTarget, maxDur);
-                      showToast('ไปข้างหน้า 10 วินาที ⏩', 'info');
-                    }}
-                    disabled={!video.videoId}
-                    title="ไปข้างหน้า 10 วินาที (+10s)"
-                    className="p-1.5 rounded-lg text-[#615d59] dark:text-[#94a3b8] hover:text-[#111319] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 active:scale-95 transition-all cursor-pointer"
-                  >
-                    <RotateCw className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Next Track */}
-                  <button
-                    type="button"
-                    onClick={handleNextTrack}
-                    title="เพลงถัดไป (Next Track)"
-                    disabled={playlist.length === 0}
-                    className="p-1.5 rounded-lg text-[#615d59] dark:text-[#94a3b8] hover:text-[#111319] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 transition-all cursor-pointer active:scale-95"
-                  >
-                    <SkipForward className="w-4 h-4" />
-                  </button>
-
-                  {/* Loop Mode Cycle Button */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const nextMode: Record<LoopMode, LoopMode> = {
-                        off: 'all',
-                        all: 'single',
-                        single: 'off',
-                      };
-                      handleSetLoopMode(nextMode[loopMode]);
-                    }}
-                    title={`โหมดเล่นวน: ${loopMode === 'single' ? 'เล่นซ้ำเพลงเดิม' : loopMode === 'all' ? 'วนซ้ำทั้งคิว' : 'รอบเดียว'}`}
-                    className={`p-1.5 rounded-lg transition-all cursor-pointer active:scale-95 relative ${
-                      loopMode !== 'off'
-                        ? 'bg-[#1aae39]/15 text-[#1aae39]'
-                        : 'text-[#615d59] dark:text-[#94a3b8] hover:text-[#111319] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
-                    }`}
-                  >
-                    {loopMode === 'single' ? (
-                      <Repeat1 className="w-3.5 h-3.5 text-[#1aae39]" />
-                    ) : (
-                      <Repeat className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                </div>
-
-                {/* Right Zone: Quick Tools & Actions (Karaoke, Timer, Ducking, Screen Saver, Game, Fullscreen) */}
-                <div className="flex items-center justify-end gap-1 sm:gap-1.5 shrink-0">
-                  {/* Karaoke & Synced Lyrics */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!video.videoId) {
-                        showToast('ไม่มีเพลงที่กำลังเล่นอยู่ 🎵', 'info');
-                        return;
-                      }
-                      setIsKaraokeModalOpen(true);
-                    }}
-                    title="โหมดคาราโอเกะ & เนื้อเพลงสด (Synced Lyrics)"
-                    className="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 text-pink-600 dark:text-pink-400 border border-pink-500/20 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-xs"
-                  >
-                    <Mic2 className="w-3.5 h-3.5 animate-pulse" />
-                    <span className="text-[11px] hidden md:inline">เนื้อเพลง</span>
-                  </button>
-
-                  {/* Sleep Timer */}
-                  <button
-                    type="button"
-                    onClick={() => setIsSleepTimerModalOpen(true)}
-                    title="ตัวตั้งเวลาปิดเพลงอัตโนมัติ (Sleep Timer)"
-                    className={`p-1.5 sm:px-2 sm:py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer active:scale-95 border shadow-xs ${
-                      (sleepTimerSecondsLeft !== null && sleepTimerSecondsLeft > 0) || sleepTimerStopAtEnd
-                        ? 'bg-indigo-600 text-white border-indigo-700 animate-pulse'
-                        : 'bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#615d59] dark:text-[#94a3b8] border-[#e6e6e6] dark:border-white/[0.08]'
-                    }`}
-                  >
-                    <Clock className="w-3.5 h-3.5" />
-                    {((sleepTimerSecondsLeft !== null && sleepTimerSecondsLeft > 0) || sleepTimerStopAtEnd) && (
-                      <span className="text-[10px] font-mono font-bold">
-                        {sleepTimerStopAtEnd
-                          ? 'จบเพลง'
-                          : `${Math.floor((sleepTimerSecondsLeft || 0) / 60)}:${((sleepTimerSecondsLeft || 0) % 60).toString().padStart(2, '0')}`}
-                      </span>
-                    )}
-                  </button>
-
-                  {/* Audio Ducking Toggle */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsAudioDuckingEnabled((prev) => {
-                        const next = !prev;
-                        showToast(next ? 'เปิดระบบลดเสียงคลิปเวลาคนพูด 🎧' : 'ปิดระบบลดเสียงคลิปเวลาคนพูด', 'info');
-                        return next;
-                      });
-                    }}
-                    title={isAudioDuckingEnabled ? 'ลดเสียงเพลงอัตโนมัติเมื่อมีคนพูด (เปิดอยู่)' : 'ลดเสียงเพลงอัตโนมัติเมื่อมีคนพูด (ปิดอยู่)'}
-                    className={`p-1.5 rounded-lg border transition-all cursor-pointer active:scale-95 shadow-xs ${
-                      isAudioDuckingEnabled
-                        ? 'bg-[#1aae39]/15 text-[#1aae39] border-[#1aae39]/30'
-                        : 'bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#615d59] dark:text-[#94a3b8] border-[#e6e6e6] dark:border-white/[0.08]'
-                    }`}
-                  >
-                    <Headphones className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* OLED Screen Off */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsOledSleepMode(true);
-                      showToast('เข้าสู่โหมดพักหน้าจอ (OLED Black) แตะหน้าจอเพื่อปลดล็อค 🌙', 'info');
-                    }}
-                    title="โหมดพักหน้าจอประหยัดแบตเตอรี่ (OLED Black)"
-                    className="p-1.5 rounded-lg bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#615d59] dark:text-[#94a3b8] border border-[#e6e6e6] dark:border-white/[0.08] transition-all cursor-pointer active:scale-95 shadow-xs"
-                  >
-                    <Moon className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Draw & Guess 2D Party Game Toggle (Host & Admin only) */}
-                  {(myRole === 'owner' || myRole === 'admin' || isSuperAdmin) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (gameState?.isActive) {
-                          if (window.confirm('คุณต้องการยุติเกมวาดรูปสำหรับทุกคนใช่หรือไม่?')) {
-                            handleStopGame();
-                          }
-                        } else {
-                          handleStartGame(3);
-                        }
-                      }}
-                      title={gameState?.isActive ? 'ยุติเกมวาดรูปทายคำ' : 'เริ่มเกมวาดรูปทายคำ'}
-                      className={`p-1.5 sm:px-2.5 sm:py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border shadow-xs active:scale-95 ${
-                        gameState?.isActive
-                          ? 'bg-rose-500 hover:bg-rose-600 text-white border-rose-600 animate-pulse'
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700'
-                      }`}
-                    >
-                      <Gamepad2 className="w-3.5 h-3.5" />
-                      <span className="text-[11px] hidden md:inline">
-                        {gameState?.isActive ? 'ยุติเกม' : 'เกม'}
-                      </span>
-                    </button>
-                  )}
-
-                  {/* Fullscreen Toggle */}
-                  <button
-                    type="button"
-                    onClick={handleToggleFullscreen}
-                    title="ขยายเต็มจอ (Fullscreen)"
-                    className="p-1.5 rounded-lg bg-white dark:bg-[#1d1f26] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#615d59] dark:text-[#94a3b8] hover:text-[#111319] dark:hover:text-white border border-[#e6e6e6] dark:border-white/[0.08] active:scale-95 transition-all cursor-pointer shrink-0 shadow-xs"
-                  >
-                    <Maximize className="w-3.5 h-3.5" />
-                  </button>
-                </div>
               </div>
             </div>
 

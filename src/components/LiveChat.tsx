@@ -479,57 +479,6 @@ export const LiveChat: React.FC<LiveChatProps> = ({
               </button>
             ))}
           </div>
-
-          {onSendGift && (
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsChatGiftMenuOpen(!isChatGiftMenuOpen)}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 border border-amber-500/30 text-[11px] font-semibold cursor-pointer transition-all active:scale-95"
-                title="ส่งของขวัญจำลอง"
-              >
-                <Gift className="w-3 h-3 text-amber-600" />
-                <span>ของขวัญ</span>
-              </button>
-
-              {isChatGiftMenuOpen && (
-                <div className="absolute bottom-full mb-2 right-0 w-64 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-2xl shadow-2xl p-2.5 z-50 text-white">
-                  <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-zinc-800">
-                    <span className="text-xs font-bold text-amber-300 flex items-center gap-1">
-                      <Gift className="w-3.5 h-3.5" /> เลือกของขวัญ
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsChatGiftMenuOpen(false)}
-                      className="p-1 text-zinc-400 hover:text-white rounded-md cursor-pointer"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {VIRTUAL_GIFTS.map((g) => (
-                      <button
-                        key={g.id}
-                        type="button"
-                        onClick={() => {
-                          onSendGift(g);
-                          setIsChatGiftMenuOpen(false);
-                        }}
-                        className="flex flex-col items-center justify-center p-2 rounded-xl bg-zinc-900 hover:bg-amber-500/20 border border-zinc-800 hover:border-amber-400/50 transition-all cursor-pointer text-center group"
-                      >
-                        <span className="text-xl mb-0.5 group-hover:scale-110 transition-transform">
-                          {g.icon}
-                        </span>
-                        <span className="text-[10px] font-semibold text-zinc-300 group-hover:text-amber-300 truncate w-full">
-                          {g.name}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
 
