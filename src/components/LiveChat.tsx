@@ -592,18 +592,6 @@ export const LiveChat: React.FC<LiveChatProps> = ({
               <Smile className={`w-4 h-4 ${isStickerPickerOpen ? 'animate-bounce' : ''}`} />
             </button>
 
-            {/* Heart Reaction Burst Button */}
-            {onSendReaction && (
-              <button
-                type="button"
-                onClick={() => onSendReaction('❤️')}
-                title="ส่งหัวใจโคมลอย ❤️"
-                className="p-2 rounded-full border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-500 hover:text-rose-600 transition-all cursor-pointer shrink-0 shadow-xs flex items-center justify-center active:scale-90"
-              >
-                <Heart className="w-4 h-4 fill-rose-500 animate-pulse" />
-              </button>
-            )}
-
             {/* Sticker Picker Drawer Popup (full width of chat form, scrollable grid with category tabs) */}
             {isStickerPickerOpen && (
               <>

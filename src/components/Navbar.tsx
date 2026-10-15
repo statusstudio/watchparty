@@ -226,10 +226,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setIsAnnouncementModalOpen(true);
                 }}
                 title={`📢 ประกาศประจำห้อง: ${roomAnnouncement} (คลิกเพื่ออ่านทั้งหมด)`}
-                className="flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 border border-amber-500/30 text-amber-900 dark:text-amber-200 px-2 py-1 rounded-md transition-all cursor-pointer min-w-0 max-w-[90px] xs:max-w-[140px] sm:max-w-[220px] md:max-w-[320px] shadow-xs group shrink"
+                className="flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 border border-amber-500/30 text-amber-900 dark:text-amber-200 p-1.5 sm:px-2 sm:py-1 rounded-md transition-all cursor-pointer min-w-0 max-w-[32px] sm:max-w-[200px] md:max-w-[320px] shadow-xs group shrink-0"
               >
                 <Megaphone className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
-                <span className="text-[11px] sm:text-xs font-medium truncate text-amber-950 dark:text-amber-100">
+                <span className="text-[11px] sm:text-xs font-medium truncate text-amber-950 dark:text-amber-100 hidden sm:inline">
                   {roomAnnouncement}
                 </span>
               </button>
@@ -243,10 +243,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     setIsAnnouncementModalOpen(true);
                   }}
                   title="ตั้งประกาศประจำห้อง"
-                  className="hidden xs:flex items-center gap-1 text-[11px] font-medium text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-amber-100 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-300/70 dark:border-amber-700/50 px-2 py-1 rounded-md transition-colors cursor-pointer shadow-xs shrink-0"
+                  className="hidden md:flex items-center gap-1 text-[11px] font-medium text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-amber-100 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-300/70 dark:border-amber-700/50 px-2 py-1 rounded-md transition-colors cursor-pointer shadow-xs shrink-0"
                 >
                   <Megaphone className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                  <span className="hidden sm:inline">ตั้งประกาศ</span>
+                  <span>ตั้งประกาศ</span>
                 </button>
               )
             )}
@@ -257,7 +257,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="button"
                 onClick={onToggleFavoriteRoom}
                 title={isFavoriteRoom ? 'เลิกติดตามห้องนี้' : 'บันทึกเป็นห้องโปรด ⭐'}
-                className={`p-1.5 rounded-md border text-xs transition-colors cursor-pointer shrink-0 shadow-xs flex items-center justify-center ${
+                className={`p-1.5 rounded-md border text-xs transition-colors cursor-pointer shrink-0 shadow-xs hidden xs:flex items-center justify-center ${
                   isFavoriteRoom
                     ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
                     : 'bg-white dark:bg-[#191b22] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#a39e98] dark:text-[#94a3b8] border-[#e6e6e6] dark:border-white/[0.08]'
@@ -295,11 +295,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           <>
             {/* Online Count Badge */}
             <div
-              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 bg-[#f6f5f4] dark:bg-[#191b22] border border-[#e6e6e6] dark:border-white/[0.08] rounded-full text-xs text-[#31302e] dark:text-[#e2e2ea] shadow-xs"
+              className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 bg-[#f6f5f4] dark:bg-[#191b22] border border-[#e6e6e6] dark:border-white/[0.08] rounded-full text-xs text-[#31302e] dark:text-[#e2e2ea] shadow-xs shrink-0"
               title={`มีคนอยู่ในห้อง ${onlineCount} คน`}
             >
               <Users className="w-3.5 h-3.5 text-[#2a9d99] dark:text-[#00daf3]" />
-              <span className="font-semibold text-[#000000] dark:text-[#e2e2ea]">{onlineCount}</span>
+              <span className="font-semibold text-[11px] sm:text-xs text-[#000000] dark:text-[#e2e2ea]">{onlineCount}</span>
             </div>
 
             {/* Desktop / Tablet Invite Button */}
@@ -309,27 +309,27 @@ export const Navbar: React.FC<NavbarProps> = ({
               className={`hidden sm:flex px-2.5 py-1 rounded-full border text-xs font-medium transition-all items-center gap-1.5 cursor-pointer shrink-0 shadow-xs ${
                 copied
                   ? 'bg-[#1aae39]/10 text-[#1aae39] border-[#1aae39]/30'
-                  : 'bg-white hover:bg-[#f6f5f4] text-[#31302e] border-[#e6e6e6] hover:text-[#000000]'
+                  : 'bg-white dark:bg-[#191b22] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#31302e] dark:text-[#e2e2ea] border-[#e6e6e6] dark:border-white/[0.08] hover:text-[#000000]'
               }`}
             >
               {copied ? (
                 <Check className="w-3.5 h-3.5 text-[#1aae39]" />
               ) : (
-                <Copy className="w-3.5 h-3.5 text-[#0075de]" />
+                <Copy className="w-3.5 h-3.5 text-[#0075de] dark:text-[#00daf3]" />
               )}
               <span>{copied ? 'คัดลอกแล้ว' : 'ชวนเพื่อน'}</span>
             </button>
 
-            {/* Live TV Button */}
+            {/* Live TV Button (Visible on md+ screens; on mobile available in 3-dots More Menu) */}
             {onOpenLiveTV && (
               <button
                 type="button"
                 onClick={onOpenLiveTV}
-                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition-all cursor-pointer shrink-0 shadow-xs active:scale-95"
+                className="hidden md:flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 text-xs font-semibold transition-all cursor-pointer shrink-0 shadow-xs active:scale-95"
                 title="ดูทีวีดิจิทัล & ช่องสดออนไลน์พร้อมกัน (Live TV 623 ช่อง)"
               >
-                <Tv className="w-3.5 h-3.5 text-rose-600" />
-                <span className="hidden xs:inline">ดูทีวีสด 📺</span>
+                <Tv className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                <span>ดูทีวีสด 📺</span>
               </button>
             )}
           </>
@@ -339,11 +339,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         {!isMember && onOpenAuth && (
           <button
             onClick={onOpenAuth}
-            className="flex px-3 py-1 rounded-full bg-[#0075de] hover:bg-[#005bab] text-white font-medium text-xs shadow-xs items-center gap-1.5 transition-all cursor-pointer shrink-0"
+            className="flex p-1.5 sm:px-3 sm:py-1 rounded-full bg-[#0075de] hover:bg-[#005bab] text-white font-medium text-xs shadow-xs items-center gap-1.5 transition-all cursor-pointer shrink-0 active:scale-95"
             title="เข้าสู่ระบบสมาชิก"
           >
             <LogIn className="w-3.5 h-3.5" />
-            <span className="hidden xs:inline">เข้าสู่ระบบ</span>
+            <span className="hidden sm:inline">เข้าสู่ระบบ</span>
           </button>
         )}
 
@@ -352,7 +352,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={onToggleTheme}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all duration-300 text-xs font-semibold select-none shadow-xs shrink-0 cursor-pointer ${
+            className={`flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1 rounded-full border transition-all duration-300 text-xs font-semibold select-none shadow-xs shrink-0 cursor-pointer active:scale-95 ${
               theme === 'light'
                 ? 'bg-white border-[#dae2fd] text-[#131b2e] hover:bg-[#eaedff]'
                 : 'bg-[#191b22] border-white/10 text-[#e2e2ea] hover:bg-[#282a30]'
@@ -368,7 +368,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="material-symbols-outlined text-[14px] text-[#ffb955]">dark_mode</span>
               )}
             </div>
-            <span className="font-medium text-[11px] hidden sm:inline">
+            <span className="font-medium text-[11px] hidden md:inline">
               {theme === 'light' ? 'โหมดสว่าง' : 'โหมดมืด'}
             </span>
           </button>
@@ -378,7 +378,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           onClick={onOpenFullProfile || onOpenProfile}
           title={isMember ? 'เปิดหน้าโปรไฟล์ส่วนตัวของคุณ' : 'แก้ไขโปรไฟล์ / บัญชีของคุณ'}
-          className="flex items-center gap-1.5 sm:gap-2 p-1 pr-2 sm:pr-2.5 rounded-full bg-white hover:bg-[#f6f5f4] border border-[#e6e6e6] transition-colors group cursor-pointer shrink-0 shadow-xs"
+          className="flex items-center gap-1.5 p-0.5 sm:p-1 sm:pr-2.5 rounded-full bg-white dark:bg-[#191b22] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] border border-[#e6e6e6] dark:border-white/[0.08] transition-colors group cursor-pointer shrink-0 shadow-xs"
         >
           <div
             className="w-6 h-6 sm:w-7 sm:h-7 rounded-full overflow-hidden border shrink-0 relative"
@@ -386,17 +386,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
           </div>
-          <span className="text-[11px] sm:text-xs font-medium text-[#31302e] group-hover:text-[#000000] max-w-[60px] xs:max-w-[85px] sm:max-w-[110px] truncate">
+          <span className="text-[11px] sm:text-xs font-medium text-[#31302e] dark:text-[#e2e2ea] group-hover:text-[#000000] dark:group-hover:text-white max-w-[70px] sm:max-w-[110px] truncate hidden sm:inline">
             {currentUser.name}
           </span>
           {currentUser.provider === 'email' && (
-            <span className="w-2 h-2 rounded-full bg-[#10b981] shrink-0" title="สมาชิก (Email)" />
+            <span className="w-2 h-2 rounded-full bg-[#10b981] shrink-0 hidden sm:inline-block" title="สมาชิก (Email)" />
           )}
           {currentUser.provider === 'google' && (
-            <span className="w-2 h-2 rounded-full bg-[#dd5b00] shrink-0" title="Google Account" />
+            <span className="w-2 h-2 rounded-full bg-[#dd5b00] shrink-0 hidden sm:inline-block" title="Google Account" />
           )}
           {currentUser.provider === 'facebook' && (
-            <span className="w-2 h-2 rounded-full bg-[#0075de] shrink-0" title="Facebook Account" />
+            <span className="w-2 h-2 rounded-full bg-[#0075de] shrink-0 hidden sm:inline-block" title="Facebook Account" />
           )}
         </button>
 
@@ -404,18 +404,18 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className={`px-2 py-1.5 rounded-full border transition-all cursor-pointer flex items-center justify-center gap-1 shadow-xs ${
+            className={`p-1.5 sm:px-2 sm:py-1.5 rounded-full border transition-all cursor-pointer flex items-center justify-center gap-1 shadow-xs active:scale-95 ${
               isMobileMenuOpen
-                ? 'bg-[#0075de]/10 text-[#0075de] border-[#0075de]/40 ring-2 ring-[#0075de]/20'
-                : 'bg-white hover:bg-[#f6f5f4] text-[#31302e] border-[#e6e6e6]'
+                ? 'bg-[#0075de]/10 text-[#0075de] dark:text-[#00daf3] border-[#0075de]/40 ring-2 ring-[#0075de]/20'
+                : 'bg-white dark:bg-[#191b22] hover:bg-[#f6f5f4] dark:hover:bg-[#282a30] text-[#31302e] dark:text-[#e2e2ea] border-[#e6e6e6] dark:border-white/[0.08]'
             }`}
             aria-label="เมนูเครื่องมือ"
             title="เครื่องมือและเมนูเพิ่มเติม"
           >
             {isMobileMenuOpen ? (
-              <X className="w-4 h-4 text-[#0075de]" />
+              <X className="w-4 h-4 text-[#0075de] dark:text-[#00daf3]" />
             ) : (
-              <MoreHorizontal className="w-4 h-4 text-[#31302e]" />
+              <MoreHorizontal className="w-4 h-4 text-[#31302e] dark:text-[#e2e2ea]" />
             )}
           </button>
 
@@ -429,7 +429,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               />
 
               {/* Floating Dropdown Card */}
-              <div className="absolute right-0 top-full mt-2 w-68 sm:w-72 rounded-2xl bg-white border border-[#e6e6e6] shadow-[0_16px_36px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.06)] z-50 p-2 animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-1 text-[#31302e] max-h-[85vh] overflow-y-auto">
+              <div className="absolute right-0 top-full mt-2 w-68 sm:w-72 rounded-2xl bg-white dark:bg-[#191b22] border border-[#e6e6e6] dark:border-white/[0.08] shadow-[0_16px_36px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.06)] z-50 p-2 animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-1 text-[#31302e] dark:text-[#e2e2ea] max-h-[85vh] overflow-y-auto">
                 {/* Dropdown Header */}
                 <div className="px-3 py-2 border-b border-[#f0efed] flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0">

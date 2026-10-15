@@ -777,12 +777,19 @@ export function App() {
     }
   }, [isRefreshing, currentView, roomId, currentUser, fetchPublicRooms]);
 
-  // Pull-to-refresh listener on touch devices (Supported on Home view only - disabled inside rooms to avoid accidental reload when scrolling chat)
+  // Prevent right-click context menu globally across the app
   useEffect(() => {
-    if (currentView !== 'home') return;
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    document.addEventListener('contextmenu', handleContextMenu);
+    return () => document.removeEventListener('contextmenu', handleContextMenu);
+  }, []);
 
+  // Pull-to-refresh listener on touch devices (Supported on both Home view and Party Room)
+  useEffect(() => {
     const handleTouchStart = (e: TouchEvent) => {
-      if (currentView !== 'home' || e.touches.length !== 1) return;
+      if (e.touches.length !== 1) return;
       const touch = e.touches[0];
       touchStartYRef.current = touch.clientY;
       touchStartXRef.current = touch.clientX;
@@ -790,14 +797,14 @@ export function App() {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (currentView !== 'home' || e.touches.length !== 1 || isRefreshing) return;
+      if (e.touches.length !== 1 || isRefreshing) return;
       const touch = e.touches[0];
       const deltaY = touch.clientY - touchStartYRef.current;
       const deltaX = touch.clientX - touchStartXRef.current;
 
-      // Ignore if touching inside form inputs, buttons, or designated non-refresh areas
+      // Ignore if touching inside form inputs, buttons, sliders, drawing canvas, or chat messages scroll
       let target = e.target as HTMLElement | null;
-      if (target?.closest('input, textarea, select, button, [data-no-pull-refresh], #live-chat-messages, [data-chat-scroll]')) return;
+      if (target?.closest('input, textarea, select, button, canvas, [data-no-pull-refresh], #live-chat-messages, [data-chat-scroll]')) return;
 
       // Detect downward drag when page is scrolled to top
       if (deltaY > 15 && deltaY > Math.abs(deltaX) * 1.2) {
@@ -823,14 +830,12 @@ export function App() {
     };
 
     const handleTouchEnd = () => {
-      if (currentView !== 'home') {
-        isPullingRef.current = false;
-        setPullDistance(0);
-        return;
-      }
       if (isPullingRef.current) {
         if (pullDistance >= 50) {
           handleRefresh();
+          if (currentView === 'room') {
+            showToast('รีเฟรชข้อมูลห้องสำเร็จ 🔄', 'info');
+          }
         }
         setPullDistance(0);
         isPullingRef.current = false;
@@ -848,7 +853,7 @@ export function App() {
       window.removeEventListener('touchend', handleTouchEnd);
       window.removeEventListener('touchcancel', handleTouchEnd);
     };
-  }, [isRefreshing, pullDistance, handleRefresh, currentView]);
+  }, [isRefreshing, pullDistance, handleRefresh, currentView, showToast]);
 
   // OLED Sleep Mode state (โหมดพักหน้าจอประหยัดแบตเตอรี่)
   const [isOledSleepMode, setIsOledSleepMode] = useState(false);
@@ -2287,8 +2292,8 @@ export function App() {
         </div>
       )}
 
-      {/* Pull-to-refresh floating indicator (Active on Home only) */}
-      {currentView === 'home' && (pullDistance > 0 || isRefreshing) && (
+      {/* Pull-to-refresh floating indicator (Active on both Home and Room) */}
+      {(pullDistance > 0 || isRefreshing) && (
         <div
           className="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-transform duration-75 ease-out"
           style={{
@@ -2497,16 +2502,6 @@ export function App() {
                 onOpenLiveTV={() => setIsLiveTVModalOpen(true)}
                 onShowToast={showToast}
               />
-
-              {/* Floating Live Reactions Dock (Inside Video Stage Bottom-Right) */}
-              {isReactionsEnabled && !gameState?.isActive && (
-                <div className="absolute bottom-2.5 right-2.5 z-30 pointer-events-auto">
-                  <LiveReactionsDock
-                    onSendReaction={handleSendReaction}
-                    onSendGift={handleSendGift}
-                  />
-                </div>
-              )}
             </div>
 
             {/* Draw & Guess 2D Party Game Stage (When game is active, takes the stage in place of the video) */}
@@ -2742,18 +2737,6 @@ export function App() {
 
                 {/* Right Zone: Quick Tools & Actions (Karaoke, Timer, Ducking, Screen Saver, Game, Fullscreen) */}
                 <div className="flex items-center justify-end gap-1 sm:gap-1.5 shrink-0">
-                  {/* Quick Heart Reaction Burst */}
-                  {isReactionsEnabled && (
-                    <button
-                      type="button"
-                      onClick={() => handleSendReaction('❤️')}
-                      title="ส่งหัวใจ ❤️ (Quick Reaction)"
-                      className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 active:scale-90 transition-all cursor-pointer"
-                    >
-                      <Heart className="w-3.5 h-3.5 fill-current" />
-                    </button>
-                  )}
-
                   {/* Karaoke & Synced Lyrics */}
                   <button
                     type="button"

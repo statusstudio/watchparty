@@ -153,6 +153,11 @@
           e.preventDefault();
         }
       });
+
+      // Prevent right-click context menu across the website
+      document.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+      }, { passive: false });
     </script>
   <body class="antialiased min-h-screen overflow-y-auto selection:bg-[#0075de]/30 selection:text-[#0075de] transition-colors duration-300">
     <div id="root" class="min-h-screen"></div>
