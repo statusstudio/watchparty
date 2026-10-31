@@ -293,8 +293,8 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
             )}
           </div>
 
-          {/* Main Kinetic Typographic Headline with Typewriter Effect */}
-          <h1 className="text-2xl xs:text-3xl sm:text-4xl md:text-5xl font-black tracking-tight max-w-2xl leading-tight my-0.5 sm:my-1 min-h-[2.25rem] sm:min-h-[3rem] md:min-h-[3.75rem] flex items-center justify-center">
+          {/* Main Kinetic Typographic Headline with Londrina Outline Typewriter Effect */}
+          <h1 className="font-['Londrina_Outline',cursive] tracking-wider text-3xl xs:text-4xl sm:text-5xl md:text-6xl max-w-3xl leading-tight my-0.5 sm:my-1 min-h-[2.5rem] sm:min-h-[3.5rem] md:min-h-[4.25rem] flex items-center justify-center select-none">
             <span className="inline-flex items-center flex-wrap justify-center">
               {/* Part 1: "listen to music" */}
               <span className={isLight ? 'shimmer-gradient-light-text' : 'shimmer-gradient-text'}>
@@ -302,18 +302,18 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
               </span>
 
               {/* Space between words */}
-              {typedLength > 15 && <span className="inline-block w-2 sm:w-3" />}
+              {typedLength > 15 && <span className="inline-block w-2 sm:w-3.5" />}
 
               {/* Part 2: "together" */}
               {typedLength > 16 && (
-                <span className={isLight ? 'text-[#131b2e]' : 'text-white'}>
+                <span className={isLight ? 'text-[#006194]' : 'text-[#00daf3]'}>
                   {FULL_PHRASE.slice(16, typedLength)}
                 </span>
               )}
 
               {/* Blinking Typewriter Caret */}
               <span
-                className={`w-1.5 sm:w-2 h-5 sm:h-8 ml-1 sm:ml-1.5 inline-block animate-pulse rounded-xs ${
+                className={`w-1.5 sm:w-2 h-6 sm:h-9 ml-1 sm:ml-1.5 inline-block animate-pulse rounded-xs ${
                   isLight ? 'bg-[#006194]' : 'bg-[#00daf3]'
                 }`}
               />
