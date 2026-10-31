@@ -2403,7 +2403,7 @@ export function App() {
             theme={theme}
           />
         ) : (
-          <div className="min-h-screen dark:bg-[#111319] dark:text-[#e2e2ea] bg-[#faf8ff] text-[#131b2e] flex flex-col selection:bg-[#0075de] selection:text-white transition-colors duration-300">
+          <div className="h-[100dvh] max-h-[100dvh] overflow-hidden dark:bg-[#111319] dark:text-[#e2e2ea] bg-[#faf8ff] text-[#131b2e] flex flex-col selection:bg-[#0075de] selection:text-white transition-colors duration-300">
             <StitchHeader
               currentTab={stitchTab}
               onTabChange={(tab) => setStitchTab(tab)}

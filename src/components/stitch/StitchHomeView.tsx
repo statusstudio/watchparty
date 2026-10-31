@@ -135,10 +135,10 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
   const totalListeners = displayRooms.reduce((acc, r) => acc + (r.onlineCount || 1), 0);
 
   return (
-    <main className={`w-full pt-14 sm:pt-16 md:pt-18 flex-1 flex flex-col justify-center transition-colors duration-300 ${
+    <main className={`w-full h-full flex-1 flex flex-col justify-center items-center overflow-hidden transition-colors duration-300 pt-14 sm:pt-16 md:pt-18 pb-16 lg:pb-2 ${
       isLight ? 'bg-[#faf8ff] text-[#131b2e]' : 'bg-[#111319] text-[#e2e2ea]'
     }`}>
-      <div className="flex flex-col w-full relative overflow-x-hidden min-h-[calc(100vh-4rem)] pb-24 md:pb-12 justify-center">
+      <div className="flex flex-col w-full h-full relative overflow-hidden justify-center items-center">
         {/* Dynamic Ambient Glow Mesh Background */}
         <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-[1280px] h-[650px] bg-gradient-to-b blur-[100px] pointer-events-none -z-10 opacity-70 ${
           isLight
@@ -153,31 +153,31 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
         }`} />
 
         {/* ========================================================
-            REMOTION CINEMATIC MOTION HERO SECTION (Mobile-First)
+            REMOTION CINEMATIC MOTION HERO SECTION (Single Viewport Fit)
            ======================================================== */}
-        <section className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-8 flex flex-col items-center text-center relative my-auto">
+        <section className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-1 sm:py-2 flex flex-col items-center justify-center text-center relative my-auto select-none overflow-hidden">
           {/* Centerpiece: Remotion-Style Interactive Vinyl Turntable & Soundwave Stage */}
-          <div className="relative my-2 sm:my-3 flex items-center justify-center">
+          <div className="relative my-1 sm:my-2 flex items-center justify-center">
             {/* Concentric Audio Radar Wave Pulsing */}
-            <div className={`absolute w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-full border pointer-events-none animate-ripple-pulse ${
+            <div className={`absolute w-36 h-36 sm:w-44 sm:h-44 md:w-52 md:h-52 rounded-full border pointer-events-none animate-ripple-pulse ${
               isLight ? 'border-[#0075de]/30' : 'border-[#00daf3]/40'
             }`} />
-            <div className={`absolute w-56 h-56 sm:w-72 sm:h-72 md:w-80 md:h-80 rounded-full border pointer-events-none animate-ripple-pulse [animation-delay:1.2s] ${
+            <div className={`absolute w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-full border pointer-events-none animate-ripple-pulse [animation-delay:1.2s] ${
               isLight ? 'border-[#00855b]/20' : 'border-[#0075de]/30'
             }`} />
 
             {/* Floating Music Notes Particles */}
             <div className="absolute inset-0 pointer-events-none overflow-visible">
-              <span className="absolute -top-6 -left-8 text-xl sm:text-2xl animate-[remotionFloatNote_3.5s_ease-in-out_infinite] select-none">
+              <span className="absolute -top-4 -left-6 text-lg sm:text-xl animate-[remotionFloatNote_3.5s_ease-in-out_infinite] select-none">
                 🎵
               </span>
-              <span className="absolute top-2 -right-10 text-lg sm:text-xl animate-[remotionFloatNote_4s_ease-in-out_infinite_1s] select-none">
+              <span className="absolute top-1 -right-8 text-base sm:text-lg animate-[remotionFloatNote_4s_ease-in-out_infinite_1s] select-none">
                 ✨
               </span>
-              <span className="absolute -bottom-4 -left-6 text-base sm:text-xl animate-[remotionFloatNote_3s_ease-in-out_infinite_1.8s] select-none">
+              <span className="absolute -bottom-3 -left-5 text-sm sm:text-lg animate-[remotionFloatNote_3s_ease-in-out_infinite_1.8s] select-none">
                 🎧
               </span>
-              <span className="absolute -bottom-6 right-4 text-sm sm:text-base animate-[remotionFloatNote_3.8s_ease-in-out_infinite_2.4s] select-none">
+              <span className="absolute -bottom-4 right-3 text-xs sm:text-sm animate-[remotionFloatNote_3.8s_ease-in-out_infinite_2.4s] select-none">
                 🔥
               </span>
             </div>
@@ -186,7 +186,7 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
             <div
               onClick={() => setIsVinylPlaying(!isVinylPlaying)}
               title="แตะเพื่อเริ่ม / หยุดแผ่นเสียงจำลอง"
-              className="relative w-36 h-36 sm:w-44 sm:h-44 md:w-52 md:h-52 rounded-full p-2.5 shadow-[0_12px_45px_rgba(0,0,0,0.4)] cursor-pointer group transition-transform hover:scale-105 active:scale-95"
+              className="relative w-28 h-28 xs:w-32 xs:h-32 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full p-2 shadow-[0_8px_30px_rgba(0,0,0,0.35)] cursor-pointer group transition-transform hover:scale-105 active:scale-95"
             >
               {/* Spinning Vinyl Record Body */}
               <div
@@ -195,8 +195,8 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
                 } ${isVinylPlaying ? 'animate-vinyl-spin' : ''}`}
                 style={{
                   boxShadow: isLight
-                    ? 'inset 0 0 16px rgba(0,0,0,0.4), 0 6px 20px rgba(0,97,148,0.25)'
-                    : 'inset 0 0 20px rgba(0,0,0,0.8), 0 8px 30px rgba(0,218,243,0.3)',
+                    ? 'inset 0 0 12px rgba(0,0,0,0.4), 0 4px 16px rgba(0,97,148,0.25)'
+                    : 'inset 0 0 16px rgba(0,0,0,0.8), 0 6px 24px rgba(0,218,243,0.3)',
                 }}
               >
                 {/* Vinyl Light Sheen (Reflection angle) */}
@@ -209,14 +209,14 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
                 />
 
                 {/* Center Pleng.online Record Badge */}
-                <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-tr from-[#ffb955] via-[#ff9800] to-[#ffd54f] flex flex-col items-center justify-center p-1 shadow-inner relative z-10 select-none">
-                  <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#111319] border-2 border-[#ffb955] flex items-center justify-center shadow-xs">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#ffb955]" />
+                <div className="w-10 h-10 xs:w-12 xs:h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-tr from-[#ffb955] via-[#ff9800] to-[#ffd54f] flex flex-col items-center justify-center p-1 shadow-inner relative z-10 select-none">
+                  <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-[#111319] border border-[#ffb955] flex items-center justify-center shadow-xs">
+                    <div className="w-1 h-1 rounded-full bg-[#ffb955]" />
                   </div>
-                  <span className="font-black text-[9px] sm:text-[10px] text-[#291800] tracking-tighter mt-0.5 leading-none">
+                  <span className="font-black text-[7px] xs:text-[8px] sm:text-[9px] text-[#291800] tracking-tighter mt-0.5 leading-none">
                     PLENG
                   </span>
-                  <span className="text-[7px] sm:text-[8px] font-mono text-[#4e2d00] font-bold tracking-tight">
+                  <span className="text-[6px] sm:text-[7px] font-mono text-[#4e2d00] font-bold tracking-tight">
                     33⅓ RPM
                   </span>
                 </div>
@@ -224,19 +224,19 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
 
               {/* Tonearm Needle Graphic Overlay */}
               <div
-                className={`absolute -top-3 -right-3 sm:-top-4 sm:-right-4 w-12 h-16 sm:w-16 sm:h-20 pointer-events-none transition-transform duration-500 origin-top-right ${
+                className={`absolute -top-2.5 -right-2.5 sm:-top-3 sm:-right-3 w-10 h-14 sm:w-14 sm:h-18 pointer-events-none transition-transform duration-500 origin-top-right ${
                   isVinylPlaying ? 'rotate-0' : '-rotate-25 opacity-70'
                 }`}
               >
-                <div className="w-3.5 h-3.5 rounded-full bg-zinc-400 border border-zinc-200 shadow-md ml-auto" />
-                <div className="w-1 h-12 bg-gradient-to-b from-zinc-400 via-zinc-300 to-zinc-500 rounded-full ml-auto mr-1 transform rotate-12 shadow-sm" />
-                <div className="w-2.5 h-4 bg-zinc-600 rounded-sm ml-auto mr-0.5 -mt-1 shadow-md" />
+                <div className="w-3 h-3 rounded-full bg-zinc-400 border border-zinc-200 shadow-md ml-auto" />
+                <div className="w-0.5 h-10 sm:h-12 bg-gradient-to-b from-zinc-400 via-zinc-300 to-zinc-500 rounded-full ml-auto mr-1 transform rotate-12 shadow-sm" />
+                <div className="w-2 h-3 bg-zinc-600 rounded-sm ml-auto mr-0.5 -mt-1 shadow-md" />
               </div>
             </div>
           </div>
 
           {/* Dynamic Audio Equalizer Bars Visualizer (Remotion Style) */}
-          <div className="flex items-end justify-center gap-1 sm:gap-1.5 h-8 sm:h-10 my-2 sm:my-3 w-60 sm:w-80 max-w-full">
+          <div className="flex items-end justify-center gap-1 sm:gap-1.5 h-5 sm:h-7 my-1 sm:my-1.5 w-48 sm:w-72 max-w-full">
             {[45, 80, 60, 95, 30, 75, 50, 90, 40, 85, 70, 100, 65, 85, 45, 90, 55, 75, 40, 95, 60, 85, 50, 70].map(
               (baseHeight, i) => (
                 <div
@@ -261,14 +261,14 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
           </div>
 
           {/* Main Kinetic Typographic Headline */}
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight max-w-3xl leading-[1.15] mt-1">
+          <h1 className="text-2xl xs:text-3xl sm:text-4xl md:text-5xl font-black tracking-tight max-w-2xl leading-tight my-0.5 sm:my-1">
             <span className={isLight ? 'shimmer-gradient-light-text' : 'shimmer-gradient-text'}>
               listen to music
             </span>{' '}
             <span className={`inline-flex items-center ${isLight ? 'text-[#131b2e]' : 'text-white'}`}>
               together
               <span
-                className={`w-1.5 sm:w-2 h-7 sm:h-10 ml-2 inline-block animate-pulse rounded-xs ${
+                className={`w-1.5 sm:w-2 h-5 sm:h-8 ml-1.5 sm:ml-2 inline-block animate-pulse rounded-xs ${
                   isLight ? 'bg-[#006194]' : 'bg-[#00daf3]'
                 }`}
               />
@@ -276,13 +276,13 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
           </h1>
 
           {/* Primary Mobile Action Buttons (Thumb Zone Focused) */}
-          <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3.5 mt-6 w-full max-w-sm sm:max-w-md justify-center">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 mt-2 sm:mt-3 w-full max-w-xs sm:max-w-md justify-center">
             {/* Create Room Primary Hero Button */}
             <button
               onClick={onOpenCreateRoom}
-              className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-[#0075de] via-[#005eb4] to-[#00daf3] text-white text-sm sm:text-base font-bold shadow-[0_8px_25px_rgba(0,117,222,0.45)] hover:shadow-[0_12px_35px_rgba(0,218,243,0.6)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2.5 cursor-pointer group"
+              className="w-full sm:w-auto px-5 sm:px-7 py-2.5 sm:py-3 rounded-2xl bg-gradient-to-r from-[#0075de] via-[#005eb4] to-[#00daf3] text-white text-xs sm:text-sm font-bold shadow-[0_6px_20px_rgba(0,117,222,0.4)] hover:shadow-[0_10px_28px_rgba(0,218,243,0.55)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer group"
             >
-              <span className="material-symbols-outlined text-[22px] group-hover:rotate-45 transition-transform">
+              <span className="material-symbols-outlined text-[20px] group-hover:rotate-45 transition-transform">
                 add_circle
               </span>
               <span>สร้างห้องฟังเพลงใหม่</span>
@@ -291,47 +291,47 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
             {/* Room Code Secondary Button */}
             <button
               onClick={onOpenRoomCodeModal}
-              className={`w-full sm:w-auto px-5 sm:px-6 py-3 sm:py-3.5 rounded-2xl text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-xs hover:scale-105 active:scale-95 border cursor-pointer ${
+              className={`w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-xs hover:scale-105 active:scale-95 border cursor-pointer ${
                 isLight
                   ? 'bg-white border-[#dae2fd] text-[#131b2e] hover:bg-[#eaedff]'
                   : 'bg-[#191b22] text-[#e2e2ea] hover:bg-[#282a30] border-white/[0.08]'
               }`}
             >
-              <span className={`material-symbols-outlined text-[18px] ${isLight ? 'text-[#006194]' : 'text-[#00daf3]'}`}>
+              <span className={`material-symbols-outlined text-[16px] ${isLight ? 'text-[#006194]' : 'text-[#00daf3]'}`}>
                 key
               </span>
               <span>เข้าร่วมด้วยรหัส (Room Code)</span>
             </button>
           </div>
 
-          <p className={`font-mono text-[11px] mt-2.5 ${isLight ? 'text-[#64748b]' : 'text-[#94A3B8]'}`}>
+          <p className={`font-mono text-[10px] sm:text-[11px] mt-1.5 ${isLight ? 'text-[#64748b]' : 'text-[#94A3B8]'}`}>
             (ไม่ต้องสมัครสมาชิก แชร์ลิงก์เข้าใช้งานได้ทันที)
           </p>
 
           {/* ========================================================
               FLOATING INTERACTIVE ROOMS CARD (การ์ดลอย "ห้องฟังเพลงทั้งหมด")
              ======================================================== */}
-          <div className="w-full max-w-md mx-auto mt-7">
+          <div className="w-full max-w-sm sm:max-w-md mx-auto mt-2.5 sm:mt-3">
             <button
               type="button"
               onClick={() => setIsRoomsSheetOpen(true)}
-              className={`w-full p-4 rounded-3xl border shadow-xl backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-between gap-3 text-left group relative overflow-hidden ${
+              className={`w-full p-2.5 sm:p-3.5 rounded-2xl sm:rounded-3xl border shadow-xl backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-between gap-3 text-left group relative overflow-hidden ${
                 isLight
-                  ? 'bg-white/85 border-[#dae2fd] shadow-[0_12px_36px_rgba(0,117,222,0.14)] hover:border-[#0075de]/50'
-                  : 'bg-[#191b22]/90 border-white/[0.08] shadow-[0_16px_40px_rgba(0,0,0,0.55)] hover:border-[#00daf3]/50'
+                  ? 'bg-white/90 border-[#dae2fd] shadow-[0_8px_24px_rgba(0,117,222,0.12)] hover:border-[#0075de]/50'
+                  : 'bg-[#191b22]/90 border-white/[0.08] shadow-[0_12px_32px_rgba(0,0,0,0.5)] hover:border-[#00daf3]/50'
               }`}
             >
               {/* Ambient Glow Orb */}
-              <div className="absolute -right-8 -bottom-8 w-28 h-28 rounded-full bg-[#00daf3]/15 blur-2xl pointer-events-none" />
+              <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-[#00daf3]/15 blur-2xl pointer-events-none" />
 
               {/* Left: Icon + Title + Status */}
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#0075de] to-[#00daf3] flex items-center justify-center text-white shadow-[0_0_16px_rgba(0,117,222,0.45)] shrink-0 group-hover:rotate-6 transition-transform">
-                  <span className="material-symbols-outlined text-[24px]">podcasts</span>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-[#0075de] to-[#00daf3] flex items-center justify-center text-white shadow-[0_0_14px_rgba(0,117,222,0.4)] shrink-0 group-hover:rotate-6 transition-transform">
+                  <span className="material-symbols-outlined text-[20px] sm:text-[22px]">podcasts</span>
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h2 className={`font-black text-sm sm:text-base truncate ${isLight ? 'text-[#131b2e]' : 'text-[#e2e2ea]'}`}>
+                    <h2 className={`font-black text-xs sm:text-sm md:text-base truncate ${isLight ? 'text-[#131b2e]' : 'text-[#e2e2ea]'}`}>
                       ห้องฟังเพลงทั้งหมด
                     </h2>
                     <span className="flex h-2 w-2 relative shrink-0">
@@ -339,7 +339,7 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-[#10B981]" />
                     </span>
                   </div>
-                  <p className={`text-xs mt-0.5 truncate ${isLight ? 'text-[#64748b]' : 'text-[#94A3B8]'}`}>
+                  <p className={`text-[10px] sm:text-xs mt-0.5 truncate ${isLight ? 'text-[#64748b]' : 'text-[#94A3B8]'}`}>
                     {displayRooms.length} ห้องกำลังเปิดเพลง • แตะเพื่อเปิดดูรายชื่อห้อง
                   </p>
                 </div>
@@ -347,7 +347,7 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
 
               {/* Right: Preview Avatars + Arrow Button */}
               <div className="flex items-center gap-2 shrink-0">
-                <div className="flex -space-x-2 overflow-hidden hidden xs:flex">
+                <div className="flex -space-x-1.5 overflow-hidden hidden xs:flex">
                   {displayRooms.slice(0, 3).map((r, i) => (
                     <img
                       key={i}
@@ -357,12 +357,12 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
                         'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'
                       }
                       alt=""
-                      className="w-7 h-7 rounded-full border-2 dark:border-[#191b22] border-white object-cover"
+                      className="w-6 h-6 rounded-full border-2 dark:border-[#191b22] border-white object-cover"
                     />
                   ))}
                 </div>
-                <div className="w-8 h-8 rounded-full dark:bg-white/10 bg-black/5 flex items-center justify-center group-hover:translate-x-1 transition-transform">
-                  <span className="material-symbols-outlined text-[18px] text-[#0075de] dark:text-[#00daf3]">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full dark:bg-white/10 bg-black/5 flex items-center justify-center group-hover:translate-x-1 transition-transform">
+                  <span className="material-symbols-outlined text-[16px] sm:text-[18px] text-[#0075de] dark:text-[#00daf3]">
                     arrow_forward
                   </span>
                 </div>
