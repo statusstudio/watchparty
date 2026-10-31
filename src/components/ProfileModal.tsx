@@ -410,20 +410,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   <span>แจ้งปัญหา / แนะนำ</span>
                 </button>
               )}
-
-              {onOpenSuperAdmin && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onOpenSuperAdmin();
-                  }}
-                  className="hover:text-amber-400 transition-colors flex items-center gap-1.5 cursor-pointer ml-auto"
-                >
-                  <Crown className="w-3.5 h-3.5 text-amber-500/80" />
-                  <span>แอดมินเจ้าของเว็บ</span>
-                </button>
-              )}
             </div>
           </form>
         )}

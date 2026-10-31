@@ -3271,7 +3271,6 @@ export function App() {
         onAddToPlaylist={handleAddToPlaylist}
         onPlayNow={handleVideoChange}
         onOpenSupport={() => setIsSupportModalOpen(true)}
-        onOpenSuperAdmin={() => setIsSuperAdminUnlockModalOpen(true)}
         onShowToast={showToast}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onLogout={handleLogout}
