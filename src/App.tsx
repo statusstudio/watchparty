@@ -53,7 +53,6 @@ import { LiveChannel } from './data/iptvChannels.js';
 
 // Code-split heavy views to reduce initial bundle size & speed up page load drastically
 const LineStickerStudio = React.lazy(() => import('./components/LineStickerStudio.js'));
-const VoiceCloneStudio = React.lazy(() => import('./components/VoiceCloneStudio.js'));
 const AdminPortalView = React.lazy(() => import('./components/AdminPortalView.js').then((m) => ({ default: m.AdminPortalView })));
 const PublicProfileView = React.lazy(() => import('./components/PublicProfileView.js').then((m) => ({ default: m.PublicProfileView })));
 const SuperAdminDashboardModal = React.lazy(() => import('./components/SuperAdminDashboardModal.js').then((m) => ({ default: m.SuperAdminDashboardModal })));
@@ -98,13 +97,6 @@ function isKaraokePath(): boolean {
   );
 }
 
-function isVoiceStudioPath(): boolean {
-  return (
-    window.location.pathname.startsWith('/voice') ||
-    window.location.hash.startsWith('#voice')
-  );
-}
-
 function getProfileHandleFromUrl(): string | null {
   // 1. Path format: /@username
   const pathMatch = window.location.pathname.match(/^\/@([a-zA-Z0-9_.-]+)/i);
@@ -127,7 +119,7 @@ function getProfileHandleFromUrl(): string | null {
 
 function getHashRoomId(): string | null {
   const hash = window.location.hash.replace(/^#/, '').trim();
-  if (!hash || hash.startsWith('admin') || hash.startsWith('@') || hash.startsWith('line') || hash.startsWith('voice')) {
+  if (!hash || hash.startsWith('admin') || hash.startsWith('@') || hash.startsWith('line')) {
     return null;
   }
   // Check if legacy #room=xxxx format
@@ -143,14 +135,12 @@ function getHashRoomId(): string | null {
 export function App() {
   const [isAdminRoute, setIsAdminRoute] = useState<boolean>(() => isAdminPath());
   const [isLineStudioRoute, setIsLineStudioRoute] = useState<boolean>(() => isLineStudioPath());
-  const [isVoiceStudioRoute, setIsVoiceStudioRoute] = useState<boolean>(() => isVoiceStudioPath());
   const [profileHandleRoute, setProfileHandleRoute] = useState<string | null>(() => getProfileHandleFromUrl());
 
   useEffect(() => {
     const handleLocationChange = () => {
       setIsAdminRoute(isAdminPath());
       setIsLineStudioRoute(isLineStudioPath());
-      setIsVoiceStudioRoute(isVoiceStudioPath());
       setProfileHandleRoute(getProfileHandleFromUrl());
     };
     window.addEventListener('popstate', handleLocationChange);
@@ -2092,14 +2082,6 @@ export function App() {
     );
   }
 
-  if (isVoiceStudioRoute) {
-    return (
-      <React.Suspense fallback={<div className="min-h-screen bg-[#0a0d14] flex items-center justify-center text-zinc-400 text-sm">กำลังโหลด AI Voice Clone Studio...</div>}>
-        <VoiceCloneStudio />
-        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      </React.Suspense>
-    );
-  }
 
   if (isAdminRoute) {
     return (

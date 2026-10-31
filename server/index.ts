@@ -40,29 +40,6 @@ async function startServer() {
   const roomManager = new RoomManager();
   await roomManager.init();
 
-  // Proxy /api/voice/* to Python Voice Engine (port 8005)
-  app.use('/api/voice', (req, res) => {
-    const targetUrl = new URL(req.url, 'http://127.0.0.1:8005');
-    const proxyReq = http.request(
-      targetUrl,
-      {
-        method: req.method,
-        headers: {
-          ...req.headers,
-          host: '127.0.0.1:8005',
-        },
-      },
-      (proxyRes) => {
-        res.writeHead(proxyRes.statusCode || 500, proxyRes.headers);
-        proxyRes.pipe(res);
-      }
-    );
-    proxyReq.on('error', (err) => {
-      console.error('[Voice Proxy Error]:', err.message);
-      res.status(502).json({ error: 'Voice Engine is offline or starting up', details: err.message });
-    });
-    req.pipe(proxyReq);
-  });
 
   app.use(express.json());
 
