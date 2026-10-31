@@ -2416,6 +2416,7 @@ export function App() {
               onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
               onOpenRoomCodeModal={() => setIsStitchRoomCodeModalOpen(true)}
               onOpenProfile={() => setIsProfileModalOpen(true)}
+              onOpenAuth={() => setIsAuthModalOpen(true)}
               currentUser={currentUser}
               searchQuery={stitchSearchQuery}
               onSearchChange={setStitchSearchQuery}
@@ -3272,6 +3273,8 @@ export function App() {
         onOpenSupport={() => setIsSupportModalOpen(true)}
         onOpenSuperAdmin={() => setIsSuperAdminUnlockModalOpen(true)}
         onShowToast={showToast}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       <PlaylistModal

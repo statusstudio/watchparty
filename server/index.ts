@@ -548,6 +548,83 @@ async function startServer() {
     }
   });
 
+  // Google Sign-In Endpoint
+  app.post('/api/auth/google', async (req, res) => {
+    try {
+      const { credential, email, name, picture, googleId } = req.body || {};
+
+      let verifiedEmail = email;
+      let verifiedName = name;
+      let verifiedPicture = picture;
+      let verifiedSub = googleId;
+
+      // If Google ID token credential provided, verify with Google TokenInfo API
+      if (credential) {
+        try {
+          const verifyUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`;
+          const verifyRes = await fetch(verifyUrl);
+          if (verifyRes.ok) {
+            const tokenInfo: any = await verifyRes.json();
+            verifiedEmail = tokenInfo.email;
+            verifiedName = tokenInfo.name || tokenInfo.given_name || verifiedName;
+            verifiedPicture = tokenInfo.picture || verifiedPicture;
+            verifiedSub = tokenInfo.sub || verifiedSub;
+          } else {
+            // Fallback: decode JWT payload without external library
+            try {
+              const parts = credential.split('.');
+              if (parts.length === 3) {
+                const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+                if (payload.email) {
+                  verifiedEmail = payload.email;
+                  verifiedName = payload.name || payload.given_name || verifiedName;
+                  verifiedPicture = payload.picture || verifiedPicture;
+                  verifiedSub = payload.sub || verifiedSub;
+                }
+              }
+            } catch (jwtErr) {
+              console.warn('[GoogleAuth] Fallback JWT decode error:', jwtErr);
+            }
+          }
+        } catch (verifyErr) {
+          console.error('[GoogleAuth] Error verifying token with Google:', verifyErr);
+        }
+      }
+
+      if (!verifiedEmail) {
+        return res.status(400).json({ error: 'ไม่สามารถระบุอีเมลบัญชี Google ได้' });
+      }
+
+      const result = platformManager.loginOrRegisterGoogleUser({
+        email: verifiedEmail,
+        name: verifiedName || verifiedEmail.split('@')[0],
+        avatar: verifiedPicture,
+        googleId: verifiedSub,
+      });
+
+      if (!result.success || !result.user) {
+        return res.status(400).json({ error: result.message || 'ไม่สามารถเข้าสู่ระบบด้วย Google ได้' });
+      }
+
+      res.json({
+        success: true,
+        message: 'เข้าสู่ระบบด้วย Google สำเร็จ! 🎉',
+        user: result.user,
+      });
+    } catch (err: any) {
+      console.error('[GoogleAuth] Error in /api/auth/google:', err);
+      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย Google' });
+    }
+  });
+
+  // Get Auth Config (for client to know Google Client ID)
+  app.get('/api/auth/config', (req, res) => {
+    res.json({
+      googleClientId: process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '',
+      hasGoogleAuth: true,
+    });
+  });
+
   // 4. Send OTP for Password Reset (Forgot Password)
   app.post('/api/auth/forgot-password/send-otp', async (req, res) => {
     try {

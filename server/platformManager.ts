@@ -675,6 +675,126 @@ export class PlatformManager {
     return { success: true, user: platformUser };
   }
 
+  public loginOrRegisterGoogleUser(googleData: {
+    email: string;
+    name: string;
+    avatar?: string;
+    googleId?: string;
+  }): { success: boolean; user?: PlatformUser; message?: string } {
+    const cleanEmail = (googleData.email || '').trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { success: false, message: 'อีเมล Google ไม่ถูกต้อง' };
+    }
+
+    const now = Date.now();
+    // 1. Check if user account already exists for this email
+    const existingAccount = this.userAccounts.get(cleanEmail);
+    if (existingAccount) {
+      let platformUser = this.users.get(existingAccount.id);
+      if (platformUser && platformUser.isSuspended) {
+        return { success: false, message: 'บัญชีของคุณถูกระงับการใช้งานชั่วคราว กรุณาติดต่อผู้ดูแลระบบ' };
+      }
+
+      existingAccount.lastLoginAt = now;
+      if (googleData.avatar && (!existingAccount.avatar || existingAccount.avatar.includes('dicebear'))) {
+        existingAccount.avatar = googleData.avatar;
+      }
+      if (googleData.name && (!existingAccount.name || existingAccount.name.startsWith('Guest #'))) {
+        existingAccount.name = googleData.name.trim();
+      }
+
+      if (!platformUser) {
+        platformUser = {
+          id: existingAccount.id,
+          name: existingAccount.name,
+          username: existingAccount.username || existingAccount.id,
+          email: existingAccount.email,
+          avatar: existingAccount.avatar,
+          bannerUrl: existingAccount.bannerUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
+          color: existingAccount.color || '#0075de',
+          provider: 'google',
+          isSuperAdmin: false,
+          isSuspended: false,
+          bio: existingAccount.bio || '',
+          favoriteGenres: existingAccount.favoriteGenres || ['Lofi', 'Pop'],
+          createdAt: existingAccount.createdAt || now,
+          lastActiveAt: now,
+        };
+        this.users.set(existingAccount.id, platformUser);
+      } else {
+        platformUser.lastActiveAt = now;
+        platformUser.provider = 'google';
+        if (googleData.avatar && (!platformUser.avatar || platformUser.avatar.includes('dicebear'))) {
+          platformUser.avatar = googleData.avatar;
+        }
+        if (googleData.name && (!platformUser.name || platformUser.name.startsWith('Guest #'))) {
+          platformUser.name = googleData.name.trim();
+        }
+      }
+
+      this.scheduleSave();
+      this.syncToSupabase().catch((e) => console.error('[PlatformManager] syncToSupabase error in loginOrRegisterGoogleUser:', e));
+      return { success: true, user: platformUser };
+    }
+
+    // 2. Create new Google User account
+    const userId = 'g_' + (googleData.googleId || Date.now().toString(36) + Math.random().toString(36).substring(2, 6));
+    const displayName = (googleData.name || cleanEmail.split('@')[0]).trim();
+    const avatar = googleData.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(displayName)}`;
+    const colors = ['#0075de', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+    let baseUsername = cleanEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (!baseUsername || baseUsername.length < 3) {
+      baseUsername = displayName.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    }
+    if (!baseUsername || baseUsername.length < 3) {
+      baseUsername = 'google_user';
+    }
+    let finalUsername = baseUsername;
+    let counter = 1;
+    while (this.isUsernameTaken(finalUsername, userId)) {
+      finalUsername = `${baseUsername}${counter}`;
+      counter++;
+    }
+
+    const account: StoredUserAccount = {
+      id: userId,
+      email: cleanEmail,
+      name: displayName,
+      username: finalUsername,
+      passwordHash: '',
+      avatar,
+      color: randomColor,
+      createdAt: now,
+      lastLoginAt: now,
+    };
+
+    const platformUser: PlatformUser = {
+      id: userId,
+      name: displayName,
+      username: finalUsername,
+      email: cleanEmail,
+      avatar,
+      bannerUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
+      color: randomColor,
+      provider: 'google',
+      isSuperAdmin: false,
+      isSuspended: false,
+      bio: 'เพลิดเพลินกับเสียงเพลงบน pleng.online 🎧',
+      favoriteGenres: ['Lofi', 'Pop', 'Indie'],
+      createdAt: now,
+      lastActiveAt: now,
+    };
+
+    this.userAccounts.set(cleanEmail, account);
+    this.users.set(userId, platformUser);
+    this.scheduleSave();
+    this.syncToSupabase().catch((e) => console.error('[PlatformManager] syncToSupabase error in new Google user:', e));
+
+    return { success: true, user: platformUser };
+  }
+
   public loginMember(email: string, pass: string): { success: boolean; user?: PlatformUser; message?: string } {
     const cleanEmail = email.trim().toLowerCase();
     const account = this.userAccounts.get(cleanEmail);
