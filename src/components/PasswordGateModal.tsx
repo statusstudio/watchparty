@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, ArrowLeft, KeyRound, AlertCircle } from 'lucide-react';
+import { Lock, ArrowLeft, KeyRound, AlertCircle, X } from 'lucide-react';
 
 interface PasswordGateModalProps {
   isOpen: boolean;
@@ -27,8 +27,25 @@ export const PasswordGateModal: React.FC<PasswordGateModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
-      <div className="bg-white border border-[#e6e6e6] rounded-2xl w-full max-w-sm overflow-hidden shadow-notion-modal p-6 text-center space-y-5 text-[#31302e]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onBackToHome();
+        }
+      }}
+    >
+      <div className="relative bg-white border border-[#e6e6e6] rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl p-6 text-center space-y-4 text-[#31302e]">
+        {/* Close Button X */}
+        <button
+          type="button"
+          onClick={onBackToHome}
+          className="absolute top-3.5 right-3.5 p-1.5 rounded-full text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer"
+          title="ปิด / กลับหน้าแรก"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
         <div className="w-14 h-14 rounded-2xl bg-[#0075de]/10 border border-[#0075de]/20 text-[#0075de] flex items-center justify-center mx-auto shadow-xs">
           <Lock className="w-7 h-7" />
         </div>
@@ -77,7 +94,7 @@ export const PasswordGateModal: React.FC<PasswordGateModalProps> = ({
         <button
           type="button"
           onClick={onBackToHome}
-          className="text-xs text-[#615d59] hover:text-[#000000] flex items-center justify-center gap-1 mx-auto transition-colors cursor-pointer"
+          className="text-xs text-[#615d59] hover:text-[#000000] flex items-center justify-center gap-1 mx-auto transition-colors cursor-pointer pt-1"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           กลับไปหน้าแรก (Back to Lobby)

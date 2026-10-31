@@ -1532,6 +1532,12 @@ export function App() {
 
   // Navigate actions (Tapping logo or Home)
   const handleNavigateHome = () => {
+    setIsPasswordGateOpen(false);
+    setPasswordGateError(null);
+    setPendingPrivateRoomId(null);
+    if (window.location.hash) {
+      window.history.pushState(null, '', window.location.pathname);
+    }
     if (currentView === 'room' || roomId) {
       handleMinimizeRoom();
     } else {
@@ -1540,6 +1546,19 @@ export function App() {
       fetchPublicRooms();
     }
   };
+
+  const handleClosePasswordGate = useCallback(() => {
+    setIsPasswordGateOpen(false);
+    setPasswordGateError(null);
+    setPendingPrivateRoomId(null);
+    setRoomId('');
+    if (window.location.hash) {
+      window.history.pushState(null, '', window.location.pathname);
+    }
+    window.scrollTo(0, 0);
+    setCurrentView('home');
+    fetchPublicRooms();
+  }, [fetchPublicRooms]);
 
   const handleSelectRoom = (targetRoomId: string, isStealth: boolean = false) => {
     window.scrollTo(0, 0);
@@ -3549,7 +3568,7 @@ export function App() {
         roomName={passwordGateRoomName}
         errorMessage={passwordGateError}
         onSubmitPassword={handlePasswordSubmit}
-        onBackToHome={handleNavigateHome}
+        onBackToHome={handleClosePasswordGate}
       />
 
       <AdminPanelModal
