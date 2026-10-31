@@ -8,6 +8,8 @@ interface StitchHeaderProps {
   onOpenRoomCodeModal: () => void;
   onOpenProfile?: () => void;
   onOpenAuth?: () => void;
+  onLogout?: () => void;
+  onNavigateToPublicProfile?: (handle: string) => void;
   currentUser?: UserProfile;
   searchQuery: string;
   onSearchChange: (q: string) => void;
@@ -22,6 +24,8 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
   onOpenRoomCodeModal,
   onOpenProfile,
   onOpenAuth,
+  onLogout,
+  onNavigateToPublicProfile,
   currentUser,
   searchQuery,
   onSearchChange,
@@ -30,6 +34,7 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
 }) => {
   const isLight = theme === 'light';
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
   return (
     <header className={`fixed top-0 inset-x-0 z-50 backdrop-blur-xl border-b shadow-sm transition-colors duration-300 ${
@@ -225,23 +230,171 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
             </button>
           )}
 
-          {/* User Profile Avatar */}
-          <button
-            onClick={onOpenProfile}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#a8c8ff] text-[#003061] flex items-center justify-center font-bold text-xs sm:text-sm shadow-xs hover:scale-105 active:scale-95 transition-transform overflow-hidden cursor-pointer ring-2 ring-[#00daf3]/40 relative"
-            title={currentUser?.provider && currentUser.provider !== 'guest' ? `โปรไฟล์: ${currentUser.name}` : 'โปรไฟล์ของฉัน'}
-          >
-            {currentUser?.avatar ? (
-              <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
-              <span className="material-symbols-outlined text-[18px]">person</span>
+          {/* User Profile Avatar & Dropdown Controller */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                if (currentUser?.provider && currentUser.provider !== 'guest') {
+                  setIsProfileDropdownOpen(!isProfileDropdownOpen);
+                } else if (onOpenProfile) {
+                  onOpenProfile();
+                }
+              }}
+              className={`flex items-center gap-1.5 sm:gap-2 p-1 sm:pr-2.5 rounded-full border transition-all cursor-pointer shadow-xs hover:scale-105 active:scale-95 ${
+                isLight
+                  ? 'bg-white border-[#dae2fd] text-[#131b2e] hover:border-[#0075de]/40'
+                  : 'bg-[#191b22] border-white/10 text-[#e2e2ea] hover:border-[#00daf3]/40'
+              }`}
+              title={currentUser?.provider && currentUser.provider !== 'guest' ? `จัดการบัญชี: ${currentUser.name}` : 'โปรไฟล์ของฉัน'}
+            >
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden shrink-0 relative bg-zinc-200 dark:bg-zinc-800">
+                {currentUser?.avatar ? (
+                  <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="material-symbols-outlined text-[18px]">person</span>
+                )}
+                {currentUser?.provider === 'google' && (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-white flex items-center justify-center shadow-xs">
+                    <span className="w-2 h-2 rounded-full bg-[#4285F4]" />
+                  </span>
+                )}
+              </div>
+
+              {currentUser?.provider && currentUser.provider !== 'guest' && (
+                <div className="hidden xs:flex items-center gap-1 min-w-0 pr-1">
+                  <span className="text-xs font-bold truncate max-w-[90px] sm:max-w-[120px]">
+                    {currentUser.name}
+                  </span>
+                  <span className="material-symbols-outlined text-[16px] text-zinc-400">
+                    arrow_drop_down
+                  </span>
+                </div>
+              )}
+            </button>
+
+            {/* Profile Management Dropdown Menu (เมื่อล็อกอินแล้ว) */}
+            {isProfileDropdownOpen && currentUser && currentUser.provider !== 'guest' && (
+              <>
+                <div
+                  className="fixed inset-0 z-40 bg-transparent"
+                  onClick={() => setIsProfileDropdownOpen(false)}
+                />
+                <div
+                  className={`absolute right-0 top-11 sm:top-12 w-72 sm:w-80 rounded-3xl border shadow-2xl backdrop-blur-2xl z-50 p-3 space-y-2.5 animate-in fade-in zoom-in-95 duration-200 ${
+                    isLight
+                      ? 'bg-white/95 border-[#dae2fd] text-[#131b2e] shadow-[0_12px_36px_rgba(0,117,222,0.15)]'
+                      : 'bg-[#191b22]/95 border-white/10 text-[#e2e2ea] shadow-[0_16px_40px_rgba(0,0,0,0.7)]'
+                  }`}
+                >
+                  {/* User Profile Header Card */}
+                  <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#faf8ff] dark:bg-[#111319] border border-[#dae2fd]/60 dark:border-white/[0.06]">
+                    <div
+                      className="w-11 h-11 rounded-full overflow-hidden border-2 shrink-0 relative shadow-sm"
+                      style={{ borderColor: currentUser.color || '#0075de' }}
+                    >
+                      <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                      {currentUser.provider === 'google' && (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-white flex items-center justify-center shadow-xs">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#4285F4]" />
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="font-bold text-xs sm:text-sm truncate max-w-[140px]">{currentUser.name}</h4>
+                        <span className="px-1.5 py-0.2 rounded-full bg-blue-500/10 text-[#4285F4] text-[9px] font-bold">
+                          Google
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#64748b] dark:text-[#94A3B8] font-mono truncate">
+                        @{currentUser.username || currentUser.id}
+                      </p>
+                      {currentUser.email && (
+                        <p className="text-[10px] text-[#707881] dark:text-[#8b919e] truncate mt-0.5">
+                          {currentUser.email}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Menu Items */}
+                  <div className="space-y-1">
+                    {/* 1. Go to Public Profile Page */}
+                    <button
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        if (onNavigateToPublicProfile) {
+                          onNavigateToPublicProfile(currentUser.username || currentUser.id);
+                        }
+                      }}
+                      className={`w-full p-2.5 rounded-2xl flex items-center gap-3 text-left transition-all cursor-pointer ${
+                        isLight ? 'hover:bg-[#f2f3ff]' : 'hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-[#0075de]/10 text-[#0075de] dark:text-[#00daf3] flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-[18px]">account_box</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold leading-tight">หน้าเพจโปรไฟล์ของฉัน</p>
+                        <p className="text-[10px] text-[#64748b] dark:text-[#94A3B8] truncate mt-0.5">
+                          ดูหน้าโปรไฟล์สาธารณะ & เพลงโปรด
+                        </p>
+                      </div>
+                      <span className="material-symbols-outlined text-[16px] text-[#64748b] dark:text-[#94A3B8]">
+                        chevron_right
+                      </span>
+                    </button>
+
+                    {/* 2. Edit Profile & Personal Settings */}
+                    <button
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        if (onOpenProfile) onOpenProfile();
+                      }}
+                      className={`w-full p-2.5 rounded-2xl flex items-center gap-3 text-left transition-all cursor-pointer ${
+                        isLight ? 'hover:bg-[#f2f3ff]' : 'hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-[18px]">tune</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold leading-tight">แก้ไขโปรไฟล์ & ตั้งค่าส่วนตัว</p>
+                        <p className="text-[10px] text-[#64748b] dark:text-[#94A3B8] truncate mt-0.5">
+                          เปลี่ยนชื่อ, รูปโปรไฟล์, สีออร่า, สไตล์
+                        </p>
+                      </div>
+                      <span className="material-symbols-outlined text-[16px] text-[#64748b] dark:text-[#94A3B8]">
+                        chevron_right
+                      </span>
+                    </button>
+
+                    {/* Divider */}
+                    <div className="border-t border-[#dae2fd]/60 dark:border-white/[0.06] my-1" />
+
+                    {/* 3. Log Out */}
+                    <button
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        if (onLogout) onLogout();
+                      }}
+                      className="w-full p-2.5 rounded-2xl flex items-center gap-3 text-left hover:bg-rose-500/10 text-rose-500 transition-all cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-[18px]">logout</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold leading-tight">ออกจากระบบ</p>
+                        <p className="text-[10px] text-rose-400/80 truncate mt-0.5">
+                          กลับสู่โหมดผู้ฟังทั่วไป (Guest)
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
-            {currentUser?.provider === 'google' && (
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-white flex items-center justify-center shadow-xs">
-                <span className="w-2 h-2 rounded-full bg-[#4285F4]" />
-              </span>
-            )}
-          </button>
+          </div>
         </div>
       </div>
 

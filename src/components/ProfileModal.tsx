@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, Check, Palette, User, Sparkles, LifeBuoy, Crown, Heart, Trophy, Clock, Play, Plus, Trash2, Zap, Flame } from 'lucide-react';
+import { X, Upload, Check, Palette, User, Sparkles, LifeBuoy, Crown, Heart, Trophy, Clock, Play, Plus, Trash2, Zap, Flame, Globe, LogOut } from 'lucide-react';
 import { UserProfile, PlaylistItem, FavoriteSong } from '../types/index.js';
 import { PRESET_AVATARS, COLOR_PALETTE } from '../data/presets.js';
 import { compressProfileImage } from '../services/imageCompressor.js';
@@ -17,6 +17,7 @@ interface ProfileModalProps {
   onShowToast?: (msg: string, type?: 'info' | 'success' | 'warning') => void;
   onOpenAuth?: () => void;
   onLogout?: () => void;
+  onNavigateToPublicProfile?: (handle: string) => void;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -31,6 +32,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onShowToast,
   onOpenAuth,
   onLogout,
+  onNavigateToPublicProfile,
 }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'favorites' | 'stats'>('profile');
   const [name, setName] = useState(currentUser.name);
@@ -247,18 +249,36 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     {currentUser.email || currentUser.name}
                   </span>
                 </div>
-                {onLogout && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      onLogout();
-                    }}
-                    className="text-xs text-rose-400 hover:text-rose-300 font-semibold cursor-pointer shrink-0"
-                  >
-                    ออกจากระบบ
-                  </button>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  {onNavigateToPublicProfile && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onNavigateToPublicProfile(currentUser.username || currentUser.id);
+                      }}
+                      className="px-2.5 py-1 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer"
+                      title="ดูหน้าเพจโปรไฟล์สาธารณะ"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      <span>หน้าเพจ</span>
+                    </button>
+                  )}
+                  {onLogout && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onLogout();
+                      }}
+                      className="px-2.5 py-1 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer"
+                      title="ออกจากระบบ"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>ออก</span>
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             {error && (

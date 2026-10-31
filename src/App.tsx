@@ -2417,6 +2417,11 @@ export function App() {
               onOpenRoomCodeModal={() => setIsStitchRoomCodeModalOpen(true)}
               onOpenProfile={() => setIsProfileModalOpen(true)}
               onOpenAuth={() => setIsAuthModalOpen(true)}
+              onLogout={handleLogout}
+              onNavigateToPublicProfile={(handle) => {
+                window.history.pushState({}, '', `/@${handle}`);
+                setProfileHandleRoute(handle);
+              }}
               currentUser={currentUser}
               searchQuery={stitchSearchQuery}
               onSearchChange={setStitchSearchQuery}
@@ -3274,6 +3279,11 @@ export function App() {
         onShowToast={showToast}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onLogout={handleLogout}
+        onNavigateToPublicProfile={(handle) => {
+          setIsProfileModalOpen(false);
+          window.history.pushState({}, '', `/@${handle}`);
+          setProfileHandleRoute(handle);
+        }}
       />
 
       <PlaylistModal
