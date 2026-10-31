@@ -108,7 +108,7 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
         }`}>
           <button
             onClick={() => onTabChange('explore')}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
               currentTab === 'explore'
                 ? isLight ? 'bg-white text-[#006194] shadow-xs font-bold' : 'bg-[#282a30] text-[#e2e2ea] shadow-inner font-bold'
                 : isLight ? 'text-[#475569] hover:text-[#131b2e] hover:bg-white/60' : 'text-[#c1c6d5] hover:text-[#e2e2ea] hover:bg-[#1d1f26]'
@@ -117,19 +117,8 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
             สำรวจห้อง
           </button>
           <button
-            onClick={() => onTabChange('feed')}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-              currentTab === 'feed'
-                ? isLight ? 'bg-white text-[#006194] shadow-xs font-bold' : 'bg-[#282a30] text-[#00daf3] shadow-inner font-bold'
-                : isLight ? 'text-[#475569] hover:text-[#131b2e] hover:bg-white/60' : 'text-[#c1c6d5] hover:text-[#e2e2ea] hover:bg-[#1d1f26]'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[16px]">dynamic_feed</span>
-            <span>ฟีดชุมชน</span>
-          </button>
-          <button
             onClick={() => onTabChange('favorites')}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
               currentTab === 'favorites'
                 ? isLight ? 'bg-white text-[#006194] shadow-xs font-bold' : 'bg-[#282a30] text-[#e2e2ea] shadow-inner font-bold'
                 : isLight ? 'text-[#475569] hover:text-[#131b2e] hover:bg-white/60' : 'text-[#c1c6d5] hover:text-[#e2e2ea] hover:bg-[#1d1f26]'
@@ -139,7 +128,7 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
           </button>
           <button
             onClick={() => onTabChange('popular')}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
               currentTab === 'popular'
                 ? isLight ? 'bg-white text-[#006194] shadow-xs font-bold' : 'bg-[#282a30] text-[#e2e2ea] shadow-inner font-bold'
                 : isLight ? 'text-[#475569] hover:text-[#131b2e] hover:bg-white/60' : 'text-[#c1c6d5] hover:text-[#e2e2ea] hover:bg-[#1d1f26]'
@@ -149,7 +138,7 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
           </button>
           <button
             onClick={() => onTabChange('live-stage')}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
               currentTab === 'live-stage'
                 ? isLight ? 'bg-white text-[#006194] shadow-xs font-bold' : 'bg-[#282a30] text-[#00daf3] shadow-inner font-bold'
                 : isLight ? 'text-[#475569] hover:text-[#006194] hover:bg-white/60' : 'text-[#c1c6d5] hover:text-[#00daf3] hover:bg-[#1d1f26]'
@@ -249,26 +238,6 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
             </button>
           )}
 
-          {/* Direct Messages (DM) Button */}
-          {currentUser && currentUser.provider !== 'guest' && onOpenDM && (
-            <button
-              onClick={onOpenDM}
-              className={`relative flex items-center justify-center p-2 rounded-full border transition-all cursor-pointer hover:scale-105 active:scale-95 ${
-                isLight
-                  ? 'bg-white border-[#dae2fd] text-[#131b2e] hover:bg-[#f2f3ff]'
-                  : 'bg-[#191b22] border-white/10 text-white/80 hover:text-white hover:bg-[#282a30]'
-              }`}
-              title="ข้อความส่วนตัว (DM)"
-            >
-              <span className="material-symbols-outlined text-[20px] text-pink-400">chat</span>
-              {unreadDmCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-4.5 px-1 py-0.2 rounded-full bg-pink-500 text-[10px] font-extrabold text-white text-center shadow-md animate-pulse">
-                  {unreadDmCount > 99 ? '99+' : unreadDmCount}
-                </span>
-              )}
-            </button>
-          )}
-
           {/* User Profile Avatar & Dropdown Controller */}
           <div className="relative">
             <button
@@ -279,7 +248,7 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
                   onOpenProfile();
                 }
               }}
-              className={`flex items-center gap-1.5 sm:gap-2 p-1 rounded-full border transition-all cursor-pointer shadow-xs hover:scale-105 active:scale-95 ${
+              className={`relative flex items-center gap-1.5 sm:gap-2 p-1 rounded-full border transition-all cursor-pointer shadow-xs hover:scale-105 active:scale-95 ${
                 isLight
                   ? 'bg-white border-[#dae2fd] text-[#131b2e] hover:border-[#0075de]/40'
                   : 'bg-[#191b22] border-white/10 text-[#e2e2ea] hover:border-[#00daf3]/40'
@@ -296,6 +265,10 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
                   <span className="material-symbols-outlined text-[18px]">person</span>
                 )}
               </div>
+
+              {unreadDmCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-pink-500 rounded-full border-2 border-white dark:border-[#191b22] animate-pulse" />
+              )}
 
               {currentUser?.provider && currentUser.provider !== 'guest' && (
                 <div className="hidden xs:flex items-center gap-1 min-w-0 pr-2">
@@ -437,6 +410,30 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
                         <p className="text-xs font-bold leading-tight">หน้าเพจโปรไฟล์ของฉัน</p>
                         <p className="text-[10px] text-[#64748b] dark:text-[#94A3B8] truncate mt-0.5">
                           ดูหน้าโปรไฟล์สาธารณะ & เพลงโปรด
+                        </p>
+                      </div>
+                      <span className="material-symbols-outlined text-[16px] text-[#64748b] dark:text-[#94A3B8]">
+                        chevron_right
+                      </span>
+                    </button>
+
+                    {/* Community Feed */}
+                    <button
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        onTabChange('feed');
+                      }}
+                      className={`w-full p-2.5 rounded-2xl flex items-center gap-3 text-left transition-all cursor-pointer ${
+                        isLight ? 'hover:bg-[#f2f3ff]' : 'hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-[18px]">dynamic_feed</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold leading-tight">ฟีดชุมชน (Community Feed)</p>
+                        <p className="text-[10px] text-[#64748b] dark:text-[#94A3B8] truncate mt-0.5">
+                          โพสต์คุยเรื่องเพลง รูปภาพ และแชร์เพลงที่ชอบ
                         </p>
                       </div>
                       <span className="material-symbols-outlined text-[16px] text-[#64748b] dark:text-[#94A3B8]">
