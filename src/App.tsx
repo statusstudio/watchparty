@@ -69,6 +69,7 @@ import {
   isSupabaseConfigured,
   supabase,
   fetchProfile,
+  updateProfile,
   addFavorite,
   removeFavorite,
   checkIsFavorite,
@@ -1686,6 +1687,11 @@ export function App() {
     } catch (e) {
       console.warn('Failed to sync profile to server:', e);
     }
+    try {
+      await updateProfile(updated.id, updated);
+    } catch (e) {
+      console.warn('Failed to sync profile to Supabase:', e);
+    }
     showToast('อัพเดทโปรไฟล์สำเร็จ!', 'success');
   };
 
@@ -2191,6 +2197,7 @@ export function App() {
             setIsAuthModalOpen(true);
           }}
           onLogout={handleLogout}
+          onOpenEditProfile={() => setIsProfileModalOpen(true)}
         />
         <AuthModal
           isOpen={isAuthModalOpen}
@@ -3270,6 +3277,7 @@ export function App() {
           setIsAuthModalOpen(true);
         }}
         onLogout={handleLogout}
+        onOpenEditProfile={() => setIsProfileModalOpen(true)}
       />
 
       <UserCardModal

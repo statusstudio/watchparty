@@ -46,6 +46,7 @@ interface UserProfileModalProps {
   onPlaySong?: (videoId: string, title: string, channel: string, thumbnail: string) => void;
   onOpenAuth?: () => void;
   onLogout?: () => void;
+  onOpenEditProfile?: () => void;
 }
 
 const AVAILABLE_GENRES = [
@@ -80,6 +81,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onPlaySong,
   onOpenAuth,
   onLogout,
+  onOpenEditProfile,
 }) => {
   const [activeTab, setActiveTab] = useState<'favorites' | 'about' | 'edit'>('favorites');
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -410,7 +412,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <>
                   <button
                     type="button"
-                    onClick={() => setActiveTab(activeTab === 'edit' ? 'about' : 'edit')}
+                    onClick={() => {
+                      if (onOpenEditProfile) {
+                        onClose();
+                        onOpenEditProfile();
+                      } else {
+                        setActiveTab(activeTab === 'edit' ? 'about' : 'edit');
+                      }
+                    }}
                     className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
                       activeTab === 'edit'
                         ? 'bg-[#0075de] text-white'
@@ -508,7 +517,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </button>
             {isOwnProfile && (
               <button
-                onClick={() => setActiveTab('edit')}
+                onClick={() => {
+                  if (onOpenEditProfile) {
+                    onClose();
+                    onOpenEditProfile();
+                  } else {
+                    setActiveTab('edit');
+                  }
+                }}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'edit'
                     ? 'bg-[#0075de] text-white shadow-xs'

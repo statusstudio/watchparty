@@ -1,9 +1,56 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, Check, Palette, User, Sparkles, LifeBuoy, Crown, Heart, Trophy, Clock, Play, Plus, Trash2, Zap, Flame, Globe, LogOut } from 'lucide-react';
+import {
+  X,
+  Upload,
+  Check,
+  Palette,
+  User,
+  Sparkles,
+  LifeBuoy,
+  Crown,
+  Heart,
+  Trophy,
+  Clock,
+  Play,
+  Plus,
+  Trash2,
+  Zap,
+  Flame,
+  Globe,
+  LogOut,
+  Instagram,
+  Facebook,
+  Music,
+  AtSign,
+  Image as ImageIcon,
+} from 'lucide-react';
 import { UserProfile, PlaylistItem, FavoriteSong } from '../types/index.js';
 import { PRESET_AVATARS, COLOR_PALETTE } from '../data/presets.js';
 import { compressProfileImage } from '../services/imageCompressor.js';
 import { fetchFavorites, removeFavorite } from '../services/supabase.js';
+
+const PRESET_BANNERS = [
+  'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=1200&q=80',
+];
+
+const AVAILABLE_GENRES = [
+  'Lofi',
+  'Pop',
+  'R&B',
+  'Indie',
+  'Acoustic',
+  'Rock',
+  'EDM',
+  'Hip-Hop',
+  'Jazz',
+  'K-Pop',
+  'City Pop',
+  'Classical',
+];
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -35,9 +82,20 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onNavigateToPublicProfile,
 }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'favorites' | 'stats'>('profile');
+
+  // Unified Profile Form States
   const [name, setName] = useState(currentUser.name);
-  const [color, setColor] = useState(currentUser.color);
+  const [username, setUsername] = useState(currentUser.username || '');
+  const [bio, setBio] = useState(currentUser.bio || '');
+  const [color, setColor] = useState(currentUser.color || '#0075de');
   const [avatar, setAvatar] = useState(currentUser.avatar);
+  const [bannerUrl, setBannerUrl] = useState(currentUser.bannerUrl || PRESET_BANNERS[0]);
+  const [favoriteGenres, setFavoriteGenres] = useState<string[]>(currentUser.favoriteGenres || ['Lofi', 'Pop']);
+  const [instagram, setInstagram] = useState(currentUser.socialLinks?.instagram || '');
+  const [facebook, setFacebook] = useState(currentUser.socialLinks?.facebook || '');
+  const [tiktok, setTiktok] = useState(currentUser.socialLinks?.tiktok || '');
+  const [spotify, setSpotify] = useState(currentUser.socialLinks?.spotify || '');
+
   const [isCompressing, setIsCompressing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,8 +108,17 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setName(currentUser.name);
-      setColor(currentUser.color);
+      setUsername(currentUser.username || '');
+      setBio(currentUser.bio || '');
+      setColor(currentUser.color || '#0075de');
       setAvatar(currentUser.avatar);
+      setBannerUrl(currentUser.bannerUrl || PRESET_BANNERS[0]);
+      setFavoriteGenres(currentUser.favoriteGenres || ['Lofi', 'Pop']);
+      setInstagram(currentUser.socialLinks?.instagram || '');
+      setFacebook(currentUser.socialLinks?.facebook || '');
+      setTiktok(currentUser.socialLinks?.tiktok || '');
+      setSpotify(currentUser.socialLinks?.spotify || '');
+      setError(null);
       loadFavs();
     }
   }, [isOpen, currentUser]);
@@ -108,13 +175,24 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     setError(null);
     setIsCompressing(true);
     try {
-      // Compress and resize via HTML5 Canvas (160x160)
       const compressedDataUri = await compressProfileImage(file, 160);
       setAvatar(compressedDataUri);
     } catch (err: any) {
       setError(err.message || 'เกิดข้อผิดพลาดในการประมวลผลรูปภาพ');
     } finally {
       setIsCompressing(false);
+    }
+  };
+
+  const toggleGenre = (genre: string) => {
+    if (favoriteGenres.includes(genre)) {
+      setFavoriteGenres(favoriteGenres.filter((g) => g !== genre));
+    } else {
+      if (favoriteGenres.length >= 5) {
+        onShowToast?.('เลือกแนวเพลงได้สูงสุด 5 แนวครับ', 'info');
+        return;
+      }
+      setFavoriteGenres([...favoriteGenres, genre]);
     }
   };
 
@@ -125,50 +203,62 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       return;
     }
 
+    const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '') || currentUser.username;
+
     onSave({
       ...currentUser,
       name: name.trim(),
+      username: cleanUsername,
+      bio: bio.trim(),
       color,
       avatar,
+      bannerUrl: bannerUrl || currentUser.bannerUrl,
+      favoriteGenres,
+      socialLinks: {
+        instagram: instagram.trim().replace(/^@/, ''),
+        facebook: facebook.trim(),
+        tiktok: tiktok.trim().replace(/^@/, ''),
+        spotify: spotify.trim(),
+      },
     });
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[#151722] border border-gray-800/80 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+      <div className="bg-[#151722] border border-gray-800/80 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-800/80 flex items-center justify-between">
+        <div className="px-5 sm:px-6 py-4 border-b border-gray-800/80 flex items-center justify-between shrink-0 bg-[#151722]">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
               <User className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-white">แก้ไขโปรไฟล์ของคุณ</h2>
-              <p className="text-xs text-gray-400">รูปภาพและชื่อจะแสดงบนเวทีไมค์และกล่องแชท</p>
+              <h2 className="text-base font-bold text-white">แก้ไขโปรไฟล์ & ตั้งค่าส่วนตัว</h2>
+              <p className="text-xs text-gray-400">จัดการรูปโปรไฟล์, โซเชียล, ข้อมูลส่วนตัว และเพลงโปรด</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition-colors"
+            className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800/60 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="px-6 py-2 border-b border-gray-800/80 bg-[#0f0f13] flex items-center gap-1.5 shrink-0">
+        <div className="px-5 sm:px-6 py-2 border-b border-gray-800/80 bg-[#0f0f13] flex items-center gap-1.5 shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab('profile')}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               activeTab === 'profile'
                 ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <User className="w-3.5 h-3.5" />
-            <span>โปรไฟล์</span>
+            <span>โปรไฟล์ & โซเชียล</span>
           </button>
 
           <button
@@ -177,7 +267,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               setActiveTab('favorites');
               loadFavs();
             }}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               activeTab === 'favorites'
                 ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                 : 'text-gray-400 hover:text-rose-400 hover:bg-white/5'
@@ -195,7 +285,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('stats')}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               activeTab === 'stats'
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                 : 'text-gray-400 hover:text-amber-400 hover:bg-white/5'
@@ -206,9 +296,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </button>
         </div>
 
-        {/* ==================== TAB 1: PROFILE EDIT ==================== */}
+        {/* ==================== TAB 1: UNIFIED PROFILE EDIT ==================== */}
         {activeTab === 'profile' && (
-          <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 flex-1">
+          <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1 custom-scrollbar">
             {/* Account Status / Google Login Banner */}
             {(!currentUser.provider || currentUser.provider === 'guest') ? (
               <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-950/60 via-indigo-950/40 to-purple-950/40 border border-blue-500/30 flex items-center justify-between gap-3 shadow-md">
@@ -255,7 +345,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                       type="button"
                       onClick={() => {
                         onClose();
-                        onNavigateToPublicProfile(currentUser.username || currentUser.id);
+                        onNavigateToPublicProfile(username || currentUser.username || currentUser.id);
                       }}
                       className="px-2.5 py-1 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer"
                       title="ดูหน้าเพจโปรไฟล์สาธารณะ"
@@ -281,77 +371,233 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </div>
               </div>
             )}
+
             {error && (
               <div className="p-3 text-xs bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl">
                 {error}
               </div>
             )}
 
-            {/* Current Avatar Preview & Upload */}
-            <div className="flex flex-col items-center justify-center gap-3">
-              <div
-                className="relative w-24 h-24 rounded-full p-1 border-4 shadow-xl overflow-hidden group"
-                style={{ borderColor: color }}
-              >
-                <img
-                  src={avatar}
-                  alt={name}
-                  className="w-full h-full object-cover rounded-full bg-gray-900"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute inset-0 bg-black/60 rounded-full flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                >
-                  <Upload className="w-5 h-5 mb-1" />
-                  <span className="text-[10px] font-medium">เปลี่ยนรูป</span>
-                </button>
+            {/* Profile Banner & Avatar Preview Card */}
+            <div className="relative rounded-2xl overflow-hidden border border-gray-800 bg-gray-900 shadow-md">
+              <div className="h-28 w-full relative overflow-hidden">
+                <img src={bannerUrl} alt="Cover Banner" className="w-full h-full object-cover opacity-85" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
               </div>
 
-              <div className="flex items-center gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isCompressing}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-800 hover:bg-gray-700 text-gray-200 flex items-center gap-1.5 transition-colors border border-gray-700/60"
+              {/* Floating Avatar */}
+              <div className="p-3 flex items-end gap-3 -mt-12 relative z-10">
+                <div
+                  className="relative w-20 h-20 rounded-full p-0.5 border-4 shadow-xl overflow-hidden group shrink-0 bg-gray-950"
+                  style={{ borderColor: color }}
                 >
-                  <Upload className="w-3.5 h-3.5 text-cyan-400" />
-                  {isCompressing ? 'กำลังย่อรูป...' : 'อัพโหลดจากเครื่อง (Auto-Resize)'}
-                </button>
+                  <img
+                    src={avatar}
+                    alt={name}
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute inset-0 bg-black/60 rounded-full flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  >
+                    <Upload className="w-4 h-4 mb-0.5" />
+                    <span className="text-[9px] font-medium">เปลี่ยนรูป</span>
+                  </button>
+                </div>
+
+                <div className="min-w-0 flex-1 pb-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isCompressing}
+                      className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-gray-800/90 hover:bg-gray-700 text-gray-200 flex items-center gap-1.5 transition-colors border border-gray-700/60 cursor-pointer shadow-xs"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>{isCompressing ? 'กำลังย่อ...' : 'อัพโหลดรูปจากเครื่อง'}</span>
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    * ย่อรูปให้อัตโนมัติเป็น 160x160 เพื่อความลื่นไหล
+                  </p>
+                </div>
               </div>
-              <p className="text-[11px] text-gray-400 text-center">
-                * ระบบย่อรูปภาพให้อัตโนมัติเป็น 160x160 เพื่อความลื่นไหล
-              </p>
             </div>
 
-            {/* Name Field */}
+            {/* Choose Banner Preset */}
+            <div>
+              <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
+                <span>เลือกภาพหน้าปกโปรไฟล์ (Cover Banner)</span>
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {PRESET_BANNERS.map((banner, i) => (
+                  <div
+                    key={i}
+                    onClick={() => setBannerUrl(banner)}
+                    className={`h-11 rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${
+                      bannerUrl === banner
+                        ? 'border-purple-500 scale-105 shadow-md shadow-purple-500/20'
+                        : 'border-gray-800 opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <img src={banner} alt={`Banner ${i}`} className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Basic Info: Display Name & Username */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-300 mb-1.5">
+                  ชื่อแสดงในห้อง (Display Name) <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  maxLength={24}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-[#0f0f13] border border-gray-700/80 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-purple-500 transition-colors shadow-xs"
+                  placeholder="เช่น บอย Squad Chill"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center justify-between">
+                  <span>ชื่อผู้ใช้ (@username)</span>
+                  <span className="text-[10px] text-gray-400 font-mono">/@{username || 'user'}</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-xs text-gray-500 font-mono">@</span>
+                  <input
+                    type="text"
+                    value={username}
+                    maxLength={20}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                    className="w-full pl-7 pr-3 py-2 bg-[#0f0f13] border border-gray-700/80 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-purple-500 transition-colors font-mono shadow-xs"
+                    placeholder="username"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Bio / About */}
             <div>
               <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                ชื่อแสดงในห้อง (Display Name)
+                เกี่ยวกับฉัน (Bio / คำอธิบายประจำตัว)
               </label>
-              <input
-                type="text"
-                value={name}
-                maxLength={24}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#0f0f13] border border-gray-700/80 rounded-xl text-sm text-white focus:outline-none focus:border-purple-500 transition-colors"
-                placeholder="เช่น บอย Squad Chill"
-                required
+              <textarea
+                rows={2}
+                value={bio}
+                maxLength={120}
+                onChange={(e) => setBio(e.target.value)}
+                className="w-full px-3.5 py-2 bg-[#0f0f13] border border-gray-700/80 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-purple-500 transition-colors resize-none shadow-xs"
+                placeholder="เขียนแนะนำตัวเองสั้นๆ หรือแนวเพลงที่คุณชอบฟัง..."
               />
+            </div>
+
+            {/* Social Media Links (Instagram & Facebook & TikTok & Spotify) */}
+            <div className="space-y-2 p-3.5 rounded-2xl bg-[#0f0f13] border border-gray-800/80">
+              <label className="block text-xs font-bold text-gray-200 flex items-center gap-1.5">
+                <Instagram className="w-3.5 h-3.5 text-pink-400" />
+                <span>ช่องทางโซเชียลมีเดีย (Social Links)</span>
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                {/* Instagram */}
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-xs font-bold text-pink-400">IG @</span>
+                  <input
+                    type="text"
+                    value={instagram}
+                    onChange={(e) => setInstagram(e.target.value.replace(/^@/, ''))}
+                    className="w-full pl-11 pr-3 py-1.5 bg-[#151722] border border-gray-700/80 rounded-xl text-xs text-white focus:outline-none focus:border-pink-500 transition-colors shadow-xs"
+                    placeholder="username"
+                  />
+                </div>
+
+                {/* Facebook */}
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-xs font-bold text-blue-400">FB</span>
+                  <input
+                    type="text"
+                    value={facebook}
+                    onChange={(e) => setFacebook(e.target.value)}
+                    className="w-full pl-9 pr-3 py-1.5 bg-[#151722] border border-gray-700/80 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500 transition-colors shadow-xs"
+                    placeholder="ชื่อหรือลิงก์โปรไฟล์"
+                  />
+                </div>
+
+                {/* TikTok */}
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-xs font-bold text-cyan-400">TikTok</span>
+                  <input
+                    type="text"
+                    value={tiktok}
+                    onChange={(e) => setTiktok(e.target.value.replace(/^@/, ''))}
+                    className="w-full pl-13 pr-3 py-1.5 bg-[#151722] border border-gray-700/80 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 transition-colors shadow-xs"
+                    placeholder="@username"
+                  />
+                </div>
+
+                {/* Spotify */}
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-xs font-bold text-emerald-400">Spotify</span>
+                  <input
+                    type="text"
+                    value={spotify}
+                    onChange={(e) => setSpotify(e.target.value)}
+                    className="w-full pl-13 pr-3 py-1.5 bg-[#151722] border border-gray-700/80 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 transition-colors shadow-xs"
+                    placeholder="ลิงก์โปรไฟล์หรือเพลย์ลิสต์"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Favorite Music Genres */}
+            <div>
+              <label className="block text-xs font-medium text-gray-300 mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Music className="w-3.5 h-3.5 text-purple-400" />
+                  <span>แนวเพลงที่ชอบฟัง (Favorite Genres)</span>
+                </span>
+                <span className="text-[10px] text-gray-400">เลือกได้สูงสุด 5 แนว ({favoriteGenres.length}/5)</span>
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {AVAILABLE_GENRES.map((genre) => {
+                  const isSelected = favoriteGenres.includes(genre);
+                  return (
+                    <button
+                      type="button"
+                      key={genre}
+                      onClick={() => toggleGenre(genre)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-purple-600 text-white shadow-xs font-bold'
+                          : 'bg-[#0f0f13] text-gray-400 hover:text-white border border-gray-800 hover:border-gray-700'
+                      }`}
+                    >
+                      #{genre}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Color Palette */}
             <div>
               <label className="block text-xs font-medium text-gray-300 mb-2 flex items-center gap-1.5">
                 <Palette className="w-3.5 h-3.5 text-purple-400" />
-                สีประจำตัว (Tag & Aura Color)
+                <span>สีประจำตัว (Tag & Aura Color)</span>
               </label>
               <div className="flex items-center gap-2.5 flex-wrap">
                 {COLOR_PALETTE.map((c) => (
@@ -359,7 +605,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     key={c}
                     type="button"
                     onClick={() => setColor(c)}
-                    className={`w-7 h-7 rounded-full transition-transform flex items-center justify-center ${
+                    className={`w-7 h-7 rounded-full transition-transform flex items-center justify-center cursor-pointer ${
                       color === c ? 'scale-110 ring-2 ring-white' : 'hover:scale-105 opacity-80 hover:opacity-100'
                     }`}
                     style={{ backgroundColor: c }}
@@ -374,7 +620,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <div>
               <label className="block text-xs font-medium text-gray-300 mb-2 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                รูปโปรไฟล์สำเร็จรูป (Preset Avatars)
+                <span>หรือเลือกรูปโปรไฟล์สำเร็จรูป (Preset Avatars)</span>
               </label>
               <div className="grid grid-cols-4 gap-2.5">
                 {PRESET_AVATARS.map((preset) => {
@@ -384,13 +630,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                       key={preset.id}
                       type="button"
                       onClick={() => setAvatar(preset.svg)}
-                      className={`relative p-1.5 rounded-xl border flex flex-col items-center gap-1 transition-all ${
+                      className={`relative p-1.5 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer ${
                         isSelected
                           ? 'border-purple-500 bg-purple-500/10 shadow-lg shadow-purple-500/20 ring-1 ring-purple-500'
                           : 'border-gray-800 bg-[#0f0f13] hover:border-gray-700'
                       }`}
                     >
-                      <img src={preset.svg} alt={preset.name} className="w-12 h-12 rounded-full" />
+                      <img src={preset.svg} alt={preset.name} className="w-11 h-11 rounded-full" />
                       <span className="text-[10px] text-gray-300 truncate w-full text-center">
                         {preset.name}
                       </span>
@@ -406,17 +652,17 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </div>
 
             {/* Submit */}
-            <div className="pt-2">
+            <div className="pt-2 sticky bottom-0 bg-[#151722]/95 backdrop-blur-md pb-1 z-20">
               <button
                 type="submit"
-                className="w-full py-2.5 px-4 rounded-xl font-medium text-sm bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg shadow-purple-600/30 transition-all cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg shadow-purple-600/30 transition-all cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
               >
-                บันทึกโปรไฟล์
+                บันทึกโปรไฟล์ทั้งหมด
               </button>
             </div>
 
-            {/* Discreet Help & Admin Access */}
-            <div className="pt-3 border-t border-gray-800/80 flex items-center justify-between text-xs text-gray-500">
+            {/* Discreet Help */}
+            <div className="pt-2 border-t border-gray-800/80 flex items-center justify-between text-xs text-gray-500">
               {onOpenSupport && (
                 <button
                   type="button"
@@ -436,7 +682,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
         {/* ==================== TAB 2: LIKED SONGS ==================== */}
         {activeTab === 'favorites' && (
-          <div className="p-5 overflow-y-auto space-y-3 flex-1">
+          <div className="p-5 overflow-y-auto space-y-3 flex-1 custom-scrollbar">
             <div className="flex items-center justify-between border-b border-gray-800/80 pb-2">
               <div className="flex items-center gap-1.5">
                 <Heart className="w-4 h-4 text-rose-400 fill-current" />
@@ -528,7 +774,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
         {/* ==================== TAB 3: STATS & LEVEL ==================== */}
         {activeTab === 'stats' && (
-          <div className="p-6 overflow-y-auto space-y-5 flex-1">
+          <div className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1 custom-scrollbar">
             {/* Rank Card */}
             <div className={`p-4 rounded-2xl border ${rank.bg} flex items-center gap-4`}>
               <div className="w-14 h-14 rounded-2xl bg-black/30 border border-white/10 flex flex-col items-center justify-center shrink-0">
