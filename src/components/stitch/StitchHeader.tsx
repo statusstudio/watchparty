@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserProfile } from '../../types/index.js';
+import { UserProfile, RoomSummary } from '../../types/index.js';
 
 interface StitchHeaderProps {
   currentTab: 'explore' | 'favorites' | 'popular' | 'my-rooms' | 'live-stage';
@@ -11,6 +11,8 @@ interface StitchHeaderProps {
   onLogout?: () => void;
   onNavigateToPublicProfile?: (handle: string) => void;
   currentUser?: UserProfile;
+  myActiveRoom?: RoomSummary;
+  onSelectRoom?: (roomId: string) => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   theme?: 'dark' | 'light';
@@ -27,6 +29,8 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
   onLogout,
   onNavigateToPublicProfile,
   currentUser,
+  myActiveRoom,
+  onSelectRoom,
   searchQuery,
   onSearchChange,
   theme = 'dark',
@@ -316,6 +320,73 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
                       )}
                     </div>
                   </div>
+
+                  {/* Active Party Room of User */}
+                  {myActiveRoom && (
+                    <div
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        if (onSelectRoom) {
+                          onSelectRoom(myActiveRoom.id);
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      className={`p-3 rounded-2xl border transition-all cursor-pointer group shadow-sm hover:scale-[1.01] active:scale-[0.99] ${
+                        isLight
+                          ? 'bg-gradient-to-r from-blue-50/90 via-cyan-50/80 to-indigo-50/90 border-[#0075de]/30 hover:border-[#0075de]'
+                          : 'bg-gradient-to-r from-[#0075de]/15 via-[#00daf3]/10 to-[#191b22] border-[#00daf3]/30 hover:border-[#00daf3]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="flex h-2 w-2 relative shrink-0">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#10B981]" />
+                          </span>
+                          <span className="text-[10px] font-bold text-[#10B981] uppercase tracking-wider">
+                            ห้องปาร์ตี้ของคุณเปิดอยู่
+                          </span>
+                        </div>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                          isLight ? 'bg-white text-[#006194] border border-[#dae2fd]' : 'bg-white/10 text-[#00daf3]'
+                        }`}>
+                          {myActiveRoom.onlineCount || 1} คนกำลังฟัง
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-xl overflow-hidden bg-black/20 shrink-0 relative border border-white/10">
+                          <img
+                            src={
+                              myActiveRoom.currentVideo?.thumbnail ||
+                              myActiveRoom.coverImage ||
+                              'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80'
+                            }
+                            alt=""
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <h4 className={`text-xs font-bold truncate group-hover:text-[#0075de] dark:group-hover:text-[#00daf3] transition-colors ${
+                            isLight ? 'text-[#131b2e]' : 'text-white'
+                          }`}>
+                            {myActiveRoom.name}
+                          </h4>
+                          <p className={`text-[10px] truncate mt-0.5 ${
+                            isLight ? 'text-[#64748b]' : 'text-[#94A3B8]'
+                          }`}>
+                            {myActiveRoom.currentVideo?.title ? `🎵 ${myActiveRoom.currentVideo.title}` : (myActiveRoom.description || 'แตะเพื่อเข้าห้องปาร์ตี้')}
+                          </p>
+                        </div>
+
+                        <div className="w-7 h-7 rounded-full bg-[#0075de] text-white flex items-center justify-center shrink-0 group-hover:translate-x-0.5 transition-transform shadow-sm">
+                          <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Menu Items */}
                   <div className="space-y-1">

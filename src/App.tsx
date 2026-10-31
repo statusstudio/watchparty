@@ -2423,6 +2423,8 @@ export function App() {
                 setProfileHandleRoute(handle);
               }}
               currentUser={currentUser}
+              myActiveRoom={roomsList.find((r) => r.ownerId === currentUser.id)}
+              onSelectRoom={handleSelectRoom}
               searchQuery={stitchSearchQuery}
               onSearchChange={setStitchSearchQuery}
               theme={theme}
