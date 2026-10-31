@@ -19,7 +19,6 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
   theme = 'dark',
 }) => {
   const isLight = theme === 'light';
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isVinylPlaying, setIsVinylPlaying] = useState<boolean>(true);
   const [isRoomsSheetOpen, setIsRoomsSheetOpen] = useState<boolean>(false);
@@ -47,14 +46,6 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
       return next;
     });
   };
-
-  const categories = [
-    { id: 'all', label: 'ทั้งหมด', icon: 'auto_awesome', count: rooms.length || 14 },
-    { id: 'lofi', label: 'Lofi / Chill', icon: 'coffee', count: 4 },
-    { id: 'tpop', label: 'T-Pop / K-Pop', icon: 'music_note', count: 8 },
-    { id: 'rock', label: 'Rock / Indie', icon: 'electric_guitar', count: 3 },
-    { id: 'acoustic', label: 'Acoustic', icon: 'nightlight', count: 2 },
-  ];
 
   // Fallback demo rooms if server room list is empty
   const displayRooms: RoomSummary[] = rooms.length > 0 ? rooms : [
@@ -137,9 +128,6 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
         r.currentVideo?.title.toLowerCase().includes(q) ||
         r.ownerName.toLowerCase().includes(q)
       );
-    }
-    if (selectedCategory !== 'all') {
-      return (r.category as string) === selectedCategory;
     }
     return true;
   });
@@ -387,26 +375,23 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
             MOTION ROOMS DRAWER / MODAL (แสดงรายชื่อห้องเมื่อแตะการ์ด)
            ======================================================== */}
         {isRoomsSheetOpen && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 pb-20 sm:pb-4 animate-in fade-in duration-200">
             {/* Backdrop Blur */}
             <div
-              className="fixed inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
+              className="fixed inset-0 bg-black/70 backdrop-blur-md"
               onClick={() => setIsRoomsSheetOpen(false)}
             />
 
-            {/* Motion Sheet Container */}
+            {/* Motion Modal Container (Floating Centered Dialog) */}
             <div
-              className={`relative w-full sm:max-w-3xl max-h-[85vh] sm:max-h-[80vh] rounded-t-3xl sm:rounded-3xl border shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-300 z-10 ${
+              className={`relative w-full max-w-lg sm:max-w-2xl max-h-[78vh] sm:max-h-[80vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 z-10 ${
                 isLight
                   ? 'bg-white border-[#dae2fd] text-[#131b2e]'
                   : 'bg-[#191b22] border-white/[0.08] text-[#e2e2ea]'
               }`}
             >
-              {/* Drag Handle Bar (Mobile) */}
-              <div className="w-12 h-1.5 rounded-full bg-zinc-500/30 mx-auto mt-3 mb-1 sm:hidden shrink-0" />
-
               {/* Sheet Header */}
-              <div className="px-5 py-3 border-b dark:border-white/[0.06] border-[#dae2fd]/60 flex items-center justify-between shrink-0">
+              <div className="px-5 py-3.5 border-b dark:border-white/[0.06] border-[#dae2fd]/60 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2.5">
                   <span className="material-symbols-outlined text-[#0075de] dark:text-[#00daf3] text-[22px]">
                     podcasts
@@ -435,9 +420,8 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
                 </button>
               </div>
 
-              {/* Search & Genre Filter Chips */}
-              <div className="p-4 border-b dark:border-white/[0.04] border-[#dae2fd]/40 flex flex-col gap-3 shrink-0">
-                {/* Search Input */}
+              {/* Search Input */}
+              <div className="p-3.5 sm:p-4 border-b dark:border-white/[0.04] border-[#dae2fd]/40 shrink-0">
                 <div className="relative w-full">
                   <span className={`material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[16px] ${
                     isLight ? 'text-[#707881]' : 'text-[#94A3B8]'
@@ -463,31 +447,6 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
                       ✕
                     </button>
                   )}
-                </div>
-
-                {/* Genre Filter Chips */}
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                  {categories.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => setSelectedCategory(c.id)}
-                      className={`shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                        selectedCategory === c.id
-                          ? 'dark:bg-[#0075de] dark:text-white bg-[#006194] text-white font-bold shadow-xs'
-                          : 'dark:bg-[#111319] dark:text-[#c1c6d5] dark:hover:text-white bg-white border border-[#dae2fd] text-[#475569] hover:bg-[#eaedff]'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-[14px]">{c.icon}</span>
-                      <span>{c.label}</span>
-                      {c.count && (
-                        <span className={`px-1 py-0.2 rounded-full font-mono text-[9px] ${
-                          selectedCategory === c.id ? 'bg-black/20 text-white' : 'dark:bg-white/10 bg-black/5'
-                        }`}>
-                          {c.count}
-                        </span>
-                      )}
-                    </button>
-                  ))}
                 </div>
               </div>
 
