@@ -15,9 +15,11 @@ import {
   Search,
   Loader2,
   Trash2,
+  Radio,
+  AlertTriangle,
 } from 'lucide-react';
 import { SAMPLE_VIDEOS, ROOM_CATEGORIES, PRESET_ROOM_COVERS } from '../data/presets.js';
-import { RoomCategory, StageAccessMode } from '../types/index.js';
+import { RoomCategory, StageAccessMode, RoomSummary } from '../types/index.js';
 
 export interface CreateRoomForm {
   name: string;
@@ -37,12 +39,22 @@ interface CreateRoomModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateRoom: (formData: CreateRoomForm) => void;
+  existingActiveRoom?: RoomSummary | null;
+  onEnterExistingRoom?: (roomId: string) => void;
+  onCloseExistingRoomSuccess?: () => void;
+  currentUserId?: string;
+  theme?: 'dark' | 'light';
 }
 
 export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   isOpen,
   onClose,
   onCreateRoom,
+  existingActiveRoom,
+  onEnterExistingRoom,
+  onCloseExistingRoomSuccess,
+  currentUserId,
+  theme = 'dark',
 }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -78,6 +90,36 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
   const [onlyAdminManagePlaylist, setOnlyAdminManagePlaylist] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isClosingRoom, setIsClosingRoom] = useState(false);
+
+  const handleCloseExistingRoom = async (targetRoomId: string) => {
+    if (!currentUserId) return;
+    if (!window.confirm('คุณต้องการปิดห้องปาร์ตี้เดิมนี้ใช่หรือไม่? เมื่อปิดแล้วจะสามารถสร้างห้องใหม่ได้ทันที')) {
+      return;
+    }
+    setIsClosingRoom(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/rooms/close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: targetRoomId,
+          userId: currentUserId,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        onCloseExistingRoomSuccess?.();
+      } else {
+        setError(data.error || 'ไม่สามารถปิดห้องเดิมได้');
+      }
+    } catch (e) {
+      setError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+    } finally {
+      setIsClosingRoom(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -217,29 +259,92 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
-      <div className="bg-white border border-[#e6e6e6] rounded-2xl w-full max-w-xl overflow-hidden shadow-notion-modal flex flex-col max-h-[92vh] text-[#31302e]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+      <div className="bg-white dark:bg-[#191b22] border border-[#e6e6e6] dark:border-white/[0.08] rounded-2xl w-full max-w-xl overflow-hidden shadow-notion-modal flex flex-col max-h-[92vh] text-[#31302e] dark:text-[#e2e2ea]">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-[#e6e6e6] flex items-center justify-between bg-white shrink-0">
+        <div className="px-5 py-4 border-b border-[#e6e6e6] dark:border-white/[0.08] flex items-center justify-between bg-white dark:bg-[#191b22] shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-[#0075de]/10 border border-[#0075de]/20 flex items-center justify-center text-[#0075de]">
               <Plus className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-semibold text-[#000000]">สร้างห้องปาร์ตี้ใหม่</h2>
-              <p className="text-[11px] text-[#615d59]">กำหนดชื่อ ปกห้อง หมวดหมู่ และการตั้งค่าตามใจชอบ</p>
+              <h2 className="text-sm sm:text-base font-semibold text-[#000000] dark:text-white">สร้างห้องปาร์ตี้ใหม่</h2>
+              <p className="text-[11px] text-[#615d59] dark:text-[#94A3B8]">กำหนดชื่อ ปกห้อง หมวดหมู่ และการตั้งค่าตามใจชอบ</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-md text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4] transition-colors cursor-pointer"
+            className="p-1.5 rounded-md text-[#615d59] dark:text-[#94A3B8] hover:text-[#000000] dark:hover:text-white hover:bg-[#f6f5f4] dark:hover:bg-white/5 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
+        {/* If user already has an active room */}
+        {existingActiveRoom ? (
+          <div className="p-6 text-center space-y-4">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+              <AlertTriangle className="w-7 h-7" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-base sm:text-lg font-bold text-[#111111] dark:text-white">
+                คุณมีห้องปาร์ตี้ที่เปิดใช้งานอยู่แล้ว
+              </h3>
+              <p className="text-xs text-[#615d59] dark:text-[#94A3B8] max-w-sm mx-auto leading-relaxed">
+                ระบบจำกัดให้ผู้ใช้ 1 คนสามารถสร้างห้องปาร์ตี้ได้สูงสุด 1 ห้องเท่านั้น หากต้องการสร้างห้องใหม่ กรุณาปิดห้องเดิมก่อน
+              </p>
+            </div>
+
+            {/* Existing Room Card */}
+            <div className="p-3.5 rounded-2xl bg-[#f6f5f4] dark:bg-[#111319] border border-[#e6e6e6] dark:border-white/[0.08] flex items-center justify-between text-left gap-3 max-w-md mx-auto shadow-xs">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#0075de] to-[#00daf3] flex items-center justify-center text-white shrink-0 shadow-xs">
+                  <Radio className="w-5 h-5 animate-pulse" />
+                </div>
+                <div className="min-w-0">
+                  <div className="font-bold text-xs sm:text-sm truncate text-[#111111] dark:text-white">
+                    {existingActiveRoom.name}
+                  </div>
+                  <div className="text-[11px] text-[#615d59] dark:text-[#94A3B8] mt-0.5">
+                    รหัสห้อง: #{existingActiveRoom.id} • {existingActiveRoom.onlineCount} คนในห้อง
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-2.5 text-xs bg-rose-50 border border-rose-200 text-rose-700 rounded-xl max-w-md mx-auto">
+                {error}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-2.5 max-w-md mx-auto pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEnterExistingRoom?.(existingActiveRoom.id);
+                }}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-[#0075de] hover:bg-[#005eb4] text-white font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>เข้าห้องเดิมของคุณ 🎵</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isClosingRoom}
+                onClick={() => handleCloseExistingRoom(existingActiveRoom.id)}
+                className="px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 font-semibold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                {isClosingRoom ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                <span>ปิดห้องเดิม เพื่อสร้างห้องใหม่</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Form Body */
+          <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
           {error && (
             <div className="p-2.5 text-xs bg-rose-50 border border-rose-200 text-rose-700 rounded-xl">
               {error}
@@ -745,6 +850,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );

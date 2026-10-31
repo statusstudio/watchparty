@@ -353,11 +353,23 @@ async function startServer() {
     }
   });
 
-  // Create room endpoint
+  // Create room endpoint (Enforce 1 active room per user)
   app.post('/api/rooms/create', (req, res) => {
     const { name, description, isPrivate, password, category, coverImage, onlyAdminManagePlaylist, initialVideoId, initialVideoTitle, initialVideoChannel, stageAccessMode, user } = req.body;
-    if (!name || !user) {
+    if (!name || !user || !user.id) {
       return res.status(400).json({ error: 'Missing name or user' });
+    }
+
+    // 1 user can only create/own 1 active party room at a time
+    const existingRoom = roomManager.getActiveRoomByOwner(user.id);
+    if (existingRoom) {
+      return res.status(409).json({
+        success: false,
+        error: 'ALREADY_HAS_ACTIVE_ROOM',
+        message: `คุณมีห้องปาร์ตี้ "${existingRoom.metadata.name}" ที่ยังเปิดใช้งานอยู่แล้ว สามารถสร้างได้คนละ 1 ห้องเท่านั้น`,
+        roomId: existingRoom.metadata.id,
+        roomName: existingRoom.metadata.name,
+      });
     }
 
     // Generate clean, short 6-character room ID (e.g. "m7x8k2")
@@ -381,6 +393,23 @@ async function startServer() {
     }, user);
 
     res.json({ success: true, roomId });
+  });
+
+  // Close / delete room by owner endpoint
+  app.post('/api/rooms/close', (req, res) => {
+    const { roomId, userId } = req.body;
+    if (!roomId || !userId) {
+      return res.status(400).json({ error: 'Missing roomId or userId' });
+    }
+    const room = roomManager.getRoom(roomId);
+    if (!room) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+    if (room.metadata.ownerId !== userId) {
+      return res.status(403).json({ error: 'Only the room owner can close this room' });
+    }
+    roomManager.forceDeleteRoom(roomId, 'ห้องนี้ถูกปิดโดยเจ้าของห้อง');
+    res.json({ success: true, message: 'Room closed successfully' });
   });
 
   app.get('/api/room/:roomId', (req, res) => {

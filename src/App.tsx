@@ -1581,6 +1581,13 @@ export function App() {
         }
         showToast(`สร้างห้อง "${form.name}" สำเร็จ! 🎉`, 'success');
         handleSelectRoom(data.roomId);
+      } else if (data.error === 'ALREADY_HAS_ACTIVE_ROOM') {
+        showToast(data.message || 'คุณมีห้องที่เปิดใช้งานอยู่แล้ว สามารถสร้างได้คนละ 1 ห้องเท่านั้น', 'warning');
+        if (data.roomId) {
+          handleSelectRoom(data.roomId);
+        }
+      } else {
+        showToast(data.error || 'ไม่สามารถสร้างห้องได้', 'warning');
       }
     } catch (err) {
       showToast('เกิดข้อผิดพลาดในการสร้างห้อง', 'warning');
@@ -3289,6 +3296,13 @@ export function App() {
         isOpen={isCreateRoomModalOpen}
         onClose={() => setIsCreateRoomModalOpen(false)}
         onCreateRoom={handleCreateRoom}
+        existingActiveRoom={roomsList.find((r) => r.ownerId === currentUser.id)}
+        onEnterExistingRoom={(targetRoomId) => handleSelectRoom(targetRoomId)}
+        onCloseExistingRoomSuccess={() => {
+          showToast('ปิดห้องเดิมเรียบร้อยแล้ว ตอนนี้สามารถสร้างห้องใหม่ได้เลย 🎉', 'success');
+        }}
+        currentUserId={currentUser.id}
+        theme={theme}
       />
 
       <PasswordGateModal

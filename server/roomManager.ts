@@ -539,13 +539,23 @@ export class RoomManager {
     return list.sort((a, b) => b.onlineCount - a.onlineCount || b.createdAt - a.createdAt);
   }
 
+  public getActiveRoomByOwner(ownerId: string): InternalRoomData | undefined {
+    if (!ownerId) return undefined;
+    for (const room of this.rooms.values()) {
+      if (room.metadata && room.metadata.ownerId === ownerId) {
+        return room;
+      }
+    }
+    return undefined;
+  }
+
   public forceDeleteRoom(roomId: string, reason?: string): boolean {
     if (!this.rooms.has(roomId)) return false;
 
     this.broadcastToRoom(roomId, {
       type: 'ROOM_FORCE_CLOSED',
       roomId,
-      reason: reason || 'ห้องนี้ถูกปิดโดยเจ้าของเว็บ (Super Admin)',
+      reason: reason || 'ห้องนี้ถูกปิดโดยเจ้าของห้อง หรือผู้ดูแลระบบ',
     });
 
     for (const client of this.clients.values()) {
@@ -555,6 +565,11 @@ export class RoomManager {
     }
 
     this.rooms.delete(roomId);
+    this.savePersistentRooms();
+    this.broadcastToAll({
+      type: 'ROOMS_LIST',
+      rooms: this.getAllRoomSummaries(),
+    });
     return true;
   }
 
