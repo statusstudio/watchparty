@@ -190,6 +190,25 @@ export function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
+  // Lock scroll completely on Home view across all devices (Desktop, Tablet, Mobile)
+  useEffect(() => {
+    if (currentView === 'home') {
+      const preventDefaultScroll = (e: WheelEvent | TouchEvent) => {
+        const target = e.target as HTMLElement;
+        if (target && target.closest('.overflow-y-auto, .overflow-auto')) {
+          return;
+        }
+        e.preventDefault();
+      };
+      window.addEventListener('wheel', preventDefaultScroll, { passive: false });
+      window.addEventListener('touchmove', preventDefaultScroll, { passive: false });
+      return () => {
+        window.removeEventListener('wheel', preventDefaultScroll);
+        window.removeEventListener('touchmove', preventDefaultScroll);
+      };
+    }
+  }, [currentView]);
+
   // Home Directory Rooms
   const [roomsList, setRoomsList] = useState<RoomSummary[]>([]);
 
@@ -2168,9 +2187,7 @@ export function App() {
   }
 
   return (
-    <div className={`w-full min-h-screen ${theme === 'dark' ? 'bg-[#111319] text-[#e2e2ea]' : 'bg-[#faf8ff] text-[#131b2e]'} flex flex-col selection:bg-[#0075de] selection:text-white transition-colors duration-300 ${
-      currentView === 'home' ? 'overflow-visible' : 'h-[100dvh] max-h-[100dvh] overflow-hidden'
-    }`}>
+    <div className={`fixed inset-0 w-full h-[100dvh] max-h-[100dvh] overflow-hidden ${theme === 'dark' ? 'bg-[#111319] text-[#e2e2ea]' : 'bg-[#faf8ff] text-[#131b2e]'} flex flex-col selection:bg-[#0075de] selection:text-white transition-colors duration-300`}>
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
