@@ -57,6 +57,39 @@ export interface FollowRecord {
   createdAt: number;
 }
 
+export interface SocialCommentRecord {
+  id: string;
+  postId: string;
+  authorId: string;
+  authorName: string;
+  authorUsername?: string;
+  authorAvatar: string;
+  authorColor?: string;
+  content: string;
+  createdAt: number;
+}
+
+export interface SocialPostRecord {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorUsername?: string;
+  authorAvatar: string;
+  authorColor?: string;
+  content: string;
+  images?: string[];
+  songAttachment?: {
+    videoId: string;
+    title: string;
+    thumbnail: string;
+    channel?: string;
+    duration?: string;
+  };
+  likes: string[];
+  comments: SocialCommentRecord[];
+  createdAt: number;
+}
+
 interface StoreSchema {
   users: PlatformUser[];
   tickets: SupportTicket[];
@@ -66,12 +99,14 @@ interface StoreSchema {
   userAccounts?: StoredUserAccount[];
   smtpConfig?: SmtpConfig;
   follows?: FollowRecord[];
+  posts?: SocialPostRecord[];
 }
 
 export class PlatformManager {
   private users: Map<string, PlatformUser> = new Map();
   private userAccounts: Map<string, StoredUserAccount> = new Map();
   private follows: Map<string, FollowRecord> = new Map();
+  private posts: Map<string, SocialPostRecord> = new Map();
   private adminCredentials: AdminCredentials = {
     username: 'admin',
     passwordHash: emailService.hashPassword('admin888'),
@@ -213,6 +248,15 @@ export class PlatformManager {
         }
       });
     }
+
+    if (Array.isArray(data.posts)) {
+      this.posts.clear();
+      data.posts.forEach((p) => {
+        if (p && p.id) {
+          this.posts.set(p.id, p);
+        }
+      });
+    }
   }
 
   private loadStore() {
@@ -237,6 +281,7 @@ export class PlatformManager {
       topTracks: Array.from(this.topTracks.values()),
       smtpConfig: this.smtpConfig,
       follows: Array.from(this.follows.values()),
+      posts: Array.from(this.posts.values()),
     };
   }
 
@@ -356,6 +401,45 @@ export class PlatformManager {
   }
 
   private seedDefaults() {
+    // Ensure Welcome Seed Post exists if no posts yet
+    if (this.posts.size === 0) {
+      const welcomePostId = 'post_welcome_1';
+      this.posts.set(welcomePostId, {
+        id: welcomePostId,
+        authorId: 'admin',
+        authorName: 'Pleng.online Team',
+        authorUsername: 'admin',
+        authorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
+        authorColor: '#0075de',
+        content: '🎉 ยินดีต้อนรับสู่ฟีดชุมชน pleng.online! พื้นที่สำหรับคนรักเสียงเพลง แชร์โมเมนต์ โพสต์รูป และป้ายยาเพลงโปรดที่กำลังฟังอยู่ได้ที่นี่เลยครับ 🎵✨',
+        images: [
+          'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80'
+        ],
+        songAttachment: {
+          videoId: 'jfKfPfyJRdk',
+          title: 'lofi hip hop radio - beats to relax/study to',
+          thumbnail: 'https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg',
+          channel: 'Lofi Girl',
+          duration: 'LIVE'
+        },
+        likes: ['admin'],
+        comments: [
+          {
+            id: 'cmt_welcome_1',
+            postId: welcomePostId,
+            authorId: 'admin',
+            authorName: 'Pleng.online Team',
+            authorUsername: 'admin',
+            authorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
+            authorColor: '#0075de',
+            content: 'ลองกดปุ่มเปิดฟังเพลง หรือกดหัวใจทักทายกันได้นะครับ 🎧💬',
+            createdAt: Date.now() - 3600000,
+          }
+        ],
+        createdAt: Date.now() - 7200000,
+      });
+    }
+
     // Ensure Super Admin exists as user 'admin'
     if (!this.users.has('admin')) {
       this.users.set('admin', {
@@ -1703,6 +1787,148 @@ export class PlatformManager {
       serverUptimeSeconds: uptimeSeconds,
       memoryUsageMb: memUsage,
     };
+  }
+
+  // ==========================================
+  // Social Posts & Feed Methods
+  // ==========================================
+
+  public createSocialPost(data: {
+    authorId: string;
+    authorName: string;
+    authorUsername?: string;
+    authorAvatar: string;
+    authorColor?: string;
+    content: string;
+    images?: string[];
+    songAttachment?: {
+      videoId: string;
+      title: string;
+      thumbnail: string;
+      channel?: string;
+      duration?: string;
+    };
+  }): SocialPostRecord {
+    const id = 'post_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    const post: SocialPostRecord = {
+      id,
+      authorId: data.authorId,
+      authorName: data.authorName,
+      authorUsername: data.authorUsername,
+      authorAvatar: data.authorAvatar,
+      authorColor: data.authorColor || '#0075de',
+      content: data.content,
+      images: data.images || [],
+      songAttachment: data.songAttachment,
+      likes: [],
+      comments: [],
+      createdAt: Date.now(),
+    };
+    this.posts.set(id, post);
+    this.scheduleSave();
+    return post;
+  }
+
+  public getSocialPosts(options: {
+    authorId?: string;
+    currentUserId?: string;
+    hasSongOnly?: boolean;
+    limit?: number;
+  }): Array<SocialPostRecord & { likesCount: number; commentsCount: number; hasLiked: boolean }> {
+    let all = Array.from(this.posts.values()).sort((a, b) => b.createdAt - a.createdAt);
+
+    if (options.authorId) {
+      const cleanAuthor = options.authorId.replace(/^@/, '').toLowerCase();
+      all = all.filter(
+        (p) =>
+          p.authorId === options.authorId ||
+          (p.authorUsername && p.authorUsername.toLowerCase() === cleanAuthor)
+      );
+    }
+
+    if (options.hasSongOnly) {
+      all = all.filter((p) => Boolean(p.songAttachment));
+    }
+
+    if (options.limit && options.limit > 0) {
+      all = all.slice(0, options.limit);
+    }
+
+    return all.map((p) => ({
+      ...p,
+      likesCount: p.likes ? p.likes.length : 0,
+      commentsCount: p.comments ? p.comments.length : 0,
+      hasLiked: Boolean(options.currentUserId && p.likes && p.likes.includes(options.currentUserId)),
+    }));
+  }
+
+  public toggleLikeSocialPost(
+    postId: string,
+    userId: string
+  ): { success: boolean; hasLiked: boolean; likesCount: number; message?: string } {
+    const post = this.posts.get(postId);
+    if (!post) return { success: false, hasLiked: false, likesCount: 0, message: 'ไม่พบโพสต์' };
+
+    if (!Array.isArray(post.likes)) post.likes = [];
+
+    const index = post.likes.indexOf(userId);
+    let hasLiked = false;
+    if (index >= 0) {
+      post.likes.splice(index, 1);
+      hasLiked = false;
+    } else {
+      post.likes.push(userId);
+      hasLiked = true;
+    }
+
+    this.scheduleSave();
+    return { success: true, hasLiked, likesCount: post.likes.length };
+  }
+
+  public addCommentToSocialPost(
+    postId: string,
+    commentData: {
+      authorId: string;
+      authorName: string;
+      authorUsername?: string;
+      authorAvatar: string;
+      authorColor?: string;
+      content: string;
+    }
+  ): { success: boolean; comment?: SocialCommentRecord; message?: string } {
+    const post = this.posts.get(postId);
+    if (!post) return { success: false, message: 'ไม่พบโพสต์' };
+
+    if (!Array.isArray(post.comments)) post.comments = [];
+
+    const comment: SocialCommentRecord = {
+      id: 'cmt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      postId,
+      authorId: commentData.authorId,
+      authorName: commentData.authorName,
+      authorUsername: commentData.authorUsername,
+      authorAvatar: commentData.authorAvatar,
+      authorColor: commentData.authorColor || '#0075de',
+      content: commentData.content,
+      createdAt: Date.now(),
+    };
+
+    post.comments.push(comment);
+    this.scheduleSave();
+    return { success: true, comment };
+  }
+
+  public deleteSocialPost(postId: string, userId: string, isAdmin: boolean = false): boolean {
+    const post = this.posts.get(postId);
+    if (!post) return false;
+
+    if (post.authorId !== userId && !isAdmin) {
+      return false;
+    }
+
+    this.posts.delete(postId);
+    this.scheduleSave();
+    return true;
   }
 
   public getStats(roomManager: RoomManager): PlatformStats {

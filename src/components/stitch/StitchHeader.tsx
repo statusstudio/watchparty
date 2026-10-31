@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { UserProfile, RoomSummary } from '../../types/index.js';
 
 interface StitchHeaderProps {
-  currentTab: 'explore' | 'favorites' | 'popular' | 'my-rooms' | 'live-stage';
-  onTabChange: (tab: 'explore' | 'favorites' | 'popular' | 'my-rooms' | 'live-stage') => void;
+  currentTab: 'explore' | 'feed' | 'favorites' | 'popular' | 'my-rooms' | 'live-stage';
+  onTabChange: (tab: 'explore' | 'feed' | 'favorites' | 'popular' | 'my-rooms' | 'live-stage') => void;
   onOpenCreateRoom: () => void;
   onOpenRoomCodeModal: () => void;
   onOpenProfile?: () => void;
@@ -111,6 +111,17 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
             }`}
           >
             สำรวจห้อง
+          </button>
+          <button
+            onClick={() => onTabChange('feed')}
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+              currentTab === 'feed'
+                ? isLight ? 'bg-white text-[#006194] shadow-xs font-bold' : 'bg-[#282a30] text-[#00daf3] shadow-inner font-bold'
+                : isLight ? 'text-[#475569] hover:text-[#131b2e] hover:bg-white/60' : 'text-[#c1c6d5] hover:text-[#e2e2ea] hover:bg-[#1d1f26]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">dynamic_feed</span>
+            <span>ฟีดชุมชน</span>
           </button>
           <button
             onClick={() => onTabChange('favorites')}

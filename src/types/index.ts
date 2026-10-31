@@ -43,6 +43,44 @@ export interface FavoriteSong {
   createdAt: number;
 }
 
+export interface SocialComment {
+  id: string;
+  postId: string;
+  authorId: string;
+  authorName: string;
+  authorUsername?: string;
+  authorAvatar: string;
+  authorColor?: string;
+  content: string;
+  createdAt: number;
+}
+
+export interface SocialSongAttachment {
+  videoId: string;
+  title: string;
+  thumbnail: string;
+  channel?: string;
+  duration?: string;
+}
+
+export interface SocialPost {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorUsername?: string;
+  authorAvatar: string;
+  authorColor?: string;
+  content: string;
+  images?: string[];
+  songAttachment?: SocialSongAttachment;
+  likes: string[]; // userIds
+  likesCount: number;
+  hasLiked?: boolean;
+  commentsCount: number;
+  comments?: SocialComment[];
+  createdAt: number;
+}
+
 export type UserRole = 'owner' | 'admin' | 'member';
 
 export interface RoomMember {

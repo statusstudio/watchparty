@@ -65,6 +65,7 @@ import { StitchRoomStudioView } from './components/stitch/StitchRoomStudioView.j
 import { StitchLiveStageView } from './components/stitch/StitchLiveStageView.js';
 import { StitchRoomCodeModal } from './components/stitch/StitchRoomCodeModal.js';
 import { StitchMobileBottomNav } from './components/stitch/StitchMobileBottomNav.js';
+import { StitchSocialFeedView } from './components/stitch/StitchSocialFeedView.js';
 import {
   isSupabaseConfigured,
   supabase,
@@ -160,7 +161,7 @@ export function App() {
   isStealthInspectionRef.current = isStealthInspection;
   const [currentUser, setCurrentUser] = useState<UserProfile>(getStoredUser);
   const [onlineCount, setOnlineCount] = useState<number>(1);
-  const [stitchTab, setStitchTab] = useState<'explore' | 'favorites' | 'popular' | 'my-rooms' | 'live-stage'>('explore');
+  const [stitchTab, setStitchTab] = useState<'explore' | 'feed' | 'favorites' | 'popular' | 'my-rooms' | 'live-stage'>('explore');
   const [stitchSearchQuery, setStitchSearchQuery] = useState<string>('');
   const [isStitchRoomCodeModalOpen, setIsStitchRoomCodeModalOpen] = useState<boolean>(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -2455,17 +2456,34 @@ export function App() {
               onToggleTheme={toggleTheme}
             />
 
-            <StitchHomeView
-              rooms={roomsList}
-              currentUser={currentUser}
-              onSelectRoom={handleSelectRoom}
-              onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
-              onOpenRoomCodeModal={() => setIsStitchRoomCodeModalOpen(true)}
-              theme={theme}
-            />
+            {stitchTab === 'feed' ? (
+              <div className="flex-1 overflow-y-auto pt-16 sm:pt-18 pb-16 lg:pb-6">
+                <StitchSocialFeedView
+                  currentUser={currentUser}
+                  onOpenAuth={() => setIsAuthModalOpen(true)}
+                  onNavigateToPublicProfile={(handle) => {
+                    window.history.pushState({}, '', `/@${handle}`);
+                    setProfileHandleRoute(handle);
+                  }}
+                  onPlaySong={handlePlaySongFromProfile}
+                  onShowToast={showToast}
+                  myActiveRoom={roomsList.find((r) => r.ownerId === currentUser.id)}
+                  theme={theme}
+                />
+              </div>
+            ) : (
+              <StitchHomeView
+                rooms={roomsList}
+                currentUser={currentUser}
+                onSelectRoom={handleSelectRoom}
+                onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
+                onOpenRoomCodeModal={() => setIsStitchRoomCodeModalOpen(true)}
+                theme={theme}
+              />
+            )}
 
             <StitchMobileBottomNav
-              currentTab={stitchTab === 'favorites' ? 'favorites' : 'explore'}
+              currentTab={stitchTab as any}
               onTabChange={(t) => {
                 if (t === 'profile') setIsProfileModalOpen(true);
                 else if (t === 'create') setIsCreateRoomModalOpen(true);

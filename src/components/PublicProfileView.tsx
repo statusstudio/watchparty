@@ -21,8 +21,10 @@ import {
   UserPlus,
   Trash2,
   Disc,
+  MessageSquare,
+  MessageCircle,
 } from 'lucide-react';
-import { UserProfile, FavoriteSong, VideoState } from '../types/index.js';
+import { UserProfile, FavoriteSong, VideoState, SocialPost } from '../types/index.js';
 import { fetchFavorites, removeFavorite, toggleFollow } from '../services/supabase.js';
 
 interface PublicProfileData extends UserProfile {
@@ -59,7 +61,9 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedHandle, setCopiedHandle] = useState(false);
-  const [activeTab, setActiveTab] = useState<'favorites' | 'about'>('favorites');
+  const [activeTab, setActiveTab] = useState<'posts' | 'favorites' | 'about'>('posts');
+  const [userPosts, setUserPosts] = useState<SocialPost[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
@@ -116,6 +120,18 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
             })
             .finally(() => {
               if (isMounted) setLoadingFavorites(false);
+            });
+
+          // Fetch user posts
+          setLoadingPosts(true);
+          fetch(`/api/posts?authorId=${encodeURIComponent(data.id)}`)
+            .then((r) => r.json())
+            .then((pData) => {
+              if (isMounted && pData.posts) setUserPosts(pData.posts);
+            })
+            .catch(() => {})
+            .finally(() => {
+              if (isMounted) setLoadingPosts(false);
             });
         }
       })
@@ -559,6 +575,18 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
         {/* Navigation Tabs */}
         <div className="flex items-center gap-2 border-b border-[#e6e6e6] pb-2">
           <button
+            onClick={() => setActiveTab('posts')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'posts'
+                ? 'bg-[#0075de] text-white shadow-xs'
+                : 'text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4]'
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>โพสต์ ({userPosts.length})</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('favorites')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
               activeTab === 'favorites'
@@ -582,6 +610,78 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
             <span>ข้อมูลเพิ่มเติม</span>
           </button>
         </div>
+
+        {/* TAB 0: POSTS */}
+        {activeTab === 'posts' && (
+          <div className="space-y-4">
+            {loadingPosts ? (
+              <div className="text-center py-12 bg-white border border-[#e6e6e6] rounded-2xl p-6 shadow-xs">
+                <div className="w-8 h-8 rounded-full border-2 border-[#0075de]/20 border-t-[#0075de] animate-spin mx-auto mb-3" />
+                <p className="text-xs text-[#615d59]">กำลังโหลดโพสต์...</p>
+              </div>
+            ) : userPosts.length === 0 ? (
+              <div className="text-center py-12 bg-white border border-[#e6e6e6] rounded-2xl p-6 shadow-xs space-y-2">
+                <MessageSquare className="w-8 h-8 text-[#a39e98] mx-auto" />
+                <p className="text-sm font-bold text-[#000000]">ยังไม่มีโพสต์</p>
+                <p className="text-xs text-[#615d59]">ผู้ใช้นี้ยังไม่ได้โพสต์ข้อความหรือรูปภาพ</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {userPosts.map((post) => (
+                  <div key={post.id} className="bg-white border border-[#e6e6e6] rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full overflow-hidden border shrink-0" style={{ borderColor: post.authorColor || '#0075de' }}>
+                        <img src={post.authorAvatar} alt="" className="w-full h-full object-cover" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-xs sm:text-sm text-[#000000]">{post.authorName}</h4>
+                        <span className="text-[10px] text-[#a39e98]">{new Date(post.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span>
+                      </div>
+                    </div>
+                    {post.content && (
+                      <p className="text-xs sm:text-sm text-[#31302e] whitespace-pre-wrap">{post.content}</p>
+                    )}
+                    {post.images && post.images.length > 0 && (
+                      <div className="rounded-xl overflow-hidden max-h-80 bg-black/10">
+                        <img src={post.images[0]} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    {post.songAttachment && (
+                      <div className="p-3 rounded-xl bg-blue-50/80 border border-blue-100 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <img src={post.songAttachment.thumbnail} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                          <div className="min-w-0">
+                            <span className="text-[9px] font-bold text-[#0075de] uppercase">🎵 แนบเพลง</span>
+                            <p className="text-xs font-bold text-[#000000] truncate">{post.songAttachment.title}</p>
+                          </div>
+                        </div>
+                        {onPlaySong && (
+                          <button
+                            type="button"
+                            onClick={() => onPlaySong(post.songAttachment!.videoId, post.songAttachment!.title, post.songAttachment!.channel || 'YouTube')}
+                            className="px-3 py-1.5 rounded-xl bg-[#0075de] text-white text-xs font-bold shrink-0 cursor-pointer shadow-xs hover:bg-[#005bab]"
+                          >
+                            เปิดฟัง
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-4 text-xs text-[#615d59] pt-2 border-t border-[#f0f0f0]">
+                      <span className="flex items-center gap-1 font-semibold">
+                        <Heart className="w-3.5 h-3.5 text-rose-500 fill-current" />
+                        <span>{post.likesCount || (post.likes ? post.likes.length : 0)} ไลก์</span>
+                      </span>
+                      <span className="flex items-center gap-1 font-semibold">
+                        <MessageCircle className="w-3.5 h-3.5 text-[#0075de]" />
+                        <span>{post.commentsCount || (post.comments ? post.comments.length : 0)} ความคิดเห็น</span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* TAB 1: FAVORITE SONGS */}
         {activeTab === 'favorites' && (

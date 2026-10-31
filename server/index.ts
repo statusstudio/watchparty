@@ -1128,6 +1128,165 @@ async function startServer() {
     res.json({ success: true, favorites: updated });
   });
 
+  // ==========================================
+  // Social Posts & Community Feed Endpoints
+  // ==========================================
+
+  app.get('/api/posts', (req, res) => {
+    try {
+      const authorId = (req.query.authorId as string) || undefined;
+      const currentUserId = (req.query.currentUserId as string) || undefined;
+      const hasSongOnly = req.query.hasSongOnly === 'true';
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+
+      const posts = platformManager.getSocialPosts({
+        authorId,
+        currentUserId,
+        hasSongOnly,
+        limit,
+      });
+
+      res.json({ success: true, posts });
+    } catch (err: any) {
+      console.error('Error fetching social posts:', err);
+      res.status(500).json({ error: 'Failed to fetch posts' });
+    }
+  });
+
+  app.post('/api/posts', (req, res) => {
+    try {
+      const {
+        authorId,
+        authorName,
+        authorUsername,
+        authorAvatar,
+        authorColor,
+        content,
+        images,
+        songAttachment,
+      } = req.body;
+
+      if (!authorId || !content || !content.trim()) {
+        return res.status(400).json({ error: 'authorId and content are required' });
+      }
+
+      const post = platformManager.createSocialPost({
+        authorId,
+        authorName: authorName || 'ผู้ฟังเพลง',
+        authorUsername,
+        authorAvatar: authorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
+        authorColor,
+        content: content.trim(),
+        images,
+        songAttachment,
+      });
+
+      roomManager.broadcastToAll({
+        type: 'SOCIAL_NEW_POST',
+        post: {
+          ...post,
+          likesCount: 0,
+          commentsCount: 0,
+          hasLiked: false,
+        },
+      });
+
+      res.json({ success: true, post });
+    } catch (err: any) {
+      console.error('Error creating social post:', err);
+      res.status(500).json({ error: 'Failed to create post' });
+    }
+  });
+
+  app.post('/api/posts/:id/like', (req, res) => {
+    try {
+      const postId = req.params.id;
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: 'userId is required' });
+      }
+
+      const result = platformManager.toggleLikeSocialPost(postId, userId);
+      if (!result.success) {
+        return res.status(404).json({ error: result.message || 'Post not found' });
+      }
+
+      roomManager.broadcastToAll({
+        type: 'SOCIAL_POST_LIKED',
+        postId,
+        likesCount: result.likesCount,
+        userId,
+        hasLiked: result.hasLiked,
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      console.error('Error liking post:', err);
+      res.status(500).json({ error: 'Failed to like post' });
+    }
+  });
+
+  app.post('/api/posts/:id/comments', (req, res) => {
+    try {
+      const postId = req.params.id;
+      const { authorId, authorName, authorUsername, authorAvatar, authorColor, content } = req.body;
+      if (!authorId || !content || !content.trim()) {
+        return res.status(400).json({ error: 'authorId and content are required' });
+      }
+
+      const result = platformManager.addCommentToSocialPost(postId, {
+        authorId,
+        authorName: authorName || 'ผู้ฟังเพลง',
+        authorUsername,
+        authorAvatar: authorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
+        authorColor,
+        content: content.trim(),
+      });
+
+      if (!result.success || !result.comment) {
+        return res.status(404).json({ error: result.message || 'Failed to add comment' });
+      }
+
+      roomManager.broadcastToAll({
+        type: 'SOCIAL_NEW_COMMENT',
+        postId,
+        comment: result.comment,
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      console.error('Error adding comment:', err);
+      res.status(500).json({ error: 'Failed to add comment' });
+    }
+  });
+
+  app.delete('/api/posts/:id', (req, res) => {
+    try {
+      const postId = req.params.id;
+      const userId = (req.query.userId as string) || (req.body.userId as string);
+      const isAdmin = req.query.isAdmin === 'true' || req.body.isAdmin === true;
+
+      if (!userId) {
+        return res.status(400).json({ error: 'userId is required' });
+      }
+
+      const success = platformManager.deleteSocialPost(postId, userId, isAdmin);
+      if (!success) {
+        return res.status(403).json({ error: 'Cannot delete post' });
+      }
+
+      roomManager.broadcastToAll({
+        type: 'SOCIAL_POST_DELETED',
+        postId,
+      });
+
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error('Error deleting post:', err);
+      res.status(500).json({ error: 'Failed to delete post' });
+    }
+  });
+
   // Get All Rooms Detailed (for Super Admin)
   app.get('/api/platform/rooms', (req, res) => {
     res.json(roomManager.getAllRoomsAdmin());

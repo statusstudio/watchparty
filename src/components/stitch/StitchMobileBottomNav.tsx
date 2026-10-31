@@ -1,8 +1,8 @@
 import React from 'react';
 
 interface StitchMobileBottomNavProps {
-  currentTab: 'explore' | 'favorites' | 'create' | 'live-stage' | 'profile';
-  onTabChange: (tab: 'explore' | 'favorites' | 'create' | 'live-stage' | 'profile') => void;
+  currentTab: 'explore' | 'feed' | 'favorites' | 'create' | 'live-stage' | 'profile';
+  onTabChange: (tab: 'explore' | 'feed' | 'favorites' | 'create' | 'live-stage' | 'profile') => void;
   onOpenCreateRoom: () => void;
   onOpenProfile: () => void;
   theme?: 'dark' | 'light';
@@ -40,7 +40,26 @@ export const StitchMobileBottomNav: React.FC<StitchMobileBottomNavProps> = ({
         )}
       </button>
 
-      {/* 2. Favorites */}
+      {/* 2. Community Feed */}
+      <button
+        type="button"
+        onClick={() => onTabChange('feed')}
+        className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1 transition-all cursor-pointer relative ${
+          currentTab === 'feed'
+            ? isLight ? 'text-[#006194] font-bold' : 'text-[#00daf3] font-bold'
+            : isLight ? 'text-[#707881]' : 'text-[#94A3B8]'
+        }`}
+      >
+        <span className="material-symbols-outlined text-[22px]">dynamic_feed</span>
+        <span className="text-[10px] font-semibold">ฟีดชุมชน</span>
+        {currentTab === 'feed' && (
+          <span className={`w-1 h-1 rounded-full absolute -bottom-0.5 ${
+            isLight ? 'bg-[#006194]' : 'bg-[#00daf3]'
+          }`} />
+        )}
+      </button>
+
+      {/* 3. Favorites */}
       <button
         type="button"
         onClick={() => onTabChange('favorites')}
