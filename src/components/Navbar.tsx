@@ -198,7 +198,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           className="cursor-pointer group shrink-0 focus:outline-none flex items-center select-none"
           title={currentView === 'room' ? 'ย่อห้องปาร์ตี้ไว้มุมล่างซ้าย (ไปหน้าหลัก)' : 'pleng.online - หน้าหลัก'}
         >
-          <PlengLogo size="sm" animated={true} />
+          <PlengLogo size="sm" showText={false} animated={true} />
         </button>
 
         {/* If inside a Room: Room Badge & Desktop Invite */}
