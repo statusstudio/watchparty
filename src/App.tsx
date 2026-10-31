@@ -3186,6 +3186,7 @@ export function App() {
             }
           }}
           onLeaveRoom={handleLeaveRoom}
+          theme={theme}
         />
       )}
 
