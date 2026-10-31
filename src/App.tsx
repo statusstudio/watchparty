@@ -2152,11 +2152,28 @@ export function App() {
             handleSelectRoom(targetRoomId);
           }}
           onOpenEditProfile={() => {
-            setSelectedUserForProfile(currentUser);
-            setIsUserProfileModalOpen(true);
+            setIsProfileModalOpen(true);
           }}
           onPlaySong={handlePlaySongFromProfile}
           onShowToast={showToast}
+        />
+        <ProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          currentUser={currentUser}
+          onSave={(updated) => {
+            handleSaveProfile(updated);
+            if (updated.username && updated.username !== profileHandleRoute) {
+              window.history.replaceState({}, '', `/@${updated.username}`);
+              setProfileHandleRoute(updated.username);
+            }
+          }}
+          onAddToPlaylist={handleAddToPlaylist}
+          onPlayNow={handleVideoChange}
+          onOpenSupport={() => setIsSupportModalOpen(true)}
+          onShowToast={showToast}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onLogout={handleLogout}
         />
         <UserProfileModal
           isOpen={isUserProfileModalOpen}

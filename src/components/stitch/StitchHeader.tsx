@@ -244,28 +244,26 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
                   onOpenProfile();
                 }
               }}
-              className={`flex items-center gap-1.5 sm:gap-2 p-1 sm:pr-2.5 rounded-full border transition-all cursor-pointer shadow-xs hover:scale-105 active:scale-95 ${
+              className={`flex items-center gap-1.5 sm:gap-2 p-1 rounded-full border transition-all cursor-pointer shadow-xs hover:scale-105 active:scale-95 ${
                 isLight
                   ? 'bg-white border-[#dae2fd] text-[#131b2e] hover:border-[#0075de]/40'
                   : 'bg-[#191b22] border-white/10 text-[#e2e2ea] hover:border-[#00daf3]/40'
               }`}
               title={currentUser?.provider && currentUser.provider !== 'guest' ? `จัดการบัญชี: ${currentUser.name}` : 'โปรไฟล์ของฉัน'}
             >
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden shrink-0 relative bg-zinc-200 dark:bg-zinc-800">
+              <div
+                className="w-8 h-8 rounded-full overflow-hidden shrink-0 border-2 shadow-xs bg-zinc-200 dark:bg-zinc-800"
+                style={{ borderColor: currentUser?.color || "#0075de" }}
+              >
                 {currentUser?.avatar ? (
                   <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   <span className="material-symbols-outlined text-[18px]">person</span>
                 )}
-                {currentUser?.provider === 'google' && (
-                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-white flex items-center justify-center shadow-xs">
-                    <span className="w-2 h-2 rounded-full bg-[#4285F4]" />
-                  </span>
-                )}
               </div>
 
               {currentUser?.provider && currentUser.provider !== 'guest' && (
-                <div className="hidden xs:flex items-center gap-1 min-w-0 pr-1">
+                <div className="hidden xs:flex items-center gap-1 min-w-0 pr-2">
                   <span className="text-xs font-bold truncate max-w-[90px] sm:max-w-[120px]">
                     {currentUser.name}
                   </span>
@@ -297,11 +295,6 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
                       style={{ borderColor: currentUser.color || '#0075de' }}
                     >
                       <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
-                      {currentUser.provider === 'google' && (
-                        <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-white flex items-center justify-center shadow-xs">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#4285F4]" />
-                        </span>
-                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
