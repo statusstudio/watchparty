@@ -98,20 +98,71 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const isMember = currentUser.provider === 'email' || currentUser.provider === 'google';
 
-  // Handle Google Sign In
+  // Google OAuth Client ID provided by user
+  const GOOGLE_CLIENT_ID = '165899640178-luq7cv4bes1vn0dv3dmlhkelbn46rhjs.apps.googleusercontent.com';
+
+  // Handle Real Google OAuth Sign In
   const handleGoogleSignIn = async () => {
     setErrorMessage(null);
     setIsLoading(true);
 
     try {
-      const configRes = await fetch('/api/auth/config').catch(() => null);
-      const configData = configRes && configRes.ok ? await configRes.json() : null;
-      const clientId = configData?.googleClientId;
+      // 1. Google OAuth 2.0 Popup via initTokenClient (Official Google Account Chooser Popup)
+      if (typeof (window as any).google !== 'undefined' && (window as any).google.accounts?.oauth2) {
+        const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: 'email profile openid',
+          callback: async (tokenResponse: any) => {
+            if (tokenResponse.error) {
+              setIsLoading(false);
+              setErrorMessage('การเข้าสู่ระบบ Google ถูกยกเลิก: ' + (tokenResponse.error_description || tokenResponse.error));
+              return;
+            }
+            if (tokenResponse && tokenResponse.access_token) {
+              try {
+                // Fetch verified profile directly from Google
+                const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
+                const userInfo = await userInfoRes.json();
+                if (userInfo && userInfo.email) {
+                  const res = await fetch('/api/auth/google', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      email: userInfo.email,
+                      name: userInfo.name || userInfo.email.split('@')[0],
+                      picture: userInfo.picture,
+                      googleId: userInfo.sub,
+                    }),
+                  });
+                  const data = await res.json();
+                  if (res.ok && data.success && data.user) {
+                    onLoginSuccess(data.user);
+                    onClose();
+                  } else {
+                    setErrorMessage(data.error || 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ');
+                  }
+                } else {
+                  setErrorMessage('ไม่สามารถรับข้อมูลโปรไฟล์จาก Google ได้');
+                }
+              } catch (err) {
+                setErrorMessage('เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์กับ Google');
+              } finally {
+                setIsLoading(false);
+              }
+            }
+          },
+        });
+        tokenClient.requestAccessToken();
+        setIsLoading(false);
+        return;
+      }
 
-      // If Google Identity Services script is available and client ID is configured
-      if (typeof (window as any).google !== 'undefined' && (window as any).google.accounts?.id && clientId) {
+      // 2. Fallback to Google ID Token One Tap prompt
+      if (typeof (window as any).google !== 'undefined' && (window as any).google.accounts?.id) {
         (window as any).google.accounts.id.initialize({
-          client_id: clientId,
+          client_id: GOOGLE_CLIENT_ID,
           callback: async (response: any) => {
             if (response.credential) {
               const res = await fetch('/api/auth/google', {
@@ -134,7 +185,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
 
-      // If Client ID is not provisioned or prompt dismissed, open friendly Google Account dialog
+      // 3. Fallback dialog if SDK fails to load
       setShowGoogleDialog(true);
       setIsLoading(false);
     } catch (err) {
