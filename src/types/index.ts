@@ -98,6 +98,12 @@ export interface DirectMessage {
     roomName: string;
     thumbnail?: string;
   };
+  callInfo?: {
+    callId: string;
+    status: 'missed' | 'declined' | 'completed';
+    durationSeconds?: number;
+    isVideo?: boolean;
+  };
   createdAt: number;
   read: boolean;
 }
@@ -359,7 +365,13 @@ export type WSClientMessage =
   | { type: 'GAME_DRAW_STROKE'; stroke: DrawStroke }
   | { type: 'GAME_CLEAR_CANVAS' }
   | { type: 'GAME_GUESS'; guess: string }
-  | { type: 'SET_ROOM_ANNOUNCEMENT'; announcement: string };
+  | { type: 'SET_ROOM_ANNOUNCEMENT'; announcement: string }
+  | { type: 'REGISTER_USER'; user: UserProfile }
+  | { type: 'CALL_INVITE'; callId: string; targetUserId: string; caller: UserProfile; isVideo?: boolean }
+  | { type: 'CALL_ACCEPT'; callId: string; targetUserId: string; user: UserProfile }
+  | { type: 'CALL_REJECT'; callId: string; targetUserId: string; reason?: string }
+  | { type: 'CALL_END'; callId: string; targetUserId: string }
+  | { type: 'CALL_SIGNAL'; callId: string; targetUserId: string; senderId: string; data: any };
 
 export type WSServerMessage =
   | { type: 'ROOMS_LIST'; rooms: RoomSummary[] }
@@ -393,7 +405,12 @@ export type WSServerMessage =
   | { type: 'GAME_CLEAR_CANVAS' }
   | { type: 'GAME_GUESSED_CORRECT'; userId: string; userName: string; points: number }
   | { type: 'DM_NEW_MESSAGE'; message: DirectMessage }
-  | { type: 'DM_CONVERSATION_READ'; readerId: string; partnerId: string };
+  | { type: 'DM_CONVERSATION_READ'; readerId: string; partnerId: string }
+  | { type: 'CALL_INCOMING'; callId: string; caller: UserProfile; isVideo?: boolean }
+  | { type: 'CALL_ACCEPTED'; callId: string; user: UserProfile }
+  | { type: 'CALL_REJECTED'; callId: string; reason?: string }
+  | { type: 'CALL_ENDED'; callId: string }
+  | { type: 'CALL_SIGNAL'; callId: string; senderId: string; data: any };
 
 // Platform Owner & Super Admin Types
 export interface PlatformUser {

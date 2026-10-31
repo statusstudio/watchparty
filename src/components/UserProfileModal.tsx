@@ -26,6 +26,7 @@ import {
   AlertCircle,
   CheckCircle2,
   MessageCircle,
+  Phone,
 } from 'lucide-react';
 import { UserProfile, FavoriteSong } from '../types/index.js';
 import { PRESET_AVATARS, COLOR_PALETTE } from '../data/presets.js';
@@ -49,6 +50,7 @@ interface UserProfileModalProps {
   onLogout?: () => void;
   onOpenEditProfile?: () => void;
   onStartDM?: (user: { id: string; name: string; username?: string; avatar: string; color?: string }) => void;
+  onStartCall?: (user: { id: string; name: string; username?: string; avatar: string; color?: string }, isVideo: boolean) => void;
 }
 
 const AVAILABLE_GENRES = [
@@ -85,6 +87,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onLogout,
   onOpenEditProfile,
   onStartDM,
+  onStartCall,
 }) => {
   const [activeTab, setActiveTab] = useState<'favorites' | 'about' | 'edit'>('favorites');
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -450,6 +453,29 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 </>
               ) : (
                 <div className="flex items-center gap-2">
+                  {onStartCall && displayUser && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onStartCall(
+                          {
+                            id: displayUser.id,
+                            name: displayUser.name,
+                            username: displayUser.username,
+                            avatar: displayUser.avatar,
+                            color: displayUser.color,
+                          },
+                          false
+                        );
+                      }}
+                      className="px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 transition-all cursor-pointer shadow-xs active:scale-95"
+                      title="โทรด้วยเสียง (Voice Call)"
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                      <span>โทร</span>
+                    </button>
+                  )}
                   {onStartDM && displayUser && (
                     <button
                       type="button"

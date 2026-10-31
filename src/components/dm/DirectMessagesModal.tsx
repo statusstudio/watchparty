@@ -14,6 +14,8 @@ import {
   MessageCircle,
   Plus,
   Loader2,
+  Phone,
+  Video,
 } from 'lucide-react';
 import { UserProfile, DirectMessage, ConversationSummary } from '../../types/index.js';
 import { socketService } from '../../services/socket.js';
@@ -33,6 +35,7 @@ interface DirectMessagesModalProps {
   currentRoomName?: string | null;
   onJoinRoom?: (roomId: string) => void;
   onNavigateToProfile?: (usernameOrId: string) => void;
+  onStartCall?: (partner: { id: string; name: string; username?: string; avatar: string; color?: string }, isVideo: boolean) => void;
 }
 
 export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({
@@ -44,6 +47,7 @@ export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({
   currentRoomName,
   onJoinRoom,
   onNavigateToProfile,
+  onStartCall,
 }) => {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [activePartner, setActivePartner] = useState<{
@@ -500,7 +504,30 @@ export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    {onStartCall && (
+                      <>
+                        <button
+                          onClick={() => {
+                            onStartCall(activePartner, false);
+                          }}
+                          className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-colors"
+                          title="โทรด้วยเสียง (Voice Call)"
+                        >
+                          <Phone className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            onStartCall(activePartner, true);
+                          }}
+                          className="p-2 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 border border-pink-500/30 transition-colors"
+                          title="วิดีโอคอล (Video Call)"
+                        >
+                          <Video className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+
                     {onNavigateToProfile && activePartner.username && (
                       <button
                         onClick={() => {
@@ -595,6 +622,49 @@ export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({
                                   >
                                     <span>เข้าร่วมห้องนี้</span>
                                     <ExternalLink className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Call Log Card */}
+                            {m.callInfo && (
+                              <div className="flex items-center gap-3 py-1 px-1">
+                                <div
+                                  className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                    m.callInfo.status === 'completed'
+                                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                      : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                  }`}
+                                >
+                                  {m.callInfo.isVideo ? (
+                                    <Video className="w-4 h-4" />
+                                  ) : (
+                                    <Phone className="w-4 h-4" />
+                                  )}
+                                </div>
+                                <div className="text-left min-w-0">
+                                  <p className="text-xs font-bold leading-tight">
+                                    {m.callInfo.status === 'completed'
+                                      ? `การโทร${m.callInfo.isVideo ? 'วิดีโอ' : 'ด้วยเสียง'}`
+                                      : 'สายที่ไม่ได้รับ'}
+                                  </p>
+                                  <p className="text-[10px] text-white/60 mt-0.5">
+                                    {m.callInfo.status === 'completed' && m.callInfo.durationSeconds
+                                      ? `${Math.floor(m.callInfo.durationSeconds / 60)}:${(
+                                          m.callInfo.durationSeconds % 60
+                                        )
+                                          .toString()
+                                          .padStart(2, '0')} นาที`
+                                      : 'ไม่ได้เชื่อมต่อ'}
+                                  </p>
+                                </div>
+                                {onStartCall && !isMe && (
+                                  <button
+                                    onClick={() => onStartCall(activePartner, !!m.callInfo?.isVideo)}
+                                    className="ml-auto px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[10px] font-semibold text-white transition-colors"
+                                  >
+                                    โทรกลับ
                                   </button>
                                 )}
                               </div>

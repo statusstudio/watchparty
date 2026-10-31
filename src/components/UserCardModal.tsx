@@ -14,6 +14,7 @@ import {
   Check,
   Headphones,
   MessageCircle,
+  Phone,
 } from 'lucide-react';
 import { UserProfile } from '../types/index.js';
 import { fetchProfile, toggleFollow } from '../services/supabase.js';
@@ -26,6 +27,7 @@ interface UserCardModalProps {
   onViewFullProfile: (user: UserProfile) => void;
   onOpenAuth?: () => void;
   onStartDM?: (user: { id: string; name: string; username?: string; avatar: string; color?: string }) => void;
+  onStartCall?: (user: { id: string; name: string; username?: string; avatar: string; color?: string }, isVideo: boolean) => void;
 }
 
 export const UserCardModal: React.FC<UserCardModalProps> = ({
@@ -36,6 +38,7 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
   onViewFullProfile,
   onOpenAuth,
   onStartDM,
+  onStartCall,
 }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -279,6 +282,30 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
 
           {/* View Full Profile & Card Buttons */}
           <div className="flex items-center gap-2 pt-1">
+            {onStartCall && !isSelf && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onStartCall(
+                    {
+                      id: displayUser.id,
+                      name: displayUser.name,
+                      username: userHandle,
+                      avatar: displayUser.avatar,
+                      color: displayUser.color,
+                    },
+                    false
+                  );
+                }}
+                className="py-2.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-98"
+                title="โทรด้วยเสียง (Voice Call)"
+              >
+                <Phone className="w-3.5 h-3.5" />
+                <span>โทร</span>
+              </button>
+            )}
+
             {onStartDM && !isSelf && (
               <button
                 type="button"

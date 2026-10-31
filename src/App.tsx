@@ -67,6 +67,7 @@ import { StitchRoomCodeModal } from './components/stitch/StitchRoomCodeModal.js'
 import { StitchMobileBottomNav } from './components/stitch/StitchMobileBottomNav.js';
 import { StitchSocialFeedView } from './components/stitch/StitchSocialFeedView.js';
 import { DirectMessagesModal } from './components/dm/DirectMessagesModal.js';
+import { DirectCallModal } from './components/call/DirectCallModal.js';
 import {
   isSupabaseConfigured,
   supabase,
@@ -420,6 +421,19 @@ export function App() {
     color?: string;
   } | null>(null);
   const [unreadDmCount, setUnreadDmCount] = useState<number>(0);
+
+  // Direct Call State (Phase 3)
+  const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
+  const [isIncomingCall, setIsIncomingCall] = useState(false);
+  const [callPartner, setCallPartner] = useState<{
+    id: string;
+    name: string;
+    username?: string;
+    avatar: string;
+    color?: string;
+  } | null>(null);
+  const [callIsVideo, setCallIsVideo] = useState(false);
   const [isUserCardModalOpen, setIsUserCardModalOpen] = useState(false);
   const [selectedUserForCard, setSelectedUserForCard] = useState<UserProfile | null>(null);
   const [isVideoFavorite, setIsVideoFavorite] = useState(false);
@@ -1096,6 +1110,14 @@ export function App() {
       } else {
         socketService.send({ type: 'GET_ROOMS' });
       }
+
+      // Register presence for direct calls & messages
+      if (currentUserRef.current) {
+        socketService.send({
+          type: 'REGISTER_USER',
+          user: currentUserRef.current,
+        });
+      }
     });
 
     socketService.connect();
@@ -1109,6 +1131,17 @@ export function App() {
 
     const unsubscribe = socketService.subscribe((msg: WSServerMessage) => {
       switch (msg.type) {
+        case 'CALL_INCOMING': {
+          if (currentUserRef.current?.id) {
+            setActiveCallId(msg.callId);
+            setCallPartner(msg.caller);
+            setIsIncomingCall(true);
+            setCallIsVideo(!!msg.isVideo);
+            setIsCallModalOpen(true);
+          }
+          break;
+        }
+
         case 'DM_NEW_MESSAGE': {
           const dm = (msg as any).message;
           if (dm && dm.recipientId === currentUserRef.current?.id) {
@@ -1734,6 +1767,61 @@ export function App() {
     []
   );
 
+  const handleStartCall = useCallback(
+    (
+      partner: { id: string; name: string; username?: string; avatar: string; color?: string },
+      isVideo: boolean = false
+    ) => {
+      if (!currentUser?.id || currentUser.provider === 'guest') {
+        showToast('กรุณาเข้าสู่ระบบก่อนเริ่มการโทร 🔒', 'warning');
+        return;
+      }
+      const callId = `call_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      setActiveCallId(callId);
+      setCallPartner(partner);
+      setIsIncomingCall(false);
+      setCallIsVideo(isVideo);
+      setIsCallModalOpen(true);
+    },
+    [currentUser?.id, currentUser?.provider, showToast]
+  );
+
+  const handleCallEnded = useCallback(
+    async (
+      partnerId: string,
+      durationSeconds: number,
+      status: 'completed' | 'missed' | 'declined'
+    ) => {
+      if (!currentUser?.id) return;
+      try {
+        await fetch('/api/dm/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            senderId: currentUser.id,
+            senderName: currentUser.name,
+            senderAvatar: currentUser.avatar,
+            senderColor: currentUser.color,
+            recipientId: partnerId,
+            recipientName: callPartner?.name || 'เพื่อน',
+            recipientAvatar: callPartner?.avatar || '',
+            recipientColor: callPartner?.color,
+            text: '',
+            callInfo: {
+              callId: activeCallId || '',
+              status,
+              durationSeconds,
+              isVideo: callIsVideo,
+            },
+          }),
+        });
+      } catch (err) {
+        console.error('Failed to log call in DM:', err);
+      }
+    },
+    [currentUser, callPartner, activeCallId, callIsVideo]
+  );
+
   const fetchUnreadDmCount = useCallback(async () => {
     if (!currentUser?.id || currentUser.provider === 'guest') return;
     try {
@@ -2210,6 +2298,7 @@ export function App() {
           onPlaySong={handlePlaySongFromProfile}
           onShowToast={showToast}
           onStartDM={handleStartDM}
+          onStartCall={handleStartCall}
         />
         <ProfileModal
           isOpen={isProfileModalOpen}
@@ -2247,6 +2336,7 @@ export function App() {
           onLogout={handleLogout}
           onOpenEditProfile={() => setIsProfileModalOpen(true)}
           onStartDM={handleStartDM}
+          onStartCall={handleStartCall}
         />
         <DirectMessagesModal
           isOpen={isDMModalOpen}
@@ -2268,6 +2358,22 @@ export function App() {
             window.history.pushState({}, '', `/@${handle}`);
             setProfileHandleRoute(handle);
           }}
+          onStartCall={handleStartCall}
+        />
+        <DirectCallModal
+          isOpen={isCallModalOpen}
+          callId={activeCallId}
+          isIncoming={isIncomingCall}
+          caller={callPartner as any}
+          partner={callPartner}
+          currentUser={currentUser}
+          initialVideo={callIsVideo}
+          onClose={() => {
+            setIsCallModalOpen(false);
+            setActiveCallId(null);
+            setCallPartner(null);
+          }}
+          onCallEnded={handleCallEnded}
         />
         <AuthModal
           isOpen={isAuthModalOpen}
@@ -3369,6 +3475,7 @@ export function App() {
         onLogout={handleLogout}
         onOpenEditProfile={() => setIsProfileModalOpen(true)}
         onStartDM={handleStartDM}
+        onStartCall={handleStartCall}
       />
 
       <UserCardModal
@@ -3385,6 +3492,7 @@ export function App() {
           setIsAuthModalOpen(true);
         }}
         onStartDM={handleStartDM}
+        onStartCall={handleStartCall}
       />
 
       <ProfileModal
@@ -3589,6 +3697,24 @@ export function App() {
           window.history.pushState({}, '', `/@${handle}`);
           setProfileHandleRoute(handle);
         }}
+        onStartCall={handleStartCall}
+      />
+
+      {/* Direct Call Modal (Phase 3) */}
+      <DirectCallModal
+        isOpen={isCallModalOpen}
+        callId={activeCallId}
+        isIncoming={isIncomingCall}
+        caller={callPartner as any}
+        partner={callPartner}
+        currentUser={currentUser}
+        initialVideo={callIsVideo}
+        onClose={() => {
+          setIsCallModalOpen(false);
+          setActiveCallId(null);
+          setCallPartner(null);
+        }}
+        onCallEnded={handleCallEnded}
       />
 
       {/* Global Ad Popup for Website Visitors */}

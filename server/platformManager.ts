@@ -109,6 +109,12 @@ export interface DirectMessageRecord {
     roomName: string;
     thumbnail?: string;
   };
+  callInfo?: {
+    callId: string;
+    status: 'missed' | 'declined' | 'completed';
+    durationSeconds?: number;
+    isVideo?: boolean;
+  };
   createdAt: number;
   read: boolean;
 }
@@ -1986,6 +1992,12 @@ export class PlatformManager {
       roomName: string;
       thumbnail?: string;
     };
+    callInfo?: {
+      callId: string;
+      status: 'missed' | 'declined' | 'completed';
+      durationSeconds?: number;
+      isVideo?: boolean;
+    };
   }): DirectMessageRecord {
     const id = 'dm_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
     const dm: DirectMessageRecord = {
@@ -2001,6 +2013,7 @@ export class PlatformManager {
       text: data.text || '',
       imageUrl: data.imageUrl,
       roomInvite: data.roomInvite,
+      callInfo: data.callInfo,
       createdAt: Date.now(),
       read: false,
     };
@@ -2098,6 +2111,19 @@ export class PlatformManager {
       if (!lastMsgText) {
         if (data.lastMessage.imageUrl) lastMsgText = '📷 ส่งรูปภาพ';
         else if (data.lastMessage.roomInvite) lastMsgText = '🎵 ชวนเข้าห้องปาร์ตี้';
+        else if (data.lastMessage.callInfo) {
+          const st = data.lastMessage.callInfo.status;
+          if (st === 'completed') {
+            const sec = data.lastMessage.callInfo.durationSeconds || 0;
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            lastMsgText = `📞 การโทร (${m}:${s < 10 ? '0' : ''}${s} นาที)`;
+          } else if (st === 'missed') {
+            lastMsgText = '📞 สายที่ไม่ได้รับ';
+          } else {
+            lastMsgText = '📞 ไม่ได้รับสาย';
+          }
+        }
       }
 
       result.push({

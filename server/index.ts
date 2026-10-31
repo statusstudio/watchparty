@@ -1749,6 +1749,47 @@ async function startServer() {
           case 'SET_ROOM_ANNOUNCEMENT':
             roomManager.handleSetRoomAnnouncement(ws, msg.announcement);
             break;
+          case 'REGISTER_USER':
+            if (msg.user) {
+              roomManager.pendingUsers.set(ws, msg.user);
+            }
+            break;
+          case 'CALL_INVITE':
+            roomManager.sendToUser(msg.targetUserId, {
+              type: 'CALL_INCOMING',
+              callId: msg.callId,
+              caller: msg.caller,
+              isVideo: msg.isVideo,
+            });
+            break;
+          case 'CALL_ACCEPT':
+            roomManager.sendToUser(msg.targetUserId, {
+              type: 'CALL_ACCEPTED',
+              callId: msg.callId,
+              user: msg.user,
+            });
+            break;
+          case 'CALL_REJECT':
+            roomManager.sendToUser(msg.targetUserId, {
+              type: 'CALL_REJECTED',
+              callId: msg.callId,
+              reason: msg.reason || 'declined',
+            });
+            break;
+          case 'CALL_END':
+            roomManager.sendToUser(msg.targetUserId, {
+              type: 'CALL_ENDED',
+              callId: msg.callId,
+            });
+            break;
+          case 'CALL_SIGNAL':
+            roomManager.sendToUser(msg.targetUserId, {
+              type: 'CALL_SIGNAL',
+              callId: msg.callId,
+              senderId: msg.senderId,
+              data: msg.data,
+            });
+            break;
           default:
             break;
         }

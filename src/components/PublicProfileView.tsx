@@ -23,6 +23,7 @@ import {
   Disc,
   MessageSquare,
   MessageCircle,
+  Phone,
 } from 'lucide-react';
 import { UserProfile, FavoriteSong, VideoState, SocialPost } from '../types/index.js';
 import { fetchFavorites, removeFavorite, toggleFollow } from '../services/supabase.js';
@@ -44,6 +45,7 @@ interface PublicProfileViewProps {
   onPlaySong?: (videoId: string, title?: string, channel?: string) => void;
   onShowToast: (msg: string, type?: 'info' | 'success' | 'warning') => void;
   onStartDM?: (user: { id: string; name: string; username?: string; avatar: string; color?: string }) => void;
+  onStartCall?: (user: { id: string; name: string; username?: string; avatar: string; color?: string }, isVideo: boolean) => void;
 }
 
 export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
@@ -55,6 +57,7 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
   onPlaySong,
   onShowToast,
   onStartDM,
+  onStartCall,
 }) => {
   const [profile, setProfile] = useState<PublicProfileData | null>(null);
   const [favorites, setFavorites] = useState<FavoriteSong[]>([]);
@@ -353,6 +356,30 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
 
                 {!isOwnProfile ? (
                   <div className="flex items-center gap-2">
+                    {onStartCall && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (profile) {
+                            onStartCall(
+                              {
+                                id: profile.id,
+                                name: profile.name,
+                                username: profile.username,
+                                avatar: profile.avatar,
+                                color: profile.color,
+                              },
+                              false
+                            );
+                          }
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+                        title="โทรด้วยเสียง (Voice Call)"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>โทร</span>
+                      </button>
+                    )}
                     {onStartDM && (
                       <button
                         type="button"
