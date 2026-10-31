@@ -418,4 +418,161 @@ html.dark option {
   color: #e2e2ea !important;
 }
 
+/* ========================================================
+   REMOTION-INSPIRED MOTION & CINEMATIC ANIMATIONS
+   ======================================================== */
+@keyframes remotionVinylSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes remotionEqualizer {
+  0%, 100% {
+    height: 15%;
+    opacity: 0.5;
+  }
+  50% {
+    height: 95%;
+    opacity: 1;
+  }
+}
+
+@keyframes remotionFloatNote {
+  0% {
+    transform: translateY(0px) rotate(0deg) scale(0.8);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  80% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-90px) rotate(18deg) scale(1.15);
+    opacity: 0;
+  }
+}
+
+@keyframes remotionAuraPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.75;
+  }
+}
+
+@keyframes remotionShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes remotionRipple {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.animate-vinyl-spin {
+  animation: remotionVinylSpin 16s linear infinite;
+}
+
+.animate-vinyl-spin-fast {
+  animation: remotionVinylSpin 6s linear infinite;
+}
+
+.animate-aura-pulse {
+  animation: remotionAuraPulse 4s ease-in-out infinite;
+}
+
+.animate-ripple-pulse {
+  animation: remotionRipple 2.5s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+.shimmer-gradient-text {
+  background: linear-gradient(90deg, #d5e3ff 0%, #00daf3 25%, #ffffff 50%, #0075de 75%, #d5e3ff 100%);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: remotionShimmer 6s linear infinite;
+}
+
+.shimmer-gradient-light-text {
+  background: linear-gradient(90deg, #006194 0%, #0284c7 25%, #002e60 50%, #0075de 75%, #006194 100%);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: remotionShimmer 6s linear infinite;
+}
+
+/* Vinyl concentric groove styling */
+.vinyl-grooves {
+  background: radial-gradient(
+    circle at center,
+    #18191f 0%,
+    #18191f 18%,
+    #2a2c35 19%,
+    #111216 20%,
+    #22242b 30%,
+    #111216 31%,
+    #2a2c35 40%,
+    #111216 41%,
+    #22242b 50%,
+    #111216 51%,
+    #2a2c35 60%,
+    #111216 61%,
+    #22242b 70%,
+    #111216 71%,
+    #2a2c35 80%,
+    #111216 81%,
+    #22242b 90%,
+    #0c0d10 98%,
+    #050608 100%
+  );
+}
+
+.vinyl-grooves-light {
+  background: radial-gradient(
+    circle at center,
+    #333742 0%,
+    #252932 18%,
+    #3f4350 19%,
+    #20232a 20%,
+    #353944 30%,
+    #20232a 31%,
+    #3f4350 40%,
+    #20232a 41%,
+    #353944 50%,
+    #20232a 51%,
+    #3f4350 60%,
+    #20232a 61%,
+    #353944 70%,
+    #20232a 71%,
+    #3f4350 80%,
+    #20232a 81%,
+    #353944 90%,
+    #191b20 98%,
+    #111216 100%
+  );
+}
+
+
 
