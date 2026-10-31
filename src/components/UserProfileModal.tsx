@@ -938,8 +938,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 </div>
               </div>
 
-              {/* Password Change Section (For Email Members & Admin) */}
-              {(currentUser.provider === 'email' || currentUser.id === 'admin' || (currentUser.provider !== 'guest' && Boolean(currentUser.email))) && (
+              {/* Password Change Section (Only For Legacy Email Members & Admin) */}
+              {currentUser.provider === 'email' && currentUser.id === 'admin' && (
                 <div className="border border-[#e6e6e6] rounded-2xl p-4 bg-[#faf9f8] space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">

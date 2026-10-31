@@ -1,19 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   X,
   LogOut,
   Sparkles,
   ShieldCheck,
   Heart,
-  Users,
-  Lock,
-  KeyRound,
-  Mail,
-  User,
-  ArrowRight,
+  Music,
   CheckCircle2,
   AlertCircle,
-  RefreshCw,
+  ArrowRight,
 } from 'lucide-react';
 import { UserProfile } from '../types/index.js';
 
@@ -27,6 +22,8 @@ interface AuthModalProps {
   onAdminLoginSuccess?: () => void;
 }
 
+const GOOGLE_CLIENT_ID = '165899640178-luq7cv4bes1vn0dv3dmlhkelbn46rhjs.apps.googleusercontent.com';
+
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
@@ -34,80 +31,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onLoginSuccess,
   onLogout,
 }) => {
-  const [authMode, setAuthMode] = useState<'signin' | 'register' | 'forgot'>('signin');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Email Sign In States
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-
-  // Email Registration States
-  const [registerStep, setRegisterStep] = useState<'form' | 'otp'>('form');
-  const [regName, setRegName] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regConfirmPassword, setRegConfirmPassword] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [resendCooldown, setResendCooldown] = useState(0);
-
-  // Forgot Password States
-  const [forgotStep, setForgotStep] = useState<'email' | 'reset'>('email');
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotOtpCode, setForgotOtpCode] = useState('');
-  const [forgotNewPassword, setForgotNewPassword] = useState('');
-  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
-  const [forgotResendCooldown, setForgotResendCooldown] = useState(0);
-
-  // Google Sign In States
-  const [showGoogleDialog, setShowGoogleDialog] = useState(false);
-  const [googleEmailInput, setGoogleEmailInput] = useState('');
-  const [googleNameInput, setGoogleNameInput] = useState('');
-
-  useEffect(() => {
-    if (isOpen) {
-      setErrorMessage(null);
-      setSuccessMessage(null);
-      setRegisterStep('form');
-      setForgotStep('email');
-      setOtpCode('');
-      setForgotOtpCode('');
-      setForgotNewPassword('');
-      setForgotConfirmPassword('');
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    let timer: any;
-    if (resendCooldown > 0) {
-      timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [resendCooldown]);
-
-  useEffect(() => {
-    let timer: any;
-    if (forgotResendCooldown > 0) {
-      timer = setTimeout(() => setForgotResendCooldown(forgotResendCooldown - 1), 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [forgotResendCooldown]);
+  // Fallback direct email prompt if Google popup is blocked
+  const [showManualGoogle, setShowManualGoogle] = useState(false);
+  const [manualEmail, setManualEmail] = useState('');
+  const [manualName, setManualName] = useState('');
 
   if (!isOpen) return null;
 
-  const isMember = currentUser.provider === 'email' || currentUser.provider === 'google';
+  const isMember = currentUser.provider === 'google' || currentUser.provider === 'email';
 
-  // Google OAuth Client ID provided by user
-  const GOOGLE_CLIENT_ID = '165899640178-luq7cv4bes1vn0dv3dmlhkelbn46rhjs.apps.googleusercontent.com';
-
-  // Handle Real Google OAuth Sign In
+  // Handle Official Google OAuth 2.0 Sign In
   const handleGoogleSignIn = async () => {
     setErrorMessage(null);
     setIsLoading(true);
 
     try {
-      // 1. Google OAuth 2.0 Popup via initTokenClient (Official Google Account Chooser Popup)
+      // 1. Google OAuth 2.0 Popup via initTokenClient (Official Google Account Chooser)
       if (typeof (window as any).google !== 'undefined' && (window as any).google.accounts?.oauth2) {
         const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
           client_id: GOOGLE_CLIENT_ID,
@@ -115,7 +58,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           callback: async (tokenResponse: any) => {
             if (tokenResponse.error) {
               setIsLoading(false);
-              setErrorMessage('การเข้าสู่ระบบ Google ถูกยกเลิก: ' + (tokenResponse.error_description || tokenResponse.error));
+              if (tokenResponse.error !== 'popup_closed_by_user') {
+                setErrorMessage('การเข้าสู่ระบบ Google ถูกยกเลิก: ' + (tokenResponse.error_description || tokenResponse.error));
+              }
               return;
             }
             if (tokenResponse && tokenResponse.access_token) {
@@ -185,19 +130,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
 
-      // 3. Fallback dialog if SDK fails to load
-      setShowGoogleDialog(true);
+      // 3. Fallback dialog if SDK is blocked or offline
+      setShowManualGoogle(true);
       setIsLoading(false);
     } catch (err) {
       console.error('Google Sign In error:', err);
-      setShowGoogleDialog(true);
+      setShowManualGoogle(true);
       setIsLoading(false);
     }
   };
 
-  const handleGoogleManualSubmit = async (e: React.FormEvent) => {
+  const handleManualGoogleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!googleEmailInput.trim() || !googleEmailInput.includes('@')) {
+    if (!manualEmail.trim() || !manualEmail.includes('@')) {
       setErrorMessage('กรุณาระบุอีเมล Google ให้ถูกต้อง (เช่น name@gmail.com)');
       return;
     }
@@ -208,9 +153,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: googleEmailInput.trim(),
-          name: googleNameInput.trim() || googleEmailInput.split('@')[0],
-          picture: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(googleEmailInput.trim())}`,
+          email: manualEmail.trim(),
+          name: manualName.trim() || manualEmail.split('@')[0],
+          picture: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(manualEmail.trim())}`,
         }),
       });
       const data = await res.json();
@@ -227,323 +172,75 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  // 1. Handle Member Sign In (Email + Password)
-  const handleEmailSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-    setIsLoading(true);
-
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: loginEmail.trim(),
-          password: loginPassword.trim(),
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success && data.user) {
-        onLoginSuccess(data.user);
-        onClose();
-      } else {
-        setErrorMessage(data.error || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง');
-      }
-    } catch (err) {
-      setErrorMessage('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 2. Handle Register Step 1: Request Email OTP
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-
-    if (!regName.trim()) {
-      setErrorMessage('กรุณาระบุชื่อที่ต้องการแสดง');
-      return;
-    }
-    if (!regEmail.trim() || !regEmail.includes('@')) {
-      setErrorMessage('กรุณาระบุอีเมลที่ถูกต้อง');
-      return;
-    }
-    if (regPassword.length < 6) {
-      setErrorMessage('รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร');
-      return;
-    }
-    if (regPassword !== regConfirmPassword) {
-      setErrorMessage('รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const res = await fetch('/api/auth/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: regEmail.trim(),
-          name: regName.trim(),
-          password: regPassword.trim(),
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setRegisterStep('otp');
-        setResendCooldown(60);
-        setSuccessMessage(`ส่งรหัสยืนยัน 6 หลักไปยัง ${regEmail.trim()} แล้ว`);
-      } else {
-        setErrorMessage(data.error || 'ไม่สามารถส่งรหัสยืนยันได้');
-      }
-    } catch (err) {
-      setErrorMessage('เกิดข้อผิดพลาดในการส่งรหัส OTP');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 3. Handle Register Step 2: Verify OTP
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-
-    if (otpCode.trim().length !== 6) {
-      setErrorMessage('กรุณากรอกรหัสยืนยัน 6 หลักให้ครบถ้วน');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const res = await fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: regEmail.trim(),
-          code: otpCode.trim(),
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success && data.user) {
-        onLoginSuccess(data.user);
-        onClose();
-      } else {
-        setErrorMessage(data.error || 'รหัสยืนยันไม่ถูกต้องหรือหมดอายุ');
-      }
-    } catch (err) {
-      setErrorMessage('เกิดข้อผิดพลาดในการยืนยันรหัส OTP');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 4. Handle Forgot Password Step 1: Send Reset OTP
-  const handleForgotSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-
-    if (!forgotEmail.trim() || !forgotEmail.includes('@')) {
-      setErrorMessage('กรุณากรอกอีเมลให้ถูกต้อง');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const res = await fetch('/api/auth/forgot-password/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: forgotEmail.trim() }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setForgotStep('reset');
-        setForgotResendCooldown(60);
-        setSuccessMessage(`ส่งรหัสยืนยัน 6 หลักไปยัง ${forgotEmail.trim()} แล้ว`);
-      } else {
-        setErrorMessage(data.error || 'ไม่สามารถส่งรหัสรีเซ็ตได้');
-      }
-    } catch (err) {
-      setErrorMessage('เกิดข้อผิดพลาดในการส่งรหัส OTP');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 5. Handle Forgot Password Step 2: Verify OTP & Reset Password
-  const handleForgotResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-
-    if (forgotOtpCode.trim().length !== 6) {
-      setErrorMessage('กรุณากรอกรหัสยืนยัน 6 หลักให้ครบถ้วน');
-      return;
-    }
-    if (forgotNewPassword.length < 6) {
-      setErrorMessage('รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 6 ตัวอักษร');
-      return;
-    }
-    if (forgotNewPassword !== forgotConfirmPassword) {
-      setErrorMessage('รหัสผ่านใหม่และยืนยันรหัสผ่านไม่ตรงกัน');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const res = await fetch('/api/auth/forgot-password/reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: forgotEmail.trim(),
-          code: forgotOtpCode.trim(),
-          newPassword: forgotNewPassword.trim(),
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success && data.user) {
-        onLoginSuccess(data.user);
-        onClose();
-      } else {
-        setErrorMessage(data.error || 'รหัสยืนยันไม่ถูกต้องหรือเกิดข้อผิดพลาด');
-      }
-    } catch (err) {
-      setErrorMessage('เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in text-[#31302e]">
-      <div className="bg-white border border-[#e6e6e6] rounded-2xl w-full max-w-md overflow-hidden shadow-notion-modal flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in text-[#131b2e] dark:text-[#e2e2ea]">
+      <div className="bg-white dark:bg-[#191b22] border border-[#dae2fd] dark:border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200">
+        
         {/* Header */}
-        <div className="relative px-6 pt-5 pb-3 border-b border-[#e6e6e6] bg-white">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[#0075de]/10 border border-[#0075de]/20 text-[#0075de] flex items-center justify-center">
-                {authMode === 'forgot' ? <KeyRound className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-[#000000] tracking-tight">
-                  {authMode === 'signin'
-                    ? 'เข้าสู่ระบบสมาชิก'
-                    : authMode === 'register'
-                    ? 'สมัครสมาชิกใหม่ผ่าน Email'
-                    : 'รีเซ็ตรหัสผ่าน (ลืมรหัสผ่าน)'}
-                </h2>
-                <p className="text-xs text-[#615d59]">
-                  {authMode === 'signin'
-                    ? 'ยินดีต้อนรับกลับสู่ pleng.online'
-                    : authMode === 'register'
-                    ? 'ยืนยันรหัส 6 หลักทางอีเมล ปลอดภัย ไร้สแปม'
-                    : 'กู้คืนรหัสผ่านด้วยรหัสยืนยัน OTP 6 หลัก'}
-                </p>
-              </div>
+        <div className="relative px-6 pt-6 pb-4 border-b border-[#dae2fd]/60 dark:border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#0075de]/15 to-[#00daf3]/15 border border-[#0075de]/20 flex items-center justify-center shadow-xs">
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
             </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-md text-[#615d59] hover:text-[#000000] hover:bg-[#f6f5f4] transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-[#131b2e] dark:text-[#e2e2ea]">
+                เข้าสู่ระบบสมาชิก
+              </h2>
+              <p className="text-xs text-[#64748b] dark:text-[#94A3B8]">
+                ผ่านบัญชี Google Account (เชื่อมต่อทันที)
+              </p>
+            </div>
           </div>
 
-          {/* Mode Switcher Tabs */}
-          {authMode !== 'forgot' ? (
-            <div className="flex items-center bg-[#f6f5f4] p-1 rounded-xl border border-[#e6e6e6] mt-4 text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('signin');
-                  setErrorMessage(null);
-                  setSuccessMessage(null);
-                }}
-                className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  authMode === 'signin'
-                    ? 'bg-white text-[#0075de] shadow-xs'
-                    : 'text-[#615d59] hover:text-[#000000]'
-                }`}
-              >
-                <span>เข้าสู่ระบบ (Sign In)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('register');
-                  setRegisterStep('form');
-                  setErrorMessage(null);
-                  setSuccessMessage(null);
-                }}
-                className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  authMode === 'register'
-                    ? 'bg-white text-[#0075de] shadow-xs'
-                    : 'text-[#615d59] hover:text-[#000000]'
-                }`}
-              >
-                <span>สมัครสมาชิก (Register)</span>
-              </button>
-            </div>
-          ) : (
-            <div className="mt-3 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('signin');
-                  setErrorMessage(null);
-                  setSuccessMessage(null);
-                }}
-                className="text-xs text-[#0075de] hover:underline flex items-center gap-1 cursor-pointer font-medium"
-              >
-                <span>← กลับไปหน้าเข้าสู่ระบบ</span>
-              </button>
-            </div>
-          )}
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 transition-colors cursor-pointer text-[#64748b] dark:text-[#94A3B8]"
+            title="ปิด"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-4 overflow-y-auto">
-          {/* Current User Status Banner */}
-          <div className="p-3 rounded-xl bg-[#f6f5f4] border border-[#e6e6e6] flex items-center gap-3 shadow-xs">
-            <div
-              className="w-10 h-10 rounded-full overflow-hidden border-2 shrink-0 relative bg-white shadow-xs"
-              style={{ borderColor: currentUser.color || '#0075de' }}
-            >
-              <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-semibold text-[#000000] truncate">{currentUser.name}</span>
-                {currentUser.provider === 'google' && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 text-[9px] font-bold flex items-center gap-1">
-                    <svg className="w-2.5 h-2.5" viewBox="0 0 24 24">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                    </svg>
-                    Google Account
-                  </span>
-                )}
-                {currentUser.provider === 'email' && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-blue-50 text-[#0075de] border border-blue-200 text-[9px] font-bold">
-                    Email Member
-                  </span>
-                )}
-                {(!currentUser.provider || currentUser.provider === 'guest') && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-white text-[#615d59] border border-[#e6e6e6] text-[9px] font-medium">
-                    Guest Mode
-                  </span>
-                )}
+        <div className="p-6 space-y-5 overflow-y-auto">
+          {/* Current User Status Card */}
+          <div className="p-3.5 rounded-2xl bg-[#faf8ff] dark:bg-[#111319] border border-[#dae2fd]/70 dark:border-white/10 flex items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className="w-10 h-10 rounded-full overflow-hidden border-2 shrink-0 relative bg-white dark:bg-[#191b22] shadow-xs"
+                style={{ borderColor: currentUser.color || '#0075de' }}
+              >
+                <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
               </div>
-              <p className="text-[10px] text-[#615d59] truncate mt-0.5">
-                {currentUser.email || 'ยังไม่ได้ระบุอีเมล'}
-              </p>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-bold truncate max-w-[150px]">{currentUser.name}</span>
+                  {currentUser.provider === 'google' && (
+                    <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-[#4285F4] border border-[#4285F4]/30 text-[9px] font-bold flex items-center gap-1">
+                      <svg className="w-2.5 h-2.5" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                      </svg>
+                      Google
+                    </span>
+                  )}
+                  {(!currentUser.provider || currentUser.provider === 'guest') && (
+                    <span className="px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 text-[9px] font-semibold">
+                      โหมดผู้ฟังทั่วไป (Guest)
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-[#64748b] dark:text-[#94A3B8] truncate mt-0.5">
+                  {currentUser.email || 'ยังไม่ได้เชื่อมต่อบัญชีสมาชิก'}
+                </p>
+              </div>
             </div>
 
             {isMember && (
@@ -553,509 +250,139 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   onClose();
                 }}
                 title="ออกจากระบบ"
-                className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors cursor-pointer"
+                className="px-2.5 py-1.5 rounded-xl text-rose-500 hover:bg-rose-500/10 border border-rose-500/20 transition-colors cursor-pointer text-xs font-semibold flex items-center gap-1 shrink-0"
               >
                 <LogOut className="w-3.5 h-3.5" />
+                <span>ออก</span>
               </button>
             )}
           </div>
 
           {/* Feedback Alerts */}
           {errorMessage && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+            <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMessage}</span>
             </div>
           )}
 
           {successMessage && (
-            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2">
+            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>{successMessage}</span>
             </div>
           )}
 
-          {/* MODE 1: SIGN IN */}
-          {authMode === 'signin' && (
-            <div className="space-y-4">
-              {/* Google Sign In Button - Primary Action */}
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  disabled={isLoading}
-                  onClick={handleGoogleSignIn}
-                  className="w-full py-2.5 px-4 rounded-xl border border-[#dae2fd] hover:border-[#0075de]/50 bg-white hover:bg-[#f6f5f4] text-[#131b2e] font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2.5 cursor-pointer group"
-                >
-                  <svg className="w-4 h-4 shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+          {/* Primary Google Login Button */}
+          <div className="space-y-3 pt-1">
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={handleGoogleSignIn}
+              className="w-full py-3.5 px-5 rounded-2xl bg-white hover:bg-zinc-50 dark:bg-[#191b22] dark:hover:bg-[#20232b] border-2 border-[#dae2fd] dark:border-white/10 hover:border-[#4285F4] dark:hover:border-[#4285F4] text-[#131b2e] dark:text-[#e2e2ea] font-bold text-sm shadow-[0_4px_16px_rgba(0,117,222,0.1)] hover:shadow-[0_6px_24px_rgba(66,133,244,0.25)] transition-all flex items-center justify-center gap-3 cursor-pointer group active:scale-98"
+            >
+              <svg className="w-5 h-5 shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+              <span>{isLoading ? 'กำลังเชื่อมต่อ Google...' : 'เข้าสู่ระบบด้วย Google Account'}</span>
+            </button>
+
+            <div className="flex items-center justify-center gap-1.5 text-center">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[11px] text-[#64748b] dark:text-[#94A3B8]">
+                คลิกเดียวเข้าใช้งานได้ทันที ทั้งสมาชิกเดิมและสมาชิกใหม่
+              </span>
+            </div>
+          </div>
+
+          {/* Benefits Feature Box */}
+          <div className="p-4 rounded-2xl bg-[#f2f3ff]/60 dark:bg-white/[0.03] border border-[#dae2fd]/50 dark:border-white/[0.06] space-y-2.5">
+            <h4 className="text-xs font-bold text-[#006194] dark:text-[#00daf3] flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>สิทธิประโยชน์เมื่อเข้าสู่ระบบด้วย Google</span>
+            </h4>
+            <ul className="text-xs space-y-1.5 text-[#475569] dark:text-[#c1c6d5]">
+              <li className="flex items-center gap-2">
+                <Heart className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                <span>บันทึกเพลงโปรดและคลัง Playlist ถาวรในบัญชี</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Music className="w-3.5 h-3.5 text-[#0075de] dark:text-[#00daf3] shrink-0" />
+                <span>สิทธิ์สร้างและดูแลห้องปาร์ตี้ของตนเอง</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span>ปลอดภัย 100% ไม่ต้องจำหรือกรอกรหัสผ่าน</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Manual Google Fallback (only shown if Google popup is blocked) */}
+          {showManualGoogle && (
+            <form onSubmit={handleManualGoogleSubmit} className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#0075de] dark:text-[#00daf3] flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                   </svg>
-                  <span>เข้าสู่ระบบด้วย Account Google</span>
+                  ยืนยันอีเมล Google ของคุณ
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowManualGoogle(false)}
+                  className="text-gray-400 hover:text-gray-600 text-xs"
+                >
+                  ✕
                 </button>
-                <div className="flex items-center justify-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px] text-[#615d59]">แนะนำ • สะดวกและปลอดภัย บันทึกห้องโปรดถาวร</span>
-                </div>
               </div>
-
-              {/* Direct Google Account Dialog (Fallback if popup blocked or manual) */}
-              {showGoogleDialog && (
-                <form onSubmit={handleGoogleManualSubmit} className="p-3.5 rounded-xl bg-blue-50/50 border border-blue-200/60 space-y-3 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[#0075de] flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                      </svg>
-                      ระบุอีเมล Google ของคุณ
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowGoogleDialog(false)}
-                      className="text-gray-400 hover:text-gray-600 text-xs"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-[#31302e] mb-1">
-                      อีเมล Google (Gmail)
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={googleEmailInput}
-                      onChange={(e) => setGoogleEmailInput(e.target.value)}
-                      placeholder="yourname@gmail.com"
-                      className="w-full px-3 py-2 bg-white border border-[#e6e6e6] rounded-lg text-xs text-[#000000] focus:outline-none focus:border-[#0075de]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-[#31302e] mb-1">
-                      ชื่อที่ต้องการแสดง (ไม่บังคับ)
-                    </label>
-                    <input
-                      type="text"
-                      value={googleNameInput}
-                      onChange={(e) => setGoogleNameInput(e.target.value)}
-                      placeholder="เช่น DJ Music Lover"
-                      className="w-full px-3 py-2 bg-white border border-[#e6e6e6] rounded-lg text-xs text-[#000000] focus:outline-none focus:border-[#0075de]"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full py-2 px-3 rounded-lg bg-[#0075de] hover:bg-[#005bab] text-white text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <span>ยืนยันเข้าสู่ระบบด้วย Google</span>
-                  </button>
-                </form>
-              )}
-
-              {/* Divider */}
-              <div className="relative flex py-1 items-center">
-                <div className="flex-grow border-t border-[#e6e6e6]" />
-                <span className="flex-shrink mx-3 text-[11px] text-[#85807a]">หรือใช้อีเมลและรหัสผ่าน</span>
-                <div className="flex-grow border-t border-[#e6e6e6]" />
-              </div>
-
-              <form onSubmit={handleEmailSignIn} className="space-y-3.5">
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-[#000000]">
-                  อีเมล (Email)
+              <div>
+                <label className="block text-[11px] font-semibold mb-1">
+                  อีเมล Google (Gmail)
                 </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="name@example.com"
-                    className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all shadow-xs"
-                    required
-                    autoFocus
-                  />
-                </div>
+                <input
+                  type="email"
+                  required
+                  value={manualEmail}
+                  onChange={(e) => setManualEmail(e.target.value)}
+                  placeholder="yourname@gmail.com"
+                  className="w-full px-3 py-2 bg-white dark:bg-[#111319] border border-[#dae2fd] dark:border-white/10 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#0075de]"
+                />
               </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-semibold text-[#000000]">
-                    รหัสผ่าน (Password)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('forgot');
-                      setForgotStep('email');
-                      setErrorMessage(null);
-                      setSuccessMessage(null);
-                      setForgotEmail(loginEmail);
-                    }}
-                    className="text-[11px] text-[#0075de] hover:underline cursor-pointer"
-                  >
-                    ลืมรหัสผ่าน?
-                  </button>
-                </div>
-                <div className="relative">
-                  <KeyRound className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="password"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="กรอกรหัสผ่านของคุณ"
-                    className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all font-mono shadow-xs"
-                    required
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-2.5 px-4 rounded-xl bg-[#0075de] hover:bg-[#0062bd] text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-              >
-                <span>{isLoading ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบ'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
-        )}
-
-          {/* MODE 2: REGISTER (EMAIL + OTP VERIFICATION ONLY) */}
-          {authMode === 'register' && registerStep === 'form' && (
-            <form onSubmit={handleSendOtp} className="space-y-3">
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-[#000000]">
-                  ชื่อแสดงในห้อง (Display Name)
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
-                    placeholder="เช่น Alex, น้องเมย์"
-                    className="w-full pl-9 pr-3.5 py-2 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-[#000000]">
-                  อีเมล (Email สำหรับรับรหัส OTP 6 หลัก)
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                    placeholder="name@example.com"
-                    className="w-full pl-9 pr-3.5 py-2 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-[#000000]">
-                    รหัสผ่าน
-                  </label>
-                  <input
-                    type="password"
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    placeholder="อย่างน้อย 6 ตัว"
-                    className="w-full px-3 py-2 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] font-mono"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-[#000000]">
-                    ยืนยันรหัสผ่าน
-                  </label>
-                  <input
-                    type="password"
-                    value={regConfirmPassword}
-                    onChange={(e) => setRegConfirmPassword(e.target.value)}
-                    placeholder="พิมพ์รหัสซ้ำ"
-                    className="w-full px-3 py-2 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] font-mono"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Reminder banner about Gmail Junk/Spam/Trash */}
-              <div className="p-3 rounded-xl bg-amber-50/90 border border-amber-200/90 text-xs text-amber-900 flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <div className="space-y-0.5 leading-relaxed text-[11px]">
-                  <p className="font-bold text-amber-950">💡 คำแนะนำสำหรับการรับรหัส OTP:</p>
-                  <p>
-                    เมื่อกดขอรหัสแล้ว หากไม่พบอีเมลในกล่องจดหมายหลัก (Inbox) <strong>โปรดตรวจดูในโฟลเดอร์ "จดหมายขยะ (Spam / Junk Mail)" หรือ "ถังขยะ (Trash)"</strong> ด้วยนะครับ เนื่องจากระบบของ Gmail หรือผู้ให้บริการอีเมลอาจคัดกรองผิดพลาด
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full mt-2 py-2.5 px-4 rounded-xl bg-[#0075de] hover:bg-[#0062bd] text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-              >
-                <Mail className="w-4 h-4" />
-                <span>{isLoading ? 'กำลังส่งรหัส...' : 'ขอรับรหัสยืนยัน OTP ทาง Email'}</span>
-              </button>
-            </form>
-          )}
-
-          {/* MODE 2: REGISTER STEP 2 - ENTER 6-DIGIT OTP */}
-          {authMode === 'register' && registerStep === 'otp' && (
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-amber-50/90 border border-amber-200 text-xs text-amber-900 space-y-2 text-center">
-                <div className="flex items-center justify-center gap-1.5 text-amber-800 font-bold">
-                  <Mail className="w-4 h-4 text-[#0075de]" />
-                  <span>รหัสยืนยัน 6 หลักถูกส่งไปยัง:</span>
-                </div>
-                <p className="font-mono text-sm font-bold text-[#0075de]">{regEmail}</p>
-
-                <div className="p-2.5 rounded-lg bg-white/95 border border-amber-300 text-[11px] text-amber-900 text-left space-y-1 shadow-xs">
-                  <p className="font-bold text-rose-600 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                    <span>สำคัญมาก: หากไม่พบอีเมลในกล่องเข้า (Inbox)</span>
-                  </p>
-                  <p className="leading-relaxed text-[#5a4810]">
-                    กรุณาคลิกตรวจดูในโฟลเดอร์ <strong>"จดหมายขยะ / สแปม (Spam / Junk Mail)" หรือ "ถังขยะ (Trash)"</strong> ด้วยนะครับ เนื่องจากระบบกรองอีเมลของ Gmail/Outlook อาจคัดแยกผิดกล่อง
-                  </p>
-                </div>
-
-                <p className="text-[10px] text-[#8c7430]">
-                  (รหัสยืนยันมีอายุ 10 นาที สามารถกดขอรหัสใหม่ได้หากยังไม่ได้รับ)
-                </p>
-              </div>
-
-              <div className="space-y-1.5 text-center">
-                <label className="block text-xs font-semibold text-[#000000]">
-                  กรอกรหัสยืนยัน 6 หลัก (OTP Code)
+              <div>
+                <label className="block text-[11px] font-semibold mb-1">
+                  ชื่อโปรไฟล์ที่ต้องการแสดง
                 </label>
                 <input
                   type="text"
-                  maxLength={6}
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder="------"
-                  className="w-48 mx-auto text-center tracking-[8px] text-2xl font-bold font-mono py-2.5 px-3 bg-[#f6f5f4] focus:bg-white border-2 border-[#0075de] rounded-xl text-[#0075de] focus:outline-none shadow-xs"
-                  required
-                  autoFocus
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                  placeholder="เช่น DJ Music Lover"
+                  className="w-full px-3 py-2 bg-white dark:bg-[#111319] border border-[#dae2fd] dark:border-white/10 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#0075de]"
                 />
               </div>
-
-              <button
-                type="submit"
-                disabled={isLoading || otpCode.length !== 6}
-                className="w-full py-2.5 px-4 rounded-xl bg-[#0075de] hover:bg-[#0062bd] text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{isLoading ? 'กำลังตรวจสอบรหัส...' : 'ยืนยันรหัสและเปิดใช้งานบัญชี'}</span>
-              </button>
-
-              <div className="flex items-center justify-between text-xs pt-1 text-[#615d59]">
-                <button
-                  type="button"
-                  onClick={() => setRegisterStep('form')}
-                  className="hover:text-[#000000] underline cursor-pointer"
-                >
-                  ← แก้ไขอีเมล
-                </button>
-
-                <button
-                  type="button"
-                  disabled={resendCooldown > 0 || isLoading}
-                  onClick={handleSendOtp}
-                  className="hover:text-[#0075de] disabled:opacity-40 cursor-pointer flex items-center gap-1"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  <span>{resendCooldown > 0 ? `ส่งรหัสใหม่ได้ใน ${resendCooldown}s` : 'ขอรหัส OTP ใหม่'}</span>
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* MODE 3: FORGOT PASSWORD (RESET PASSWORD) */}
-          {authMode === 'forgot' && forgotStep === 'email' && (
-            <form onSubmit={handleForgotSendOtp} className="space-y-3.5">
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 text-xs leading-relaxed">
-                ระบุอีเมลที่คุณใช้ลงทะเบียน เราจะส่งรหัสยืนยัน OTP 6 หลักเพื่อใช้ตั้งรหัสผ่านใหม่
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-[#000000]">
-                  อีเมลของคุณ (Registered Email)
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-[#a39e98] absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="name@example.com"
-                    className="w-full pl-9 pr-3.5 py-2.5 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] transition-all shadow-xs"
-                    required
-                    autoFocus
-                  />
-                </div>
-              </div>
-
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-2.5 px-4 rounded-xl bg-[#0075de] hover:bg-[#0062bd] text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                className="w-full py-2.5 px-4 rounded-xl bg-[#0075de] hover:bg-[#005bab] text-white text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <Mail className="w-4 h-4" />
-                <span>{isLoading ? 'กำลังส่งรหัส...' : 'ขอรับรหัส OTP เพื่อรีเซ็ตรหัสผ่าน'}</span>
+                <span>ยืนยันเข้าใช้งาน</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </form>
           )}
 
-          {/* MODE 3: FORGOT PASSWORD STEP 2 - ENTER OTP & NEW PASSWORD */}
-          {authMode === 'forgot' && forgotStep === 'reset' && (
-            <form onSubmit={handleForgotResetPassword} className="space-y-3.5">
-              <div className="p-3.5 rounded-xl bg-amber-50/90 border border-amber-200 text-xs text-amber-900 space-y-2 text-center">
-                <div className="flex items-center justify-center gap-1.5 text-amber-800 font-bold">
-                  <Mail className="w-4 h-4 text-[#0075de]" />
-                  <span>ส่งรหัสรีเซ็ตรหัสผ่านไปยัง:</span>
-                </div>
-                <p className="font-mono text-sm font-bold text-[#0075de]">{forgotEmail}</p>
-
-                <div className="p-2.5 rounded-lg bg-white/95 border border-amber-300 text-[11px] text-amber-900 text-left space-y-1 shadow-xs">
-                  <p className="font-bold text-rose-600 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                    <span>สำคัญมาก: หากไม่พบอีเมลในกล่องเข้า (Inbox)</span>
-                  </p>
-                  <p className="leading-relaxed text-[#5a4810]">
-                    กรุณาตรวจดูในโฟลเดอร์ <strong>"จดหมายขยะ / สแปม (Spam / Junk)" หรือ "ถังขยะ (Trash)"</strong> ด้วยนะครับ
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-1 text-center">
-                <label className="block text-xs font-semibold text-[#000000]">
-                  กรอกรหัสยืนยัน 6 หลัก (OTP Code)
-                </label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={forgotOtpCode}
-                  onChange={(e) => setForgotOtpCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder="------"
-                  className="w-48 mx-auto text-center tracking-[8px] text-2xl font-bold font-mono py-2 px-3 bg-[#f6f5f4] focus:bg-white border-2 border-[#0075de] rounded-xl text-[#0075de] focus:outline-none shadow-xs"
-                  required
-                  autoFocus
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-[#000000]">
-                    รหัสผ่านใหม่
-                  </label>
-                  <input
-                    type="password"
-                    value={forgotNewPassword}
-                    onChange={(e) => setForgotNewPassword(e.target.value)}
-                    placeholder="อย่างน้อย 6 ตัว"
-                    className="w-full px-3 py-2 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] font-mono"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-[#000000]">
-                    ยืนยันรหัสผ่านใหม่
-                  </label>
-                  <input
-                    type="password"
-                    value={forgotConfirmPassword}
-                    onChange={(e) => setForgotConfirmPassword(e.target.value)}
-                    placeholder="พิมพ์รหัสซ้ำ"
-                    className="w-full px-3 py-2 bg-[#f6f5f4] focus:bg-white border border-[#e6e6e6] rounded-xl text-xs text-[#000000] focus:outline-none focus:border-[#0075de] font-mono"
-                    required
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading || forgotOtpCode.length !== 6}
-                className="w-full py-2.5 px-4 rounded-xl bg-[#0075de] hover:bg-[#0062bd] text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{isLoading ? 'กำลังบันทึก...' : 'บันทึกรหัสผ่านใหม่และเข้าสู่ระบบ'}</span>
-              </button>
-
-              <div className="flex items-center justify-between text-xs pt-1 text-[#615d59]">
-                <button
-                  type="button"
-                  onClick={() => setForgotStep('email')}
-                  className="hover:text-[#000000] underline cursor-pointer"
-                >
-                  ← แก้ไขอีเมล
-                </button>
-
-                <button
-                  type="button"
-                  disabled={forgotResendCooldown > 0 || isLoading}
-                  onClick={handleForgotSendOtp}
-                  className="hover:text-[#0075de] disabled:opacity-40 cursor-pointer flex items-center gap-1"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  <span>{forgotResendCooldown > 0 ? `ส่งรหัสใหม่ได้ใน ${forgotResendCooldown}s` : 'ขอรหัส OTP ใหม่'}</span>
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Member Benefits */}
-          <div className="p-3.5 rounded-xl bg-[#f6f5f4] border border-[#e6e6e6] space-y-1.5">
-            <h3 className="text-xs font-semibold text-[#000000] flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#1aae39]" /> สิทธิพิเศษของสมาชิก pleng.online:
-            </h3>
-            <div className="text-[11px] text-[#615d59] space-y-1">
-              <div className="flex items-center gap-1.5">
-                <Heart className="w-3 h-3 text-[#ff64c8] shrink-0" />
-                <span>บันทึกเพลงโปรดและคลังเพลย์ลิสต์ส่วนตัว</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Users className="w-3 h-3 text-[#0075de] shrink-0" />
-                <span>ห้องพักและประวัติเพลงจะคงอยู่ตลอดไป ไม่ถูกลบเมื่อออกห้อง</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Admin link notification */}
-          <div className="pt-2 text-center border-t border-[#e6e6e6]">
-            <a
-              href="/admin"
-              onClick={(e) => {
-                e.preventDefault();
-                window.location.pathname = '/admin';
-              }}
-              className="text-[11px] text-[#a39e98] hover:text-[#615d59] inline-flex items-center gap-1 transition-colors"
-            >
-              <Lock className="w-3 h-3" />
-              <span>เข้าสู่ระบบเฉพาะเจ้าของเว็บไซต์ (Admin Portal /admin)</span>
-            </a>
-          </div>
+          {/* Footer note */}
+          <p className="text-center text-[10px] text-[#85807a] dark:text-[#64748b] pt-1">
+            การเข้าสู่ระบบถือว่าคุณยอมรับข้อกำหนดการใช้งานและนโยบายความเป็นส่วนตัวของ pleng.online
+          </p>
         </div>
       </div>
     </div>
   );
 };
-
-export default AuthModal;
