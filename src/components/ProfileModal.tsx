@@ -514,49 +514,49 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                 {/* Instagram */}
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-xs font-bold text-pink-400">IG @</span>
+                <div className="flex items-center rounded-xl bg-[#151722] border border-gray-700/80 focus-within:border-pink-500 transition-colors px-3 py-2 shadow-xs">
+                  <span className="text-xs font-bold text-pink-400 shrink-0 mr-2 select-none">IG @</span>
                   <input
                     type="text"
                     value={instagram}
                     onChange={(e) => setInstagram(e.target.value.replace(/^@/, ''))}
-                    className="w-full pl-11 pr-3 py-1.5 bg-[#151722] border border-gray-700/80 rounded-xl text-xs text-white focus:outline-none focus:border-pink-500 transition-colors shadow-xs"
+                    className="w-full bg-transparent text-xs text-white focus:outline-none placeholder:text-gray-500 min-w-0"
                     placeholder="username"
                   />
                 </div>
 
                 {/* Facebook */}
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-xs font-bold text-blue-400">FB</span>
+                <div className="flex items-center rounded-xl bg-[#151722] border border-gray-700/80 focus-within:border-blue-500 transition-colors px-3 py-2 shadow-xs">
+                  <span className="text-xs font-bold text-blue-400 shrink-0 mr-2 select-none">FB</span>
                   <input
                     type="text"
                     value={facebook}
                     onChange={(e) => setFacebook(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 bg-[#151722] border border-gray-700/80 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500 transition-colors shadow-xs"
+                    className="w-full bg-transparent text-xs text-white focus:outline-none placeholder:text-gray-500 min-w-0"
                     placeholder="ชื่อหรือลิงก์โปรไฟล์"
                   />
                 </div>
 
                 {/* TikTok */}
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-xs font-bold text-cyan-400">TikTok</span>
+                <div className="flex items-center rounded-xl bg-[#151722] border border-gray-700/80 focus-within:border-cyan-500 transition-colors px-3 py-2 shadow-xs">
+                  <span className="text-xs font-bold text-cyan-400 shrink-0 mr-2 select-none">TikTok</span>
                   <input
                     type="text"
                     value={tiktok}
                     onChange={(e) => setTiktok(e.target.value.replace(/^@/, ''))}
-                    className="w-full pl-13 pr-3 py-1.5 bg-[#151722] border border-gray-700/80 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 transition-colors shadow-xs"
+                    className="w-full bg-transparent text-xs text-white focus:outline-none placeholder:text-gray-500 min-w-0"
                     placeholder="@username"
                   />
                 </div>
 
                 {/* Spotify */}
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-xs font-bold text-emerald-400">Spotify</span>
+                <div className="flex items-center rounded-xl bg-[#151722] border border-gray-700/80 focus-within:border-emerald-500 transition-colors px-3 py-2 shadow-xs">
+                  <span className="text-xs font-bold text-emerald-400 shrink-0 mr-2 select-none">Spotify</span>
                   <input
                     type="text"
                     value={spotify}
                     onChange={(e) => setSpotify(e.target.value)}
-                    className="w-full pl-13 pr-3 py-1.5 bg-[#151722] border border-gray-700/80 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 transition-colors shadow-xs"
+                    className="w-full bg-transparent text-xs text-white focus:outline-none placeholder:text-gray-500 min-w-0"
                     placeholder="ลิงก์โปรไฟล์หรือเพลย์ลิสต์"
                   />
                 </div>
