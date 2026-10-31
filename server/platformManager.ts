@@ -16,6 +16,8 @@ import {
   DEFAULT_SMTP_CONFIG,
   FavoriteSong,
   UserSocialLinks,
+  DirectMessage,
+  ConversationSummary,
 } from '../src/types/index.js';
 import type { RoomManager } from './roomManager.js';
 import { emailService } from './emailService.js';
@@ -90,6 +92,27 @@ export interface SocialPostRecord {
   createdAt: number;
 }
 
+export interface DirectMessageRecord {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string;
+  senderColor?: string;
+  recipientId: string;
+  recipientName: string;
+  recipientAvatar: string;
+  recipientColor?: string;
+  text: string;
+  imageUrl?: string;
+  roomInvite?: {
+    roomId: string;
+    roomName: string;
+    thumbnail?: string;
+  };
+  createdAt: number;
+  read: boolean;
+}
+
 interface StoreSchema {
   users: PlatformUser[];
   tickets: SupportTicket[];
@@ -100,6 +123,7 @@ interface StoreSchema {
   smtpConfig?: SmtpConfig;
   follows?: FollowRecord[];
   posts?: SocialPostRecord[];
+  directMessages?: DirectMessageRecord[];
 }
 
 export class PlatformManager {
@@ -107,6 +131,7 @@ export class PlatformManager {
   private userAccounts: Map<string, StoredUserAccount> = new Map();
   private follows: Map<string, FollowRecord> = new Map();
   private posts: Map<string, SocialPostRecord> = new Map();
+  private directMessages: Map<string, DirectMessageRecord> = new Map();
   private adminCredentials: AdminCredentials = {
     username: 'admin',
     passwordHash: emailService.hashPassword('admin888'),
@@ -257,6 +282,15 @@ export class PlatformManager {
         }
       });
     }
+
+    if (Array.isArray(data.directMessages)) {
+      this.directMessages.clear();
+      data.directMessages.forEach((dm) => {
+        if (dm && dm.id) {
+          this.directMessages.set(dm.id, dm);
+        }
+      });
+    }
   }
 
   private loadStore() {
@@ -282,6 +316,7 @@ export class PlatformManager {
       smtpConfig: this.smtpConfig,
       follows: Array.from(this.follows.values()),
       posts: Array.from(this.posts.values()),
+      directMessages: Array.from(this.directMessages.values()),
     };
   }
 
@@ -1929,6 +1964,157 @@ export class PlatformManager {
     this.posts.delete(postId);
     this.scheduleSave();
     return true;
+  }
+
+  // ==========================================
+  // DIRECT MESSAGING (DM)
+  // ==========================================
+
+  public sendDirectMessage(data: {
+    senderId: string;
+    senderName: string;
+    senderAvatar: string;
+    senderColor?: string;
+    recipientId: string;
+    recipientName: string;
+    recipientAvatar: string;
+    recipientColor?: string;
+    text: string;
+    imageUrl?: string;
+    roomInvite?: {
+      roomId: string;
+      roomName: string;
+      thumbnail?: string;
+    };
+  }): DirectMessageRecord {
+    const id = 'dm_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    const dm: DirectMessageRecord = {
+      id,
+      senderId: data.senderId,
+      senderName: data.senderName,
+      senderAvatar: data.senderAvatar,
+      senderColor: data.senderColor,
+      recipientId: data.recipientId,
+      recipientName: data.recipientName,
+      recipientAvatar: data.recipientAvatar,
+      recipientColor: data.recipientColor,
+      text: data.text || '',
+      imageUrl: data.imageUrl,
+      roomInvite: data.roomInvite,
+      createdAt: Date.now(),
+      read: false,
+    };
+    this.directMessages.set(id, dm);
+    this.scheduleSave();
+    return dm;
+  }
+
+  public getDirectMessages(user1Id: string, user2Id: string, limit = 50): DirectMessageRecord[] {
+    const list: DirectMessageRecord[] = [];
+    for (const dm of this.directMessages.values()) {
+      if (
+        (dm.senderId === user1Id && dm.recipientId === user2Id) ||
+        (dm.senderId === user2Id && dm.recipientId === user1Id)
+      ) {
+        list.push(dm);
+      }
+    }
+    list.sort((a, b) => a.createdAt - b.createdAt);
+    if (limit > 0 && list.length > limit) {
+      return list.slice(list.length - limit);
+    }
+    return list;
+  }
+
+  public markConversationRead(userId: string, partnerId: string): number {
+    let count = 0;
+    for (const dm of this.directMessages.values()) {
+      if (dm.recipientId === userId && dm.senderId === partnerId && !dm.read) {
+        dm.read = true;
+        count++;
+      }
+    }
+    if (count > 0) {
+      this.scheduleSave();
+    }
+    return count;
+  }
+
+  public getUnreadDmCount(userId: string): number {
+    let count = 0;
+    for (const dm of this.directMessages.values()) {
+      if (dm.recipientId === userId && !dm.read) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  public getConversations(userId: string, roomManager?: RoomManager): ConversationSummary[] {
+    const partnersMap = new Map<string, {
+      lastMessage: DirectMessageRecord;
+      unreadCount: number;
+    }>();
+
+    for (const dm of this.directMessages.values()) {
+      if (dm.senderId !== userId && dm.recipientId !== userId) continue;
+      const partnerId = dm.senderId === userId ? dm.recipientId : dm.senderId;
+
+      const existing = partnersMap.get(partnerId);
+      const isUnreadForMe = dm.recipientId === userId && !dm.read;
+
+      if (!existing) {
+        partnersMap.set(partnerId, {
+          lastMessage: dm,
+          unreadCount: isUnreadForMe ? 1 : 0,
+        });
+      } else {
+        if (dm.createdAt > existing.lastMessage.createdAt) {
+          existing.lastMessage = dm;
+        }
+        if (isUnreadForMe) {
+          existing.unreadCount += 1;
+        }
+      }
+    }
+
+    const result: ConversationSummary[] = [];
+    for (const [partnerId, data] of partnersMap.entries()) {
+      const account = this.userAccounts.get(partnerId);
+      const platformUser = this.users.get(partnerId);
+      const isSenderPartner = data.lastMessage.senderId === partnerId;
+
+      const partnerName = account?.name || platformUser?.name || (isSenderPartner ? data.lastMessage.senderName : data.lastMessage.recipientName) || 'ผู้ใช้';
+      const partnerUsername = account?.username || platformUser?.username;
+      const partnerAvatar = account?.avatar || platformUser?.avatar || (isSenderPartner ? data.lastMessage.senderAvatar : data.lastMessage.recipientAvatar) || '';
+      const partnerColor = account?.color || platformUser?.color || (isSenderPartner ? data.lastMessage.senderColor : data.lastMessage.recipientColor) || '#0075de';
+
+      let activeRoom: { roomId: string; roomName: string } | null = null;
+      if (roomManager) {
+        activeRoom = roomManager.findUserCurrentRoom(partnerId);
+      }
+
+      let lastMsgText = data.lastMessage.text;
+      if (!lastMsgText) {
+        if (data.lastMessage.imageUrl) lastMsgText = '📷 ส่งรูปภาพ';
+        else if (data.lastMessage.roomInvite) lastMsgText = '🎵 ชวนเข้าห้องปาร์ตี้';
+      }
+
+      result.push({
+        partnerId,
+        partnerName,
+        partnerUsername,
+        partnerAvatar,
+        partnerColor,
+        lastMessage: lastMsgText || '',
+        lastMessageAt: data.lastMessage.createdAt,
+        unreadCount: data.unreadCount,
+        activeRoom,
+      });
+    }
+
+    result.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+    return result;
   }
 
   public getStats(roomManager: RoomManager): PlatformStats {

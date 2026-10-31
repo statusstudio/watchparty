@@ -510,6 +510,42 @@ export class RoomManager {
     }
   }
 
+  public sendToUser(userId: string, message: any) {
+    const raw = JSON.stringify(message);
+    // 1. Check clients inside rooms
+    for (const client of this.clients.values()) {
+      if (client.user?.id === userId && client.ws.readyState === WebSocket.OPEN) {
+        try {
+          client.ws.send(raw);
+        } catch (e) {
+          console.error(`Failed to send to user ${userId}:`, e);
+        }
+      }
+    }
+    // 2. Check pending/global connected users outside rooms
+    for (const [ws, user] of this.pendingUsers.entries()) {
+      if (user?.id === userId && ws.readyState === WebSocket.OPEN) {
+        try {
+          ws.send(raw);
+        } catch (e) {
+          console.error(`Failed to send to pending user ${userId}:`, e);
+        }
+      }
+    }
+  }
+
+  public findUserCurrentRoom(userId: string): { roomId: string; roomName: string } | null {
+    for (const client of this.clients.values()) {
+      if (client.user?.id === userId && client.roomId) {
+        const room = this.rooms.get(client.roomId);
+        if (room) {
+          return { roomId: client.roomId, roomName: room.metadata.name };
+        }
+      }
+    }
+    return null;
+  }
+
   public getAllRoomsAdmin(): any[] {
     const list: any[] = [];
     for (const [id, room] of this.rooms.entries()) {

@@ -25,6 +25,7 @@ import {
   KeyRound,
   AlertCircle,
   CheckCircle2,
+  MessageCircle,
 } from 'lucide-react';
 import { UserProfile, FavoriteSong } from '../types/index.js';
 import { PRESET_AVATARS, COLOR_PALETTE } from '../data/presets.js';
@@ -47,6 +48,7 @@ interface UserProfileModalProps {
   onOpenAuth?: () => void;
   onLogout?: () => void;
   onOpenEditProfile?: () => void;
+  onStartDM?: (user: { id: string; name: string; username?: string; avatar: string; color?: string }) => void;
 }
 
 const AVAILABLE_GENRES = [
@@ -82,6 +84,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onOpenAuth,
   onLogout,
   onOpenEditProfile,
+  onStartDM,
 }) => {
   const [activeTab, setActiveTab] = useState<'favorites' | 'about' | 'edit'>('favorites');
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -446,28 +449,50 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   )}
                 </>
               ) : (
-                <button
-                  type="button"
-                  disabled={followLoading}
-                  onClick={handleToggleFollow}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-60 ${
-                    isFollowing
-                      ? 'bg-white hover:bg-rose-50 text-[#31302e] hover:text-rose-600 border border-[#e6e6e6]'
-                      : 'bg-[#0075de] hover:bg-[#005bab] text-white'
-                  }`}
-                >
-                  {isFollowing ? (
-                    <>
-                      <UserCheck className="w-3.5 h-3.5 text-[#1aae39]" />
-                      <span>กำลังติดตาม</span>
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="w-3.5 h-3.5" />
-                      <span>ติดตาม</span>
-                    </>
+                <div className="flex items-center gap-2">
+                  {onStartDM && displayUser && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onStartDM({
+                          id: displayUser.id,
+                          name: displayUser.name,
+                          username: displayUser.username,
+                          avatar: displayUser.avatar,
+                          color: displayUser.color,
+                        });
+                      }}
+                      className="px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 bg-pink-50 hover:bg-pink-100 text-pink-600 border border-pink-200 transition-all cursor-pointer shadow-xs active:scale-95"
+                      title="ส่งข้อความส่วนตัว (DM)"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>ส่งข้อความ</span>
+                    </button>
                   )}
-                </button>
+                  <button
+                    type="button"
+                    disabled={followLoading}
+                    onClick={handleToggleFollow}
+                    className={`px-4 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-60 ${
+                      isFollowing
+                        ? 'bg-white hover:bg-rose-50 text-[#31302e] hover:text-rose-600 border border-[#e6e6e6]'
+                        : 'bg-[#0075de] hover:bg-[#005bab] text-white'
+                    }`}
+                  >
+                    {isFollowing ? (
+                      <>
+                        <UserCheck className="w-3.5 h-3.5 text-[#1aae39]" />
+                        <span>กำลังติดตาม</span>
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>ติดตาม</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               )}
             </div>
           </div>

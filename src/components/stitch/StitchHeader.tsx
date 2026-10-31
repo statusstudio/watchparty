@@ -17,6 +17,8 @@ interface StitchHeaderProps {
   onSearchChange: (q: string) => void;
   theme?: 'dark' | 'light';
   onToggleTheme?: () => void;
+  onOpenDM?: () => void;
+  unreadDmCount?: number;
 }
 
 export const StitchHeader: React.FC<StitchHeaderProps> = ({
@@ -35,6 +37,8 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
   onSearchChange,
   theme = 'dark',
   onToggleTheme,
+  onOpenDM,
+  unreadDmCount = 0,
 }) => {
   const isLight = theme === 'light';
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -245,6 +249,26 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
             </button>
           )}
 
+          {/* Direct Messages (DM) Button */}
+          {currentUser && currentUser.provider !== 'guest' && onOpenDM && (
+            <button
+              onClick={onOpenDM}
+              className={`relative flex items-center justify-center p-2 rounded-full border transition-all cursor-pointer hover:scale-105 active:scale-95 ${
+                isLight
+                  ? 'bg-white border-[#dae2fd] text-[#131b2e] hover:bg-[#f2f3ff]'
+                  : 'bg-[#191b22] border-white/10 text-white/80 hover:text-white hover:bg-[#282a30]'
+              }`}
+              title="ข้อความส่วนตัว (DM)"
+            >
+              <span className="material-symbols-outlined text-[20px] text-pink-400">chat</span>
+              {unreadDmCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-4.5 px-1 py-0.2 rounded-full bg-pink-500 text-[10px] font-extrabold text-white text-center shadow-md animate-pulse">
+                  {unreadDmCount > 99 ? '99+' : unreadDmCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* User Profile Avatar & Dropdown Controller */}
           <div className="relative">
             <button
@@ -419,6 +443,39 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
                         chevron_right
                       </span>
                     </button>
+
+                    {/* Direct Messages (DM) */}
+                    {onOpenDM && (
+                      <button
+                        onClick={() => {
+                          setIsProfileDropdownOpen(false);
+                          onOpenDM();
+                        }}
+                        className={`w-full p-2.5 rounded-2xl flex items-center gap-3 text-left transition-all cursor-pointer ${
+                          isLight ? 'hover:bg-[#f2f3ff]' : 'hover:bg-white/[0.06]'
+                        }`}
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-pink-500/10 text-pink-500 flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-[18px]">chat</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-bold leading-tight">ข้อความส่วนตัว (DM)</p>
+                            {unreadDmCount > 0 && (
+                              <span className="px-1.5 py-0.2 rounded-full bg-pink-500 text-[10px] font-bold text-white">
+                                {unreadDmCount}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-[#64748b] dark:text-[#94A3B8] truncate mt-0.5">
+                            แชท 1 ต่อ 1 กับเพื่อนนักฟังเพลง
+                          </p>
+                        </div>
+                        <span className="material-symbols-outlined text-[16px] text-[#64748b] dark:text-[#94A3B8]">
+                          chevron_right
+                        </span>
+                      </button>
+                    )}
 
                     {/* 2. Edit Profile & Personal Settings */}
                     <button

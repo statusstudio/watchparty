@@ -1287,6 +1287,132 @@ async function startServer() {
     }
   });
 
+  // ==========================================
+  // DIRECT MESSAGING (DM) API
+  // ==========================================
+
+  app.get('/api/dm/conversations', (req, res) => {
+    try {
+      const userId = req.query.userId as string;
+      if (!userId) {
+        return res.status(400).json({ error: 'userId is required' });
+      }
+      const conversations = platformManager.getConversations(userId, roomManager);
+      res.json({ conversations });
+    } catch (err: any) {
+      console.error('Error getting conversations:', err);
+      res.status(500).json({ error: 'Failed to get conversations' });
+    }
+  });
+
+  app.get('/api/dm/messages', (req, res) => {
+    try {
+      const userId = req.query.userId as string;
+      const partnerId = req.query.partnerId as string;
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+
+      if (!userId || !partnerId) {
+        return res.status(400).json({ error: 'userId and partnerId are required' });
+      }
+
+      const messages = platformManager.getDirectMessages(userId, partnerId, limit);
+      res.json({ messages });
+    } catch (err: any) {
+      console.error('Error getting direct messages:', err);
+      res.status(500).json({ error: 'Failed to get messages' });
+    }
+  });
+
+  app.post('/api/dm/messages', (req, res) => {
+    try {
+      const {
+        senderId,
+        senderName,
+        senderAvatar,
+        senderColor,
+        recipientId,
+        recipientName,
+        recipientAvatar,
+        recipientColor,
+        text,
+        imageUrl,
+        roomInvite,
+      } = req.body;
+
+      if (!senderId || !recipientId) {
+        return res.status(400).json({ error: 'senderId and recipientId are required' });
+      }
+
+      if (!text && !imageUrl && !roomInvite) {
+        return res.status(400).json({ error: 'Message content is required' });
+      }
+
+      const dm = platformManager.sendDirectMessage({
+        senderId,
+        senderName: senderName || 'ผู้ใช้',
+        senderAvatar: senderAvatar || '',
+        senderColor: senderColor || '#0075de',
+        recipientId,
+        recipientName: recipientName || 'ผู้ใช้',
+        recipientAvatar: recipientAvatar || '',
+        recipientColor: recipientColor || '#0075de',
+        text: text ? text.trim() : '',
+        imageUrl,
+        roomInvite,
+      });
+
+      // Notify recipient and sender via WebSocket
+      const payload = {
+        type: 'DM_NEW_MESSAGE',
+        message: dm,
+      };
+      roomManager.sendToUser(recipientId, payload);
+      roomManager.sendToUser(senderId, payload);
+
+      res.status(201).json({ success: true, message: dm });
+    } catch (err: any) {
+      console.error('Error sending direct message:', err);
+      res.status(500).json({ error: 'Failed to send message' });
+    }
+  });
+
+  app.post('/api/dm/read', (req, res) => {
+    try {
+      const { userId, partnerId } = req.body;
+      if (!userId || !partnerId) {
+        return res.status(400).json({ error: 'userId and partnerId are required' });
+      }
+
+      const count = platformManager.markConversationRead(userId, partnerId);
+
+      // Notify partner that messages have been read
+      roomManager.sendToUser(partnerId, {
+        type: 'DM_CONVERSATION_READ',
+        readerId: userId,
+        partnerId,
+      });
+
+      res.json({ success: true, markedCount: count });
+    } catch (err: any) {
+      console.error('Error marking conversation read:', err);
+      res.status(500).json({ error: 'Failed to mark conversation read' });
+    }
+  });
+
+  app.get('/api/dm/unread-count', (req, res) => {
+    try {
+      const userId = req.query.userId as string;
+      if (!userId) {
+        return res.status(400).json({ error: 'userId is required' });
+      }
+      const unreadCount = platformManager.getUnreadDmCount(userId);
+      res.json({ unreadCount });
+    } catch (err: any) {
+      console.error('Error getting unread DM count:', err);
+      res.status(500).json({ error: 'Failed to get unread count' });
+    }
+  });
+
   // Get All Rooms Detailed (for Super Admin)
   app.get('/api/platform/rooms', (req, res) => {
     res.json(roomManager.getAllRoomsAdmin());

@@ -81,6 +81,42 @@ export interface SocialPost {
   createdAt: number;
 }
 
+export interface DirectMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string;
+  senderColor?: string;
+  recipientId: string;
+  recipientName: string;
+  recipientAvatar: string;
+  recipientColor?: string;
+  text: string;
+  imageUrl?: string;
+  roomInvite?: {
+    roomId: string;
+    roomName: string;
+    thumbnail?: string;
+  };
+  createdAt: number;
+  read: boolean;
+}
+
+export interface ConversationSummary {
+  partnerId: string;
+  partnerName: string;
+  partnerUsername?: string;
+  partnerAvatar: string;
+  partnerColor?: string;
+  lastMessage: string;
+  lastMessageAt: number;
+  unreadCount: number;
+  activeRoom?: {
+    roomId: string;
+    roomName: string;
+  } | null;
+}
+
 export type UserRole = 'owner' | 'admin' | 'member';
 
 export interface RoomMember {
@@ -355,7 +391,9 @@ export type WSServerMessage =
   | { type: 'GAME_STATE_UPDATED'; state: DrawAndGuessGameState | null }
   | { type: 'GAME_DRAW_STROKE'; stroke: DrawStroke }
   | { type: 'GAME_CLEAR_CANVAS' }
-  | { type: 'GAME_GUESSED_CORRECT'; userId: string; userName: string; points: number };
+  | { type: 'GAME_GUESSED_CORRECT'; userId: string; userName: string; points: number }
+  | { type: 'DM_NEW_MESSAGE'; message: DirectMessage }
+  | { type: 'DM_CONVERSATION_READ'; readerId: string; partnerId: string };
 
 // Platform Owner & Super Admin Types
 export interface PlatformUser {

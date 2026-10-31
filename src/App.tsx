@@ -66,6 +66,7 @@ import { StitchLiveStageView } from './components/stitch/StitchLiveStageView.js'
 import { StitchRoomCodeModal } from './components/stitch/StitchRoomCodeModal.js';
 import { StitchMobileBottomNav } from './components/stitch/StitchMobileBottomNav.js';
 import { StitchSocialFeedView } from './components/stitch/StitchSocialFeedView.js';
+import { DirectMessagesModal } from './components/dm/DirectMessagesModal.js';
 import {
   isSupabaseConfigured,
   supabase,
@@ -410,6 +411,15 @@ export function App() {
   const [authModalInitialTab, setAuthModalInitialTab] = useState<'member' | 'admin'>('member');
   const [isUserProfileModalOpen, setIsUserProfileModalOpen] = useState(false);
   const [selectedUserForProfile, setSelectedUserForProfile] = useState<UserProfile | null>(null);
+  const [isDMModalOpen, setIsDMModalOpen] = useState(false);
+  const [dmPartnerUser, setDmPartnerUser] = useState<{
+    id: string;
+    name: string;
+    username?: string;
+    avatar: string;
+    color?: string;
+  } | null>(null);
+  const [unreadDmCount, setUnreadDmCount] = useState<number>(0);
   const [isUserCardModalOpen, setIsUserCardModalOpen] = useState(false);
   const [selectedUserForCard, setSelectedUserForCard] = useState<UserProfile | null>(null);
   const [isVideoFavorite, setIsVideoFavorite] = useState(false);
@@ -1099,6 +1109,15 @@ export function App() {
 
     const unsubscribe = socketService.subscribe((msg: WSServerMessage) => {
       switch (msg.type) {
+        case 'DM_NEW_MESSAGE': {
+          const dm = (msg as any).message;
+          if (dm && dm.recipientId === currentUserRef.current?.id) {
+            setUnreadDmCount((prev) => prev + 1);
+            showToast(`💬 ข้อความใหม่จาก ${dm.senderName || 'เพื่อน'}: ${dm.text || 'รูปภาพ'}`, 'info');
+          }
+          break;
+        }
+
         case 'ROOMS_LIST':
           setRoomsList(msg.rooms);
           break;
@@ -1707,6 +1726,33 @@ export function App() {
     setIsUserProfileModalOpen(true);
   }, []);
 
+  const handleStartDM = useCallback(
+    (user: { id: string; name: string; username?: string; avatar: string; color?: string }) => {
+      setDmPartnerUser(user);
+      setIsDMModalOpen(true);
+    },
+    []
+  );
+
+  const fetchUnreadDmCount = useCallback(async () => {
+    if (!currentUser?.id || currentUser.provider === 'guest') return;
+    try {
+      const res = await fetch(`/api/dm/unread-count?userId=${encodeURIComponent(currentUser.id)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadDmCount(data.unreadCount || 0);
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, [currentUser?.id, currentUser?.provider]);
+
+  useEffect(() => {
+    fetchUnreadDmCount();
+    const interval = setInterval(fetchUnreadDmCount, 30000);
+    return () => clearInterval(interval);
+  }, [fetchUnreadDmCount]);
+
   const handlePlaySongFromProfile = useCallback((videoId: string, title?: string, channel?: string) => {
     const targetRoom = roomId || 'squad-chill';
     window.location.hash = `#${targetRoom}`;
@@ -2163,6 +2209,7 @@ export function App() {
           }}
           onPlaySong={handlePlaySongFromProfile}
           onShowToast={showToast}
+          onStartDM={handleStartDM}
         />
         <ProfileModal
           isOpen={isProfileModalOpen}
@@ -2199,6 +2246,28 @@ export function App() {
           }}
           onLogout={handleLogout}
           onOpenEditProfile={() => setIsProfileModalOpen(true)}
+          onStartDM={handleStartDM}
+        />
+        <DirectMessagesModal
+          isOpen={isDMModalOpen}
+          onClose={() => {
+            setIsDMModalOpen(false);
+            setDmPartnerUser(null);
+            fetchUnreadDmCount();
+          }}
+          currentUser={currentUser}
+          initialPartner={dmPartnerUser}
+          currentRoomId={roomId || null}
+          currentRoomName={roomsList.find((r) => r.id === roomId)?.name || null}
+          onJoinRoom={(targetRoomId) => {
+            window.history.pushState({}, '', `/#${targetRoomId}`);
+            setProfileHandleRoute(null);
+            handleSelectRoom(targetRoomId);
+          }}
+          onNavigateToProfile={(handle) => {
+            window.history.pushState({}, '', `/@${handle}`);
+            setProfileHandleRoute(handle);
+          }}
         />
         <AuthModal
           isOpen={isAuthModalOpen}
@@ -2454,6 +2523,8 @@ export function App() {
               onSearchChange={setStitchSearchQuery}
               theme={theme}
               onToggleTheme={toggleTheme}
+              onOpenDM={() => setIsDMModalOpen(true)}
+              unreadDmCount={unreadDmCount}
             />
 
             {stitchTab === 'feed' ? (
@@ -2469,6 +2540,7 @@ export function App() {
                   onShowToast={showToast}
                   myActiveRoom={roomsList.find((r) => r.ownerId === currentUser.id)}
                   theme={theme}
+                  onStartDM={handleStartDM}
                 />
               </div>
             ) : (
@@ -3296,6 +3368,7 @@ export function App() {
         }}
         onLogout={handleLogout}
         onOpenEditProfile={() => setIsProfileModalOpen(true)}
+        onStartDM={handleStartDM}
       />
 
       <UserCardModal
@@ -3311,6 +3384,7 @@ export function App() {
           setIsUserCardModalOpen(false);
           setIsAuthModalOpen(true);
         }}
+        onStartDM={handleStartDM}
       />
 
       <ProfileModal
@@ -3493,6 +3567,28 @@ export function App() {
         isOpen={isInstallModalOpen}
         onClose={() => setIsInstallModalOpen(false)}
         onShowToast={showToast}
+      />
+
+      {/* Direct Messages Modal (DM) */}
+      <DirectMessagesModal
+        isOpen={isDMModalOpen}
+        onClose={() => {
+          setIsDMModalOpen(false);
+          setDmPartnerUser(null);
+          fetchUnreadDmCount();
+        }}
+        currentUser={currentUser}
+        initialPartner={dmPartnerUser}
+        currentRoomId={roomId || null}
+        currentRoomName={roomsList.find((r) => r.id === roomId)?.name || null}
+        onJoinRoom={(targetRoomId) => {
+          window.location.hash = `#${targetRoomId}`;
+          handleSelectRoom(targetRoomId);
+        }}
+        onNavigateToProfile={(handle) => {
+          window.history.pushState({}, '', `/@${handle}`);
+          setProfileHandleRoute(handle);
+        }}
       />
 
       {/* Global Ad Popup for Website Visitors */}

@@ -26,6 +26,7 @@ interface StitchSocialFeedViewProps {
   onShowToast?: (msg: string, type?: 'info' | 'success' | 'warning') => void;
   myActiveRoom?: RoomSummary;
   theme?: 'dark' | 'light';
+  onStartDM?: (user: { id: string; name: string; username?: string; avatar: string; color?: string }) => void;
 }
 
 function formatRelativeTime(timestamp: number): string {
@@ -57,6 +58,7 @@ export const StitchSocialFeedView: React.FC<StitchSocialFeedViewProps> = ({
   onShowToast,
   myActiveRoom,
   theme = 'dark',
+  onStartDM,
 }) => {
   const isLight = theme === 'light';
 
@@ -692,16 +694,38 @@ export const StitchSocialFeedView: React.FC<StitchSocialFeedViewProps> = ({
                     </div>
                   </div>
 
-                  {canDelete && (
-                    <button
-                      type="button"
-                      onClick={() => handleDeletePost(post.id)}
-                      className="p-1.5 rounded-xl text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                      title="ลบโพสต์"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {onStartDM && currentUser && currentUser.id !== post.authorId && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onStartDM({
+                            id: post.authorId,
+                            name: post.authorName,
+                            username: post.authorUsername,
+                            avatar: post.authorAvatar,
+                            color: post.authorColor,
+                          })
+                        }
+                        className="px-2.5 py-1 rounded-xl text-xs font-semibold text-pink-500 hover:text-pink-400 hover:bg-pink-500/10 transition-colors flex items-center gap-1 cursor-pointer"
+                        title="ส่งข้อความส่วนตัว (DM)"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">DM</span>
+                      </button>
+                    )}
+
+                    {canDelete && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePost(post.id)}
+                        className="p-1.5 rounded-xl text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                        title="ลบโพสต์"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Content Text */}

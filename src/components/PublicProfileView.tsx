@@ -43,6 +43,7 @@ interface PublicProfileViewProps {
   onOpenEditProfile: () => void;
   onPlaySong?: (videoId: string, title?: string, channel?: string) => void;
   onShowToast: (msg: string, type?: 'info' | 'success' | 'warning') => void;
+  onStartDM?: (user: { id: string; name: string; username?: string; avatar: string; color?: string }) => void;
 }
 
 export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
@@ -53,6 +54,7 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
   onOpenEditProfile,
   onPlaySong,
   onShowToast,
+  onStartDM,
 }) => {
   const [profile, setProfile] = useState<PublicProfileData | null>(null);
   const [favorites, setFavorites] = useState<FavoriteSong[]>([]);
@@ -350,28 +352,51 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                 </button>
 
                 {!isOwnProfile ? (
-                  <button
-                    type="button"
-                    disabled={followLoading}
-                    onClick={handleToggleFollow}
-                    className={`px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-60 active:scale-95 ${
-                      isFollowing
-                        ? 'bg-white hover:bg-rose-50 text-[#31302e] hover:text-rose-600 border border-[#e6e6e6]'
-                        : 'bg-[#0075de] hover:bg-[#005bab] text-white'
-                    }`}
-                  >
-                    {isFollowing ? (
-                      <>
-                        <UserCheck className="w-3.5 h-3.5 text-[#1aae39]" />
-                        <span>กำลังติดตาม</span>
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="w-3.5 h-3.5" />
-                        <span>ติดตาม</span>
-                      </>
+                  <div className="flex items-center gap-2">
+                    {onStartDM && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (profile) {
+                            onStartDM({
+                              id: profile.id,
+                              name: profile.name,
+                              username: profile.username,
+                              avatar: profile.avatar,
+                              color: profile.color,
+                            });
+                          }
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-pink-50 hover:bg-pink-100 text-pink-600 border border-pink-200 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+                        title="ส่งข้อความส่วนตัว (DM)"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        <span>ส่งข้อความ</span>
+                      </button>
                     )}
-                  </button>
+                    <button
+                      type="button"
+                      disabled={followLoading}
+                      onClick={handleToggleFollow}
+                      className={`px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-60 active:scale-95 ${
+                        isFollowing
+                          ? 'bg-white hover:bg-rose-50 text-[#31302e] hover:text-rose-600 border border-[#e6e6e6]'
+                          : 'bg-[#0075de] hover:bg-[#005bab] text-white'
+                      }`}
+                    >
+                      {isFollowing ? (
+                        <>
+                          <UserCheck className="w-3.5 h-3.5 text-[#1aae39]" />
+                          <span>กำลังติดตาม</span>
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="w-3.5 h-3.5" />
+                          <span>ติดตาม</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 ) : (
                   <button
                     onClick={onOpenEditProfile}

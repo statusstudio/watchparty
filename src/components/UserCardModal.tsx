@@ -13,6 +13,7 @@ import {
   Copy,
   Check,
   Headphones,
+  MessageCircle,
 } from 'lucide-react';
 import { UserProfile } from '../types/index.js';
 import { fetchProfile, toggleFollow } from '../services/supabase.js';
@@ -24,6 +25,7 @@ interface UserCardModalProps {
   currentUser: UserProfile;
   onViewFullProfile: (user: UserProfile) => void;
   onOpenAuth?: () => void;
+  onStartDM?: (user: { id: string; name: string; username?: string; avatar: string; color?: string }) => void;
 }
 
 export const UserCardModal: React.FC<UserCardModalProps> = ({
@@ -33,6 +35,7 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
   currentUser,
   onViewFullProfile,
   onOpenAuth,
+  onStartDM,
 }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -276,6 +279,27 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
 
           {/* View Full Profile & Card Buttons */}
           <div className="flex items-center gap-2 pt-1">
+            {onStartDM && !isSelf && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onStartDM({
+                    id: displayUser.id,
+                    name: displayUser.name,
+                    username: userHandle,
+                    avatar: displayUser.avatar,
+                    color: displayUser.color,
+                  });
+                }}
+                className="py-2.5 px-3 rounded-xl bg-pink-50 hover:bg-pink-100 text-pink-600 border border-pink-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-98"
+                title="ส่งข้อความส่วนตัว (DM)"
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>DM</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => {
