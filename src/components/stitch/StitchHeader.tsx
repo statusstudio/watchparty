@@ -352,7 +352,7 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                           isLight ? 'bg-white text-[#006194] border border-[#dae2fd]' : 'bg-white/10 text-[#00daf3]'
                         }`}>
-                          {myActiveRoom.onlineCount || 1} คนกำลังฟัง
+                          {myActiveRoom.onlineCount ?? 0} คนกำลังฟัง
                         </span>
                       </div>
 

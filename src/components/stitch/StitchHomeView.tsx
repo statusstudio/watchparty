@@ -180,7 +180,7 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
       list = list.filter((r) => favoriteRoomIds.has(r.id));
     } else if (effectiveTab === 'popular') {
       // Sort by online listeners descending
-      list = list.sort((a, b) => (b.onlineCount || 1) - (a.onlineCount || 1));
+      list = list.sort((a, b) => (b.onlineCount ?? 0) - (a.onlineCount ?? 0));
     }
 
     if (searchQuery.trim()) {
@@ -196,7 +196,7 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
     return list;
   }, [displayRooms, effectiveTab, favoriteRoomIds, searchQuery]);
 
-  const totalListeners = displayRooms.reduce((acc, r) => acc + (r.onlineCount || 1), 0);
+  const totalListeners = displayRooms.reduce((acc, r) => acc + (r.onlineCount ?? 0), 0);
 
   return (
     <main className={`w-full h-full flex-1 flex flex-col justify-center items-center overflow-hidden transition-colors duration-300 pt-14 sm:pt-16 md:pt-18 pb-16 lg:pb-2 ${
@@ -660,10 +660,17 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
-                            <div className="absolute top-1.5 left-1.5 flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-black/60 text-[#10B981] font-mono text-[8px] font-bold">
-                              <span className="w-1 h-1 rounded-full bg-[#10B981] animate-ping" />
-                              LIVE
-                            </div>
+                            {room.onlineCount > 0 ? (
+                              <div className="absolute top-1.5 left-1.5 flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-black/60 text-[#10B981] font-mono text-[8px] font-bold">
+                                <span className="w-1 h-1 rounded-full bg-[#10B981] animate-ping" />
+                                LIVE
+                              </div>
+                            ) : (
+                              <div className="absolute top-1.5 left-1.5 flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-black/60 text-zinc-400 font-mono text-[8px] font-medium">
+                                <span className="w-1 h-1 rounded-full bg-zinc-500" />
+                                ว่าง
+                              </div>
+                            )}
 
                             {/* Popular Ranking Badge */}
                             {effectiveTab === 'popular' && (
@@ -682,7 +689,7 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
 
                             <div className="absolute bottom-1.5 left-1.5 flex items-center gap-0.5 text-white font-mono text-[9px] font-semibold">
                               <span className="material-symbols-outlined text-[11px] text-[#00daf3]">group</span>
-                              <span>{room.onlineCount || 1}</span>
+                              <span>{room.onlineCount ?? 0}</span>
                             </div>
                           </div>
 
