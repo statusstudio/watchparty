@@ -584,13 +584,6 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
     );
   }
 
-  const joinDate = profile.createdAt
-    ? new Date(profile.createdAt).toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'long',
-      })
-    : 'สมาชิกเริ่มต้น';
-
   const defaultBanner =
     'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=80';
   const banner = profile.bannerUrl || defaultBanner;
@@ -690,7 +683,7 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                   <span className="hidden sm:inline">{copiedLink ? 'คัดลอกแล้ว!' : 'แชร์'}</span>
                 </button>
 
-                {!isOwnProfile ? (
+                {!isOwnProfile && (
                   <div className="flex items-center gap-2">
                     {onStartCall && (
                       <button
@@ -760,54 +753,16 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                       )}
                     </button>
                   </div>
-                ) : (
-                  <button
-                    onClick={onOpenEditProfile}
-                    className="px-3.5 py-1.5 rounded-xl bg-[#0075de] hover:bg-[#005bab] text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    <span>แก้ไขโปรไฟล์</span>
-                  </button>
                 )}
               </div>
             </div>
 
-            {/* User Title & Badges */}
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight">{profile.name}</h1>
+            {/* User Title & Handle */}
+            <div className="space-y-1">
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight">{profile.name}</h1>
 
-                {profile.isSuperAdmin && (
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 text-xs font-bold flex items-center gap-1">
-                    <Crown className="w-3.5 h-3.5 fill-current" />
-                    <span>SUPER ADMIN</span>
-                  </span>
-                )}
-
-                {profile.provider === 'google' && (
-                  <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 border border-rose-500/20 text-xs font-semibold">
-                    Google
-                  </span>
-                )}
-                {profile.provider === 'facebook' && (
-                  <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20 text-xs font-semibold">
-                    Facebook
-                  </span>
-                )}
-                {profile.provider === 'email' && (
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-semibold">
-                    Email
-                  </span>
-                )}
-              </div>
-
-              <p className="text-xs font-medium text-[#64748b] dark:text-[#94A3B8] flex items-center gap-2">
-                <span>@{profile.username || cleanHandle}</span>
-                <span>•</span>
-                <span className="flex items-center gap-1 opacity-80">
-                  <Calendar className="w-3 h-3" />
-                  เข้าร่วมเมื่อ {joinDate}
-                </span>
+              <p className="text-xs font-medium text-[#64748b] dark:text-[#94A3B8]">
+                @{profile.username || cleanHandle}
               </p>
 
               {/* Stats Bar */}
