@@ -19,10 +19,6 @@ import {
   PlatformConfig,
   DEFAULT_PLATFORM_CONFIG,
   RoomWidgetsConfig,
-  DrawAndGuessGameState,
-  DrawStroke,
-  CandyBattleGameState,
-  CandyItemType,
 } from './types/index.js';
 import { getStoredUser, saveUser, clearUser } from './services/auth.js';
 import { socketService } from './services/socket.js';
@@ -58,9 +54,6 @@ const LineStickerStudio = React.lazy(() => import('./components/LineStickerStudi
 const AdminPortalView = React.lazy(() => import('./components/AdminPortalView.js').then((m) => ({ default: m.AdminPortalView })));
 const PublicProfileView = React.lazy(() => import('./components/PublicProfileView.js').then((m) => ({ default: m.PublicProfileView })));
 const SuperAdminDashboardModal = React.lazy(() => import('./components/SuperAdminDashboardModal.js').then((m) => ({ default: m.SuperAdminDashboardModal })));
-const DrawAndGuessStage = React.lazy(() => import('./components/DrawAndGuessStage.js').then((m) => ({ default: m.DrawAndGuessStage })));
-const CandyBattleStage = React.lazy(() => import('./components/game/CandyBattleStage.js').then((m) => ({ default: m.CandyBattleStage })));
-const CandySagaStage = React.lazy(() => import('./components/game/CandySagaStage.js').then((m) => ({ default: m.CandySagaStage })));
 import { FloatingItem, GiftEvent, LiveReactionsDock } from './components/FloatingReactions.js';
 import { ToastContainer, ToastItem } from './components/Toast.js';
 import { StitchHeader } from './components/stitch/StitchHeader.js';
@@ -246,9 +239,6 @@ export function App() {
   }, [members]);
   const [bannedUsers, setBannedUsers] = useState<BannedUser[]>([]);
   const [myRole, setMyRole] = useState<UserRole>('member');
-  const [gameState, setGameState] = useState<DrawAndGuessGameState | null>(null);
-  const [candyGameState, setCandyGameState] = useState<CandyBattleGameState | null>(null);
-  const [isCandySagaOpen, setIsCandySagaOpen] = useState<boolean>(false);
 
   // Password Gate
   const [isPasswordGateOpen, setIsPasswordGateOpen] = useState(false);
@@ -898,33 +888,6 @@ export function App() {
   }, [isRefreshing, pullDistance, handleRefresh, currentView, showToast]);
 
   // OLED Sleep Mode state (โหมดพักหน้าจอประหยัดแบตเตอรี่)
-  const [isOledSleepMode, setIsOledSleepMode] = useState(false);
-  const [oledTimeStr, setOledTimeStr] = useState('');
-
-  useEffect(() => {
-    if (!isOledSleepMode) return;
-    const updateTime = () => {
-      const now = new Date();
-      setOledTimeStr(
-        now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      );
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-
-    // Keep screen from turning off while in OLED mode
-    let wakeLock: any = null;
-    if ('wakeLock' in navigator) {
-      (navigator as any).wakeLock?.request('screen').then((lock: any) => {
-        wakeLock = lock;
-      }).catch(() => {});
-    }
-
-    return () => {
-      clearInterval(interval);
-      wakeLock?.release().catch(() => {});
-    };
-  }, [isOledSleepMode]);
 
   // WebRTC Signal Sender
   const sendWebRTCSignal = useCallback((targetId: string, data: any) => {
@@ -1277,8 +1240,6 @@ export function App() {
           setOnlineCount(msg.state.onlineCount || dedupedMembers.length);
           setBannedUsers(msg.state.bannedUsers);
           setMyRole(msg.state.myRole);
-          setGameState(msg.state.gameState || null);
-          setCandyGameState((msg.state as any).candyGameState || null);
           setUnreadChatCount(0);
           if (msg.state.approvedSpeakerIds) {
             setApprovedSpeakerIds(msg.state.approvedSpeakerIds);
@@ -1464,34 +1425,6 @@ export function App() {
           showToast(`📢 ${msg.text}`, msg.announcementType === 'alert' ? 'warning' : 'info');
           break;
 
-        case 'CANDY_STATE_UPDATED':
-          setCandyGameState(msg.state);
-          break;
-
-        case 'CANDY_EVENT_TRIGGERED':
-          if (msg.eventType === 'fire') {
-            showToast('🔥 มีคนปล่อยคลื่นเปลวไฟโจมตีทุกคนในกระดาน!', 'warning');
-          } else if (msg.eventType === 'ko') {
-            showToast('💀 มีผู้เล่นถูก K.O. ตกรอบ!', 'info');
-          }
-          break;
-
-        case 'GAME_STATE_UPDATED':
-          setGameState(msg.state);
-          break;
-
-        case 'GAME_DRAW_STROKE':
-          window.dispatchEvent(new CustomEvent('watchparty:game_stroke', { detail: msg.stroke }));
-          break;
-
-        case 'GAME_CLEAR_CANVAS':
-          window.dispatchEvent(new CustomEvent('watchparty:game_clear_canvas'));
-          break;
-
-        case 'GAME_GUESSED_CORRECT':
-          showToast(`🎉 ${msg.userName} ทายคำตอบถูกต้อง! (+${msg.points} คะแนน)`, 'success');
-          break;
-
         default:
           break;
       }
@@ -1530,8 +1463,6 @@ export function App() {
     socketService.send({ type: 'LEAVE_ROOM' });
     setRoomId('');
     setChat([]);
-    setGameState(null);
-    setCandyGameState(null);
     setMembers([]);
     setPlaylist([]);
     setVideo({
@@ -2250,69 +2181,6 @@ export function App() {
     setActiveGifts((prev) => prev.filter((g) => g.id !== id));
   }, []);
 
-  // Candy Battle Royale 3D Handlers
-  const handleJoinCandyLobby = useCallback(() => {
-    showToast('กำลังเปิดล็อบบี้ Candy Master 3D... 🍬', 'info');
-    socketService.send({ type: 'CANDY_JOIN_LOBBY' });
-  }, [showToast]);
-
-  const handleLeaveCandyLobby = useCallback(() => {
-    socketService.send({ type: 'CANDY_LEAVE_LOBBY' });
-  }, []);
-
-  const handleStartCandyGame = useCallback(() => {
-    socketService.send({ type: 'CANDY_START_GAME' });
-  }, []);
-
-  const handleStopCandyGame = useCallback(() => {
-    socketService.send({ type: 'CANDY_STOP_GAME' });
-  }, []);
-
-  const handleCandyAttack = useCallback((damage: number, combo: number, targetUserId?: string) => {
-    socketService.send({ type: 'CANDY_ACTION_ATTACK', damage, combo, targetUserId });
-  }, []);
-
-  const handleCandyUseItem = useCallback((itemType: CandyItemType) => {
-    socketService.send({ type: 'CANDY_ACTION_USE_ITEM', itemType });
-  }, []);
-
-  const handleCandySelectTarget = useCallback((targetUserId: string) => {
-    socketService.send({ type: 'CANDY_SELECT_TARGET', targetUserId });
-  }, []);
-
-  const handleCandySwap = useCallback((r1: number, c1: number, r2: number, c2: number) => {
-    socketService.send({ type: 'CANDY_ACTION_SWAP', r1, c1, r2, c2 });
-  }, []);
-
-  const handleCandyHammer = useCallback((r: number, c: number) => {
-    socketService.send({ type: 'CANDY_ACTION_HAMMER', r, c });
-  }, []);
-
-  // Draw and Guess Game Action Handlers
-  const handleStartGame = useCallback((maxRounds: number = 3) => {
-    socketService.send({ type: 'GAME_START', maxRounds });
-  }, []);
-
-  const handleStopGame = useCallback(() => {
-    socketService.send({ type: 'GAME_STOP' });
-  }, []);
-
-  const handleSelectGameWord = useCallback((word: string, category: string) => {
-    socketService.send({ type: 'GAME_SELECT_WORD', word, category });
-  }, []);
-
-  const handleSendGameStroke = useCallback((stroke: DrawStroke) => {
-    socketService.send({ type: 'GAME_DRAW_STROKE', stroke });
-  }, []);
-
-  const handleClearGameCanvas = useCallback(() => {
-    socketService.send({ type: 'GAME_CLEAR_CANVAS' });
-  }, []);
-
-  const handleGameGuess = useCallback((guess: string) => {
-    socketService.send({ type: 'GAME_GUESS', guess });
-  }, []);
-
   const handleSetRoomAnnouncement = useCallback((announcement: string) => {
     socketService.send({ type: 'SET_ROOM_ANNOUNCEMENT', announcement });
   }, []);
@@ -2490,23 +2358,8 @@ export function App() {
           isSuperAdmin={isSuperAdmin}
           isRefreshing={isRefreshing}
           isFavoriteRoom={favoriteRoomIds.has(roomId)}
-          isGameActive={Boolean(gameState?.isActive)}
-          isCandyGameActive={isCandySagaOpen}
-          onToggleCandyGame={() => {
-            setIsCandySagaOpen((prev) => !prev);
-          }}
-          onToggleGame={() => {
-            if (gameState?.isActive) {
-              if (window.confirm('คุณต้องการยุติเกมวาดรูปสำหรับทุกคนใช่หรือไม่?')) {
-                handleStopGame();
-              }
-            } else {
-              handleStartGame(3);
-            }
-          }}
           onToggleFavoriteRoom={handleToggleFavoriteCurrentRoom}
           onRefreshRoom={handleRefresh}
-          onToggleOledSleep={() => setIsOledSleepMode(true)}
           onOpenShareCard={() => setIsShareCardModalOpen(true)}
           onInstallApp={() => setIsInstallModalOpen(true)}
           onOpenLiveTV={() => setIsLiveTVModalOpen(true)}
@@ -2610,50 +2463,6 @@ export function App() {
         </div>
       )}
 
-      {/* OLED Black Screen Mode (โหมดพักหน้าจอประหยัดแบตเตอรี่ - ดำสนิท 100% ฟังเพลงต่อเนื่องไม่ตัด) */}
-      {isOledSleepMode && (
-        <div
-          onClick={() => {
-            setIsOledSleepMode(false);
-            showToast('กลับสู่โหมดปกติ ☀️', 'info');
-          }}
-          className="fixed inset-0 z-[99999] bg-black text-gray-400 flex flex-col items-center justify-between p-6 sm:p-10 cursor-pointer select-none animate-fade-in"
-          style={{ backgroundColor: '#000000' }}
-        >
-          {/* Top Info */}
-          <div className="flex items-center gap-2 text-xs text-zinc-500 bg-zinc-950/80 px-3.5 py-1.5 rounded-full border border-zinc-900">
-            <Moon className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
-            <span>โหมดพักหน้าจอประหยัดพลังงาน (OLED Screen Saver)</span>
-          </div>
-
-          {/* Center Info */}
-          <div className="text-center space-y-4 max-w-sm sm:max-w-md mx-auto">
-            <div className="text-5xl sm:text-6xl font-mono font-extralight text-zinc-400 tracking-widest">
-              {oledTimeStr}
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-center gap-2 text-emerald-400 text-xs font-medium">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                <span>กำลังเล่นเสียงในห้องอย่างต่อเนื่อง 🎵</span>
-              </div>
-              <h3 className="text-sm sm:text-base font-semibold text-zinc-300 truncate">
-                {video.title}
-              </h3>
-              <p className="text-xs text-zinc-600 truncate">{video.channel}</p>
-            </div>
-          </div>
-
-          {/* Bottom Hint */}
-          <div className="text-center space-y-1">
-            <p className="text-xs text-zinc-400 font-medium">
-              แตะที่ใดก็ได้บนหน้าจอเพื่อเปิดหน้าจอ 👆
-            </p>
-            <p className="text-[11px] text-zinc-700">
-              จอดำสนิท 100% พิกเซล OLED ดับประหยัดแบตเตอรี่และเปิดเพลงต่อเนื่อง
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Global System Announcement Banner */}
       {platformConfig.announcementBanner?.enabled &&
@@ -2774,9 +2583,7 @@ export function App() {
             {/* Synchronized YouTube Video Player */}
             <div
               id="video-player-container"
-              className={`w-full aspect-video max-h-[25vh] sm:max-h-[30vh] md:max-h-[32vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black rounded-xl overflow-hidden border border-[#e6e6e6] dark:border-white/[0.08] shadow-[0_4px_12px_rgba(0,0,0,0.06)] relative shrink-0 ${
-                (gameState?.isActive || candyGameState?.isActive || isCandySagaOpen) ? 'fixed -left-[9999px] top-0 w-1 h-1 opacity-0 pointer-events-none' : ''
-              }`}
+              className="w-full aspect-video max-h-[25vh] sm:max-h-[30vh] md:max-h-[32vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black rounded-xl overflow-hidden border border-[#e6e6e6] dark:border-white/[0.08] shadow-[0_4px_12px_rgba(0,0,0,0.06)] relative shrink-0"
             >
               <VideoPlayer
                 video={video}
@@ -2812,57 +2619,6 @@ export function App() {
                 onShowToast={showToast}
               />
             </div>
-
-            
-            {/* Candy Crush Saga Progression Stage */}
-            {isCandySagaOpen && (
-              <div className="w-full flex-1 flex flex-col items-center justify-center min-h-[580px] sm:min-h-[620px] md:min-h-[660px] h-[75vh] max-h-[85vh] shrink-0 z-20">
-                <React.Suspense fallback={<div className="flex-1 flex items-center justify-center text-zinc-400 text-sm">กำลังโหลด Candy Crush Saga...</div>}>
-                  <CandySagaStage onClose={() => setIsCandySagaOpen(false)} />
-                </React.Suspense>
-              </div>
-            )}
-
-            {/* Candy Battle Royale 3D Game Stage */}
-            {candyGameState?.isActive && (
-              <div className="w-full flex-1 flex flex-col items-center justify-center min-h-[580px] sm:min-h-[620px] md:min-h-[660px] h-[75vh] max-h-[85vh] shrink-0 z-20">
-                <React.Suspense fallback={<div className="flex-1 flex items-center justify-center text-zinc-400 text-sm">กำลังโหลด Candy Battle 3D...</div>}>
-                  <CandyBattleStage
-                    gameState={candyGameState}
-                    currentUser={currentUser}
-                    myRole={myRole}
-                    onJoinLobby={handleJoinCandyLobby}
-                    onLeaveLobby={handleLeaveCandyLobby}
-                    onStartGame={handleStartCandyGame}
-                    onStopGame={handleStopCandyGame}
-                    onAttack={handleCandyAttack}
-                    onUseItem={handleCandyUseItem}
-                    onSelectTarget={handleCandySelectTarget}
-                    onSwap={handleCandySwap}
-                    onHammer={handleCandyHammer}
-                    theme={theme}
-                  />
-                </React.Suspense>
-              </div>
-            )}
-
-            {/* Draw & Guess 2D Party Game Stage (When game is active, takes the stage in place of the video) */}
-            {gameState?.isActive && (
-              <div className="w-full h-[52vh] sm:h-[58vh] md:h-[62vh] lg:h-full min-h-[360px] flex-1 flex flex-col shrink-0 lg:shrink">
-                <React.Suspense fallback={<div className="flex-1 flex items-center justify-center text-zinc-400 text-sm">กำลังโหลดเกมวาดรูป...</div>}>
-                  <DrawAndGuessStage
-                    gameState={gameState}
-                    currentUser={currentUser}
-                    myRole={myRole}
-                    onSendStroke={handleSendGameStroke}
-                    onClearCanvas={handleClearGameCanvas}
-                    onSelectWord={handleSelectGameWord}
-                    onGuess={handleGameGuess}
-                    onStopGame={handleStopGame}
-                  />
-                </React.Suspense>
-              </div>
-            )}
 
             {/* Current Video Info Banner & Quick Controls - Clean Reorganized Layout */}
             <div className="bg-white dark:bg-[#191b22] border border-[#e6e6e6] dark:border-white/[0.08] text-[#31302e] dark:text-[#e2e2ea] rounded-xl p-2 sm:p-2.5 flex flex-col gap-1.5 shrink-0 shadow-xs transition-colors">
@@ -2976,21 +2732,6 @@ export function App() {
                     )}
                   </button>
 
-                  {/* Candy Battle Royale 3D Quick Button */}
-                  <button
-                    type="button"
-                    onClick={() => setIsCandySagaOpen((prev) => !prev)}
-                    title="แคนดี้ ซาก้า ผจญภัยผ่านด่าน (Candy Crush Saga)"
-                    className={`p-1 sm:p-1.5 rounded-lg border transition-all cursor-pointer active:scale-95 flex items-center gap-1 ${
-                      isCandySagaOpen
-                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 ring-1 ring-amber-400 animate-pulse'
-                        : 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/20'
-                    }`}
-                  >
-                    <span className="text-xs">🍬</span>
-                    <span className="hidden sm:inline text-[11px] font-bold">แคนดี้ ซาก้า</span>
-                  </button>
-
                   {/* Karaoke & Synced Lyrics */}
                   <button
                     type="button"
@@ -3012,7 +2753,7 @@ export function App() {
                     <button
                       type="button"
                       onClick={() => setIsPlayerToolsOpen(!isPlayerToolsOpen)}
-                      title="เครื่องมือเพิ่มเติม (Shuffle, ตั้งเวลา, โหมดพักจอ, หรี่เสียง)"
+                      title="เครื่องมือเพิ่มเติม (Shuffle, ตั้งเวลา, หรี่เสียง)"
                       className={`p-1 sm:p-1.5 rounded-lg border transition-all cursor-pointer active:scale-95 ${
                         isPlayerToolsOpen || isShuffle || (sleepTimerSecondsLeft !== null && sleepTimerSecondsLeft > 0) || isAudioDuckingEnabled
                           ? 'bg-[#0075de]/10 border-[#0075de]/30 text-[#0075de] dark:text-[#00daf3]'
@@ -3129,43 +2870,6 @@ export function App() {
                             </span>
                             <span className="text-[10px] opacity-75">{isAudioDuckingEnabled ? 'เปิด' : 'ปิด'}</span>
                           </button>
-
-                          {/* OLED Sleep */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsOledSleepMode(true);
-                              setIsPlayerToolsOpen(false);
-                            }}
-                            className="px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center gap-2 cursor-pointer"
-                          >
-                            <Moon className="w-3.5 h-3.5 text-zinc-500" /> พักหน้าจอ OLED
-                          </button>
-
-                          {/* Draw & Guess 2D Party Game Toggle */}
-                          {(myRole === 'owner' || myRole === 'admin' || isSuperAdmin) && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsPlayerToolsOpen(false);
-                                if (gameState?.isActive) {
-                                  if (window.confirm('คุณต้องการยุติเกมวาดรูปสำหรับทุกคนใช่หรือไม่?')) {
-                                    handleStopGame();
-                                  }
-                                } else {
-                                  handleStartGame(3);
-                                }
-                              }}
-                              className={`px-2 py-1.5 rounded-lg flex items-center justify-between cursor-pointer ${
-                                gameState?.isActive ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40' : 'hover:bg-black/5 dark:hover:bg-white/5'
-                              }`}
-                            >
-                              <span className="flex items-center gap-2">
-                                <Gamepad2 className="w-3.5 h-3.5" /> โหมดเกมวาดรูปทายคำ
-                              </span>
-                              <span className="text-[10px] opacity-75">{gameState?.isActive ? 'กำลังเล่น' : 'เริ่ม'}</span>
-                            </button>
-                          )}
                         </div>
                       </>
                     )}

@@ -45,13 +45,8 @@ interface NavbarProps {
   isSuperAdmin?: boolean;
   isRefreshing?: boolean;
   isFavoriteRoom?: boolean;
-  isGameActive?: boolean;
-  onToggleGame?: () => void;
-  isCandyGameActive?: boolean;
-  onToggleCandyGame?: () => void;
   onToggleFavoriteRoom?: () => void;
   onRefreshRoom: () => void;
-  onToggleOledSleep: () => void;
   onOpenShareCard?: () => void;
   onInstallApp?: () => void;
   onOpenLiveTV?: () => void;
@@ -84,13 +79,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   isSuperAdmin,
   isRefreshing,
   isFavoriteRoom,
-  isGameActive,
-  onToggleGame,
-  isCandyGameActive,
-  onToggleCandyGame,
   onToggleFavoriteRoom,
   onRefreshRoom,
-  onToggleOledSleep,
   onOpenShareCard,
   onInstallApp,
   onOpenLiveTV,
@@ -320,18 +310,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Candy Crush Saga Game Button */}
-            {onToggleCandyGame && (
-              <button
-                type="button"
-                onClick={onToggleCandyGame}
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer shrink-0 shadow-xs active:scale-95 border ${isCandyGameActive ? 'bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse' : 'bg-gradient-to-r from-pink-500/15 via-purple-500/15 to-indigo-500/15 hover:brightness-110 text-purple-700 dark:text-purple-300 border-purple-400/40 shadow-xs'}`}
-                title="เปิด/ปิดเกม แคนดี้ ซาก้า (Candy Crush Saga)"
-              >
-                <span className="text-sm">🍬</span>
-                <span className="hidden xs:inline">{isCandyGameActive ? 'ปิดเกมแคนดี้' : 'แคนดี้ ซาก้า'}</span>
-              </button>
-            )}
           </>
         )}
 
@@ -585,55 +563,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
                   )}
 
-                  {/* OLED Sleep */}
-                  {onToggleOledSleep && (
-                    <button
-                      onClick={() => {
-                        onToggleOledSleep();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className="w-full px-2 py-1.5 rounded-lg hover:bg-white dark:hover:bg-[#252830] text-left text-xs text-[#615d59] dark:text-[#94a3b8] flex items-center gap-2 transition-colors cursor-pointer"
-                    >
-                      <Moon className="w-3.5 h-3.5 text-[#615d59]" />
-                      <span>โหมดพักหน้าจอ (OLED Black)</span>
-                    </button>
-                  )}
-
-                  {/* Candy Crush Saga Game */}
-                  {currentView === 'room' && onToggleCandyGame && (
-                    <button
-                      onClick={() => {
-                        onToggleCandyGame();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className={`w-full px-2 py-1.5 rounded-lg text-left text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
-                        isCandyGameActive
-                          ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300'
-                          : 'bg-pink-50 text-pink-700 hover:bg-pink-100 dark:bg-pink-950/40 dark:text-pink-300'
-                      }`}
-                    >
-                      <span className="text-sm">🍬</span>
-                      <span>{isCandyGameActive ? 'ออกจากเกมแคนดี้ ซาก้า' : 'เล่นเกม Candy Crush Saga (4 ผู้เล่น)'}</span>
-                    </button>
-                  )}
-
-                  {/* 2D Draw and Guess Game */}
-                  {currentView === 'room' && (isAdminOrOwner || isSuperAdmin) && onToggleGame && (
-                    <button
-                      onClick={() => {
-                        onToggleGame();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className={`w-full px-2 py-1.5 rounded-lg text-left text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
-                        isGameActive
-                          ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300'
-                          : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300'
-                      }`}
-                    >
-                      <Gamepad2 className="w-3.5 h-3.5" />
-                      <span>{isGameActive ? 'ยุติเกมวาดรูปทายคำ' : 'เริ่มเกมวาดรูปทายคำ (Party Game)'}</span>
-                    </button>
-                  )}
 
                   {/* Admin Panel */}
                   {currentView === 'room' && isAdminOrOwner && onOpenAdminPanel && (
