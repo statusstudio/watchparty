@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { UserProfile, RoomSummary } from '../../types/index.js';
 
 interface StitchHeaderProps {
-  currentTab: 'explore' | 'feed' | 'favorites' | 'popular' | 'my-rooms' | 'live-stage';
-  onTabChange: (tab: 'explore' | 'feed' | 'favorites' | 'popular' | 'my-rooms' | 'live-stage') => void;
+  currentTab: 'explore' | 'feed' | 'favorites' | 'popular' | 'my-rooms';
+  onTabChange: (tab: 'explore' | 'feed' | 'favorites' | 'popular' | 'my-rooms') => void;
   onOpenCreateRoom: () => void;
   onOpenRoomCodeModal: () => void;
   onOpenProfile?: () => void;
@@ -137,15 +137,15 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
             ยอดนิยม
           </button>
           <button
-            onClick={() => onTabChange('live-stage')}
+            onClick={() => onTabChange('feed')}
             className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-              currentTab === 'live-stage'
+              currentTab === 'feed'
                 ? isLight ? 'bg-white text-[#006194] shadow-xs font-bold' : 'bg-[#282a30] text-[#00daf3] shadow-inner font-bold'
                 : isLight ? 'text-[#475569] hover:text-[#006194] hover:bg-white/60' : 'text-[#c1c6d5] hover:text-[#00daf3] hover:bg-[#1d1f26]'
             }`}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-            Live Stage
+            <span className="material-symbols-outlined text-[15px]">dynamic_feed</span>
+            ฟีดชุมชน
           </button>
         </nav>
 

@@ -97,8 +97,8 @@ export const StitchRoomStudioView: React.FC<StitchRoomStudioViewProps> = ({
                   : 'dark:text-[#c1c6d5] text-[#475569] dark:hover:bg-[#282a30] hover:bg-[#eaedff] dark:hover:text-white hover:text-[#131b2e]'
               }`}
             >
-              <span className="material-symbols-outlined text-[20px]">radio</span>
-              <span>Live Stage</span>
+              <span className="material-symbols-outlined text-[20px]">chat</span>
+              <span>แชทในห้อง</span>
             </button>
 
             <button

@@ -62,7 +62,6 @@ import { ToastContainer, ToastItem } from './components/Toast.js';
 import { StitchHeader } from './components/stitch/StitchHeader.js';
 import { StitchHomeView } from './components/stitch/StitchHomeView.js';
 import { StitchRoomStudioView } from './components/stitch/StitchRoomStudioView.js';
-import { StitchLiveStageView } from './components/stitch/StitchLiveStageView.js';
 import { StitchRoomCodeModal } from './components/stitch/StitchRoomCodeModal.js';
 import { StitchMobileBottomNav } from './components/stitch/StitchMobileBottomNav.js';
 import { StitchSocialFeedView } from './components/stitch/StitchSocialFeedView.js';
@@ -163,7 +162,7 @@ export function App() {
   isStealthInspectionRef.current = isStealthInspection;
   const [currentUser, setCurrentUser] = useState<UserProfile>(getStoredUser);
   const [onlineCount, setOnlineCount] = useState<number>(1);
-  const [stitchTab, setStitchTab] = useState<'explore' | 'feed' | 'favorites' | 'popular' | 'my-rooms' | 'live-stage'>('explore');
+  const [stitchTab, setStitchTab] = useState<'explore' | 'feed' | 'favorites' | 'popular' | 'my-rooms'>('explore');
   const [stitchSearchQuery, setStitchSearchQuery] = useState<string>('');
   const [isStitchRoomCodeModalOpen, setIsStitchRoomCodeModalOpen] = useState<boolean>(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -2620,16 +2619,8 @@ export function App() {
 
       {/* Main View Router - Google Stitch Redesigned Interface */}
       {currentView === 'home' && (
-        stitchTab === 'live-stage' ? (
-          <StitchLiveStageView
-            onBack={() => setStitchTab('explore')}
-            currentUser={currentUser}
-            listenersCount={onlineCount}
-            theme={theme}
-          />
-        ) : (
-          <div className="h-[100dvh] max-h-[100dvh] overflow-hidden dark:bg-[#111319] dark:text-[#e2e2ea] bg-[#faf8ff] text-[#131b2e] flex flex-col selection:bg-[#0075de] selection:text-white transition-colors duration-300">
-            <StitchHeader
+        <div className="h-[100dvh] max-h-[100dvh] overflow-hidden dark:bg-[#111319] dark:text-[#e2e2ea] bg-[#faf8ff] text-[#131b2e] flex flex-col selection:bg-[#0075de] selection:text-white transition-colors duration-300">
+          <StitchHeader
               currentTab={stitchTab}
               onTabChange={(tab) => setStitchTab(tab)}
               onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
@@ -2697,7 +2688,6 @@ export function App() {
               onJoinRoom={(code) => handleSelectRoom(code.toLowerCase())}
             />
           </div>
-        )
       )}
 
       {(currentView === 'room' || Boolean(roomId)) && (
