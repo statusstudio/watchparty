@@ -2250,8 +2250,9 @@ export function App() {
 
   // Candy Battle Royale 3D Handlers
   const handleJoinCandyLobby = useCallback(() => {
+    showToast('กำลังเปิดล็อบบี้ Candy Master 3D... 🍬', 'info');
     socketService.send({ type: 'CANDY_JOIN_LOBBY' });
-  }, []);
+  }, [showToast]);
 
   const handleLeaveCandyLobby = useCallback(() => {
     socketService.send({ type: 'CANDY_LEAVE_LOBBY' });

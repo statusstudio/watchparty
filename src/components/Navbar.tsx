@@ -319,6 +319,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>ดูทีวีสด 📺</span>
               </button>
             )}
+
+            {/* Candy Battle Royale 3D Game Button */}
+            {onToggleCandyGame && (
+              <button
+                type="button"
+                onClick={onToggleCandyGame}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer shrink-0 shadow-xs active:scale-95 border ${isCandyGameActive ? 'bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse' : 'bg-gradient-to-r from-pink-500/15 via-purple-500/15 to-indigo-500/15 hover:brightness-110 text-purple-700 dark:text-purple-300 border-purple-400/40 shadow-xs'}`}
+                title="เปิด/ปิดเกม แคนดี้ 3D (Candy Master Battle Royale)"
+              >
+                <span className="text-sm">🍬</span>
+                <span className="hidden xs:inline">{isCandyGameActive ? 'ปิดเกมแคนดี้' : 'แคนดี้ 3D'}</span>
+              </button>
+            )}
           </>
         )}
 
