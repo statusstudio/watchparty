@@ -7,6 +7,8 @@ interface StitchHomeViewProps {
   onSelectRoom: (roomId: string) => void;
   onOpenCreateRoom: () => void;
   onOpenRoomCodeModal: () => void;
+  currentTab?: 'explore' | 'favorites' | 'popular' | 'feed' | 'my-rooms';
+  onTabChange?: (tab: 'explore' | 'favorites' | 'popular' | 'feed' | 'my-rooms') => void;
   theme?: 'dark' | 'light';
 }
 
@@ -16,12 +18,28 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
   onSelectRoom,
   onOpenCreateRoom,
   onOpenRoomCodeModal,
+  currentTab = 'explore',
+  onTabChange,
   theme = 'dark',
 }) => {
   const isLight = theme === 'light';
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isVinylPlaying, setIsVinylPlaying] = useState<boolean>(true);
   const [isRoomsSheetOpen, setIsRoomsSheetOpen] = useState<boolean>(false);
+
+  // Auto-open rooms sheet when user clicks Favorites or Popular from top/bottom nav
+  React.useEffect(() => {
+    if (currentTab === 'favorites' || currentTab === 'popular') {
+      setIsRoomsSheetOpen(true);
+    }
+  }, [currentTab]);
+
+  const handleCloseRoomsSheet = () => {
+    setIsRoomsSheetOpen(false);
+    if (currentTab !== 'explore' && onTabChange) {
+      onTabChange('explore');
+    }
+  };
 
   // Typewriter effect for "listen to music together"
   const FULL_PHRASE = 'listen to music together';
@@ -152,18 +170,31 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
     },
   ];
 
-  const filteredRooms = displayRooms.filter((r) => {
+  const effectiveTab = currentTab === 'favorites' || currentTab === 'popular' ? currentTab : 'explore';
+
+  const filteredRooms = React.useMemo(() => {
+    let list = [...displayRooms];
+
+    // Filter by favorites
+    if (effectiveTab === 'favorites') {
+      list = list.filter((r) => favoriteRoomIds.has(r.id));
+    } else if (effectiveTab === 'popular') {
+      // Sort by online listeners descending
+      list = list.sort((a, b) => (b.onlineCount || 1) - (a.onlineCount || 1));
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      return (
-        r.name.toLowerCase().includes(q) ||
-        r.description?.toLowerCase().includes(q) ||
-        r.currentVideo?.title.toLowerCase().includes(q) ||
-        r.ownerName.toLowerCase().includes(q)
+      list = list.filter(
+        (r) =>
+          r.name.toLowerCase().includes(q) ||
+          r.description?.toLowerCase().includes(q) ||
+          r.currentVideo?.title.toLowerCase().includes(q) ||
+          r.ownerName.toLowerCase().includes(q)
       );
     }
-    return true;
-  });
+    return list;
+  }, [displayRooms, effectiveTab, favoriteRoomIds, searchQuery]);
 
   const totalListeners = displayRooms.reduce((acc, r) => acc + (r.onlineCount || 1), 0);
 
@@ -371,13 +402,25 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
 
               {/* Left: Icon + Title + Status */}
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-[#0075de] to-[#00daf3] flex items-center justify-center text-white shadow-[0_0_14px_rgba(0,117,222,0.4)] shrink-0 group-hover:rotate-6 transition-transform">
-                  <span className="material-symbols-outlined text-[20px] sm:text-[22px]">podcasts</span>
+                <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center text-white shrink-0 group-hover:rotate-6 transition-transform ${
+                  effectiveTab === 'favorites'
+                    ? 'bg-gradient-to-tr from-amber-500 via-rose-500 to-pink-500 shadow-[0_0_14px_rgba(245,158,11,0.5)]'
+                    : effectiveTab === 'popular'
+                    ? 'bg-gradient-to-tr from-orange-500 via-amber-500 to-red-500 shadow-[0_0_14px_rgba(249,115,22,0.5)]'
+                    : 'bg-gradient-to-tr from-[#0075de] to-[#00daf3] shadow-[0_0_14px_rgba(0,117,222,0.4)]'
+                }`}>
+                  <span className="material-symbols-outlined text-[20px] sm:text-[22px]">
+                    {effectiveTab === 'favorites' ? 'star' : effectiveTab === 'popular' ? 'local_fire_department' : 'podcasts'}
+                  </span>
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h2 className={`font-black text-xs sm:text-sm md:text-base truncate ${isLight ? 'text-[#131b2e]' : 'text-[#e2e2ea]'}`}>
-                      ห้องฟังเพลงทั้งหมด
+                      {effectiveTab === 'favorites'
+                        ? 'ห้องโปรดของคุณ'
+                        : effectiveTab === 'popular'
+                        ? 'ห้องยอดนิยม 🔥'
+                        : 'ห้องฟังเพลงทั้งหมด'}
                     </h2>
                     <span className="flex h-2 w-2 relative shrink-0">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75" />
@@ -385,7 +428,11 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
                     </span>
                   </div>
                   <p className={`text-[10px] sm:text-xs mt-0.5 truncate ${isLight ? 'text-[#64748b]' : 'text-[#94A3B8]'}`}>
-                    {displayRooms.length} ห้องกำลังเปิดเพลง • แตะเพื่อเปิดดูรายชื่อห้อง
+                    {effectiveTab === 'favorites'
+                      ? `${displayRooms.filter((r) => favoriteRoomIds.has(r.id)).length} ห้องที่บันทึกไว้ • แตะเพื่อเปิดดู`
+                      : effectiveTab === 'popular'
+                      ? `${displayRooms.length} ห้องจัดอันดับคนฟังสด • แตะเพื่อเปิดดู`
+                      : `${displayRooms.length} ห้องกำลังเปิดเพลง • แตะเพื่อเปิดดูรายชื่อห้อง`}
                   </p>
                 </div>
               </div>
@@ -438,30 +485,79 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
               {/* Sheet Header */}
               <div className="px-5 py-3.5 border-b dark:border-white/[0.06] border-[#dae2fd]/60 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2.5">
-                  <span className="material-symbols-outlined text-[#0075de] dark:text-[#00daf3] text-[22px]">
-                    podcasts
+                  <span className={`material-symbols-outlined text-[22px] ${
+                    effectiveTab === 'favorites' ? 'text-amber-400' : effectiveTab === 'popular' ? 'text-orange-400' : 'text-[#0075de] dark:text-[#00daf3]'
+                  }`}>
+                    {effectiveTab === 'favorites' ? 'favorite' : effectiveTab === 'popular' ? 'local_fire_department' : 'podcasts'}
                   </span>
                   <div>
                     <h2 className="font-bold text-base sm:text-lg tracking-tight">
-                      ห้องฟังเพลงทั้งหมด ({filteredRooms.length})
+                      {effectiveTab === 'favorites'
+                        ? `ห้องโปรดของคุณ (${filteredRooms.length})`
+                        : effectiveTab === 'popular'
+                        ? `ห้องยอดนิยม 🔥 (${filteredRooms.length})`
+                        : `ห้องฟังเพลงทั้งหมด (${filteredRooms.length})`}
                     </h2>
                     <p className={`text-[11px] ${isLight ? 'text-[#64748b]' : 'text-[#94A3B8]'}`}>
-                      เลือกห้องเพื่อเริ่มฟังเพลงพร้อมกันแบบเรียลไทม์
+                      {effectiveTab === 'favorites'
+                        ? 'รวมห้องที่คุณกดติดดาว ★ บันทึกไว้'
+                        : effectiveTab === 'popular'
+                        ? 'เรียงตามห้องที่มีคนฟังสดมากที่สุดในขณะนี้'
+                        : 'เลือกห้องเพื่อเริ่มฟังเพลงพร้อมกันแบบเรียลไทม์'}
                     </p>
                   </div>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => setIsRoomsSheetOpen(false)}
+                  onClick={handleCloseRoomsSheet}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
                     isLight
                       ? 'bg-black/5 hover:bg-black/10 text-zinc-600'
                       : 'bg-white/5 hover:bg-white/10 text-zinc-300'
                   }`}
-                  title="ปิด"
+                  title="ปิด (กลับสู่หน้าแรก)"
                 >
                   ✕
+                </button>
+              </div>
+
+              {/* Sub-Tabs Selector inside Modal */}
+              <div className="px-4 py-2 border-b dark:border-white/[0.04] border-[#dae2fd]/40 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onTabChange && onTabChange('explore')}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    effectiveTab === 'explore'
+                      ? isLight ? 'bg-[#006194] text-white shadow-xs' : 'bg-[#00daf3] text-black font-bold'
+                      : isLight ? 'bg-black/5 text-[#475569] hover:bg-black/10' : 'bg-white/5 text-[#c1c6d5] hover:bg-white/10'
+                  }`}
+                >
+                  สำรวจห้อง ({displayRooms.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onTabChange && onTabChange('favorites')}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1 cursor-pointer ${
+                    effectiveTab === 'favorites'
+                      ? isLight ? 'bg-[#006194] text-white shadow-xs' : 'bg-[#00daf3] text-black font-bold'
+                      : isLight ? 'bg-black/5 text-[#475569] hover:bg-black/10' : 'bg-white/5 text-[#c1c6d5] hover:bg-white/10'
+                  }`}
+                >
+                  <span className="text-amber-400">★</span>
+                  <span>ห้องโปรด</span>
+                  <span>({displayRooms.filter((r) => favoriteRoomIds.has(r.id)).length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onTabChange && onTabChange('popular')}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1 cursor-pointer ${
+                    effectiveTab === 'popular'
+                      ? isLight ? 'bg-[#006194] text-white shadow-xs' : 'bg-[#00daf3] text-black font-bold'
+                      : isLight ? 'bg-black/5 text-[#475569] hover:bg-black/10' : 'bg-white/5 text-[#c1c6d5] hover:bg-white/10'
+                  }`}
+                >
+                  <span>🔥 ยอดนิยม</span>
                 </button>
               </div>
 
@@ -500,24 +596,42 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
                 {filteredRooms.length === 0 ? (
                   <div className="text-center py-12 space-y-2">
                     <span className="material-symbols-outlined text-4xl text-[#0075de] dark:text-[#00daf3]">
-                      music_off
+                      {effectiveTab === 'favorites' ? 'star_border' : 'music_off'}
                     </span>
                     <p className="text-sm font-semibold">
-                      ไม่พบห้องที่ตรงกับการค้นหา "{searchQuery}"
+                      {effectiveTab === 'favorites'
+                        ? 'คุณยังไม่มีห้องโปรดในรายการ'
+                        : searchQuery
+                        ? `ไม่พบห้องที่ตรงกับการค้นหา "${searchQuery}"`
+                        : 'ไม่พบห้องในหมวดหมู่นี้'}
                     </p>
-                    <button
-                      onClick={() => {
-                        setIsRoomsSheetOpen(false);
-                        onOpenCreateRoom();
-                      }}
-                      className="mt-2 px-5 py-2 rounded-full text-xs font-semibold bg-[#0075de] text-white hover:brightness-110 cursor-pointer"
-                    >
-                      สร้างห้องใหม่เลย 🎵
-                    </button>
+                    <p className={`text-xs max-w-xs mx-auto ${isLight ? 'text-[#64748b]' : 'text-[#94A3B8]'}`}>
+                      {effectiveTab === 'favorites'
+                        ? 'กดที่ไอคอนรูปดาว ★ บนการ์ดห้องใดก็ได้ เพื่อบันทึกเป็นห้องโปรดของคุณ'
+                        : 'ลองค้นหาด้วยคำอื่น หรือสร้างห้องปาร์ตี้ของคุณเอง'}
+                    </p>
+                    {effectiveTab === 'favorites' ? (
+                      <button
+                        onClick={() => onTabChange && onTabChange('explore')}
+                        className="mt-2 px-5 py-2 rounded-full text-xs font-semibold bg-[#0075de] text-white hover:brightness-110 cursor-pointer"
+                      >
+                        สำรวจห้องฟังเพลงทั้งหมด 🎵
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setIsRoomsSheetOpen(false);
+                          onOpenCreateRoom();
+                        }}
+                        className="mt-2 px-5 py-2 rounded-full text-xs font-semibold bg-[#0075de] text-white hover:brightness-110 cursor-pointer"
+                      >
+                        สร้างห้องใหม่เลย 🎵
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    {filteredRooms.map((room) => {
+                    {filteredRooms.map((room, index) => {
                       const isFav = favoriteRoomIds.has(room.id);
 
                       return (
@@ -527,7 +641,7 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
                             setIsRoomsSheetOpen(false);
                             onSelectRoom(room.id);
                           }}
-                          className={`group rounded-2xl overflow-hidden border p-3 flex gap-3 transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] cursor-pointer ${
+                          className={`group rounded-2xl overflow-hidden border p-3 flex gap-3 transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] cursor-pointer relative ${
                             isLight
                               ? 'bg-[#faf8ff] hover:bg-white border-[#dae2fd] hover:border-[#0075de]/40 hover:shadow-md'
                               : 'bg-[#111319] hover:bg-[#1d1f26] border-white/[0.06] hover:border-[#00daf3]/40 hover:shadow-lg'
@@ -550,6 +664,21 @@ export const StitchHomeView: React.FC<StitchHomeViewProps> = ({
                               <span className="w-1 h-1 rounded-full bg-[#10B981] animate-ping" />
                               LIVE
                             </div>
+
+                            {/* Popular Ranking Badge */}
+                            {effectiveTab === 'popular' && (
+                              <div className={`absolute top-1.5 right-1.5 px-2 py-0.5 rounded-full text-[9px] font-extrabold shadow-md flex items-center gap-0.5 z-10 ${
+                                index === 0
+                                  ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-black font-black'
+                                  : index === 1
+                                  ? 'bg-gradient-to-r from-slate-200 to-slate-400 text-black font-bold'
+                                  : index === 2
+                                  ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white font-bold'
+                                  : 'bg-black/70 text-zinc-200 border border-white/20'
+                              }`}>
+                                <span>{index === 0 ? '🥇 #1' : index === 1 ? '🥈 #2' : index === 2 ? '🥉 #3' : `#${index + 1}`}</span>
+                              </div>
+                            )}
 
                             <div className="absolute bottom-1.5 left-1.5 flex items-center gap-0.5 text-white font-mono text-[9px] font-semibold">
                               <span className="material-symbols-outlined text-[11px] text-[#00daf3]">group</span>

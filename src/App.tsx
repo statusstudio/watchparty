@@ -2666,6 +2666,8 @@ export function App() {
                 onSelectRoom={handleSelectRoom}
                 onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
                 onOpenRoomCodeModal={() => setIsStitchRoomCodeModalOpen(true)}
+                currentTab={stitchTab as any}
+                onTabChange={(t) => setStitchTab(t)}
                 theme={theme}
               />
             )}
