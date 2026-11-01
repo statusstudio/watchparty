@@ -319,6 +319,7 @@ export interface DrawAndGuessGameState {
 }
 
 export type CandyItemType = 'heal' | 'shield' | 'fire' | 'hammer';
+export type CandySpecialType = 'none' | 'striped_h' | 'striped_v' | 'wrapped' | 'color_bomb';
 
 export interface CandyBattlePlayer {
   userId: string;
@@ -345,7 +346,8 @@ export interface CandyBattleLog {
 
 export interface CandyTileData {
   id: string;
-  type: number;
+  type: number; // 0..5 colors, -2 for color bomb
+  special?: CandySpecialType;
   hasItem: boolean;
   itemType?: CandyItemType;
 }
@@ -361,6 +363,8 @@ export interface CandyBattleGameState {
   players: CandyBattlePlayer[];
   winner: CandyBattlePlayer | null;
   recentLogs: CandyBattleLog[];
+  lastAnnouncerVoice?: 'sweet' | 'tasty' | 'delicious' | 'divine' | 'sugar_crush' | null;
+  lastComboChain?: number;
 }
 
 export type WSClientMessage =
@@ -467,7 +471,15 @@ export type WSServerMessage =
   | { type: 'CALL_ENDED'; callId: string }
   | { type: 'CALL_SIGNAL'; callId: string; senderId: string; data: any }
   | { type: 'CANDY_STATE_UPDATED'; state: CandyBattleGameState | null }
-  | { type: 'CANDY_EVENT_TRIGGERED'; eventType: 'attack' | 'heal' | 'shield' | 'fire' | 'hammer' | 'ko'; fromUserId: string; targetUserId?: string; value?: number };
+  | {
+      type: 'CANDY_EVENT_TRIGGERED';
+      eventType: 'attack' | 'heal' | 'shield' | 'fire' | 'hammer' | 'ko' | 'special_blast' | 'combo_voice';
+      fromUserId: string;
+      targetUserId?: string;
+      value?: number;
+      blastType?: 'striped_h' | 'striped_v' | 'wrapped' | 'color_bomb' | 'combo_cross' | 'combo_giant' | 'combo_color_striped' | 'combo_wipe';
+      announcer?: 'sweet' | 'tasty' | 'delicious' | 'divine' | 'sugar_crush';
+    };
 
 // Platform Owner & Super Admin Types
 export interface PlatformUser {

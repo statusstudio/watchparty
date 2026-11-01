@@ -31,7 +31,9 @@ import {
   CandyBattleLog,
   CandyItemType,
   CandyTileData,
+  CandySpecialType,
 } from '../src/types/index.js';
+import { CandyCrushEngine } from './candyEngine.js';
 import { THAI_WORD_BANK, getRandomWordChoices } from './wordBank.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -3199,144 +3201,7 @@ export class RoomManager {
   }
 
   
-  private createRandom8x8Board(): CandyTileData[][] {
-    const board: CandyTileData[][] = [];
-    const itemTypes: CandyItemType[] = ['heal', 'shield', 'fire', 'hammer'];
-    for (let r = 0; r < 8; r++) {
-      const row: CandyTileData[] = [];
-      for (let c = 0; c < 8; c++) {
-        let type: number;
-        do {
-          type = Math.floor(Math.random() * 6);
-        } while (
-          (c >= 2 && row[c - 1].type === type && row[c - 2].type === type) ||
-          (r >= 2 && board[r - 1][c].type === type && board[r - 2][c].type === type)
-        );
-        const hasItem = Math.random() < 0.18;
-        const itemType = hasItem ? itemTypes[Math.floor(Math.random() * itemTypes.length)] : undefined;
-        row.push({
-          id: `t-${r}-${c}-${Math.random().toString(36).substring(2, 6)}`,
-          type,
-          hasItem,
-          itemType,
-        });
-      }
-      board.push(row);
-    }
-    return board;
-  }
-
-  private checkMatches(board: CandyTileData[][]): Set<string> {
-    const matches = new Set<string>();
-    for (let r = 0; r < 8; r++) {
-      let len = 1;
-      for (let c = 1; c < 8; c++) {
-        if (board[r][c].type !== -1 && board[r][c].type === board[r][c - 1].type) {
-          len++;
-        } else {
-          if (len >= 3) {
-            for (let k = 0; k < len; k++) matches.add(`${r},${c - 1 - k}`);
-          }
-          len = 1;
-        }
-      }
-      if (len >= 3) {
-        for (let k = 0; k < len; k++) matches.add(`${r},${7 - k}`);
-      }
-    }
-    for (let c = 0; c < 8; c++) {
-      let len = 1;
-      for (let r = 1; r < 8; r++) {
-        if (board[r][c].type !== -1 && board[r][c].type === board[r - 1][c].type) {
-          len++;
-        } else {
-          if (len >= 3) {
-            for (let k = 0; k < len; k++) matches.add(`${r - 1 - k},${c}`);
-          }
-          len = 1;
-        }
-      }
-      if (len >= 3) {
-        for (let k = 0; k < len; k++) matches.add(`${7 - k},${c}`);
-      }
-    }
-    return matches;
-  }
-
-  private processCascadingMatches(board: CandyTileData[][]): { totalDamage: number; comboCount: number; harvestedItems: CandyItemType[] } {
-    let totalDamage = 0;
-    let comboCount = 0;
-    const harvestedItems: CandyItemType[] = [];
-    const itemTypes: CandyItemType[] = ['heal', 'shield', 'fire', 'hammer'];
-
-    while (true) {
-      const matched = this.checkMatches(board);
-      if (matched.size === 0) break;
-      comboCount++;
-      const stepDmg = Math.round(matched.size * 2.5 * (1 + (comboCount - 1) * 0.4));
-      totalDamage += stepDmg;
-
-      matched.forEach((coord) => {
-        const [r, c] = coord.split(',').map(Number);
-        if (board[r][c].hasItem && board[r][c].itemType) {
-          harvestedItems.push(board[r][c].itemType!);
-        }
-        board[r][c] = { id: `del-${r}-${c}`, type: -1, hasItem: false };
-      });
-
-      for (let c = 0; c < 8; c++) {
-        const col: CandyTileData[] = [];
-        for (let r = 0; r < 8; r++) {
-          if (board[r][c].type !== -1) col.push(board[r][c]);
-        }
-        const missing = 8 - col.length;
-        for (let i = 0; i < missing; i++) {
-          const hasItem = Math.random() < 0.18;
-          const itemType = hasItem ? itemTypes[Math.floor(Math.random() * itemTypes.length)] : undefined;
-          col.unshift({
-            id: `spawn-${c}-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
-            type: Math.floor(Math.random() * 6),
-            hasItem,
-            itemType,
-          });
-        }
-        for (let r = 0; r < 8; r++) {
-          board[r][c] = col[r];
-        }
-      }
-    }
-    return { totalDamage, comboCount, harvestedItems };
-  }
-
   
-  private findBotValidMove(board: CandyTileData[][]): { r1: number; c1: number; r2: number; c2: number } | null {
-    const dirs = [
-      [0, 1],
-      [1, 0],
-    ];
-    for (let r = 0; r < 8; r++) {
-      for (let c = 0; c < 8; c++) {
-        for (const [dr, dc] of dirs) {
-          const nr = r + dr;
-          const nc = c + dc;
-          if (nr < 8 && nc < 8) {
-            // Test swap
-            const temp = board[r][c];
-            board[r][c] = board[nr][nc];
-            board[nr][nc] = temp;
-            const matches = this.checkMatches(board);
-            // Revert
-            board[nr][nc] = board[r][c];
-            board[r][c] = temp;
-            if (matches.size > 0) {
-              return { r1: r, c1: c, r2: nr, c2: nc };
-            }
-          }
-        }
-      }
-    }
-    return null;
-  }
 
   private executeBotTurn(room: InternalRoomData, botUserId: string) {
     if (!room.candyGameState || room.candyGameState.phase !== 'playing' || !room.candyGameState.board) return;
@@ -3365,43 +3230,47 @@ export class RoomManager {
       });
     }
 
-    // 2. Play move
-    const move = this.findBotValidMove(board);
+    // 2. Smart Bot Move
+    const move = CandyCrushEngine.findSmartBotMove(board);
     if (move) {
       const { r1, c1, r2, c2 } = move;
-      const temp = board[r1][c1];
-      board[r1][c1] = board[r2][c2];
-      board[r2][c2] = temp;
-
-      const { totalDamage, comboCount, harvestedItems } = this.processCascadingMatches(board);
-      if (harvestedItems.length > 0) {
-        if (!bot.items) bot.items = {};
-        harvestedItems.forEach((it) => {
-          bot.items![it] = (bot.items![it] || 0) + 1;
-        });
-        game.recentLogs.unshift({
-          id: 'log-' + Date.now(),
-          text: `🎁 ${bot.userName} สุ่มได้รับไอเท็มพิเศษจากกระดาน!`,
-          type: 'item',
-          timestamp: Date.now(),
-        });
+      const res = CandyCrushEngine.executeSwap(board, r1, c1, r2, c2);
+      if (res.success) {
+        if (res.harvestedItems.length > 0) {
+          if (!bot.items) bot.items = {};
+          res.harvestedItems.forEach((it) => {
+            bot.items![it] = (bot.items![it] || 0) + 1;
+          });
+        }
+        if (res.announcer) {
+          game.lastAnnouncerVoice = res.announcer;
+          this.broadcastToRoom(room.metadata.id, {
+            type: 'CANDY_EVENT_TRIGGERED',
+            eventType: 'combo_voice',
+            fromUserId: bot.userId,
+            announcer: res.announcer,
+          });
+        }
+        if (res.comboType) {
+          this.broadcastToRoom(room.metadata.id, {
+            type: 'CANDY_EVENT_TRIGGERED',
+            eventType: 'special_blast',
+            fromUserId: bot.userId,
+            blastType: res.comboType as any,
+          });
+        }
+        this.applyCandyAttack(room, bot, res.totalDamage, res.comboCount);
       }
-
-      this.applyCandyAttack(room, bot, totalDamage, comboCount);
     } else {
-      // Use hammer on random tile
+      // Fallback: smash a tile with hammer
       const r = Math.floor(Math.random() * 8);
       const c = Math.floor(Math.random() * 8);
-      board[r][c] = { id: `bot-smash-${r}-${c}`, type: -1, hasItem: false };
-      const { totalDamage, comboCount, harvestedItems } = this.processCascadingMatches(board);
-      if (harvestedItems.length > 0) {
-        if (!bot.items) bot.items = {};
-        harvestedItems.forEach((it) => {
-          bot.items![it] = (bot.items![it] || 0) + 1;
-        });
-      }
-      if (totalDamage > 0) {
-        this.applyCandyAttack(room, bot, totalDamage, comboCount);
+      board[r][c] = { id: `bot-smash-${r}-${c}`, type: -1, special: 'none', hasItem: false };
+      const harvest: CandyItemType[] = [];
+      CandyCrushEngine.refillBoard(board, harvest);
+      const cascade = CandyCrushEngine.processAllCascades(board, harvest);
+      if (cascade.cascadeDamage > 0) {
+        this.applyCandyAttack(room, bot, cascade.cascadeDamage, cascade.cascadeCombos);
       }
     }
 
@@ -3593,7 +3462,7 @@ export class RoomManager {
         if (room.candyGameState) {
           room.candyGameState.phase = 'playing';
           room.candyGameState.gameTimeLeft = 120;
-          room.candyGameState.board = this.createRandom8x8Board();
+          room.candyGameState.board = CandyCrushEngine.createRandom8x8Board();
           const firstPlayer = room.candyGameState.players[0];
           room.candyGameState.currentTurnUserId = firstPlayer?.userId || null;
           room.candyGameState.turnTimeLeft = 15;
@@ -3929,15 +3798,8 @@ export class RoomManager {
     const isAdjacent = Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1;
     if (!isAdjacent) return;
 
-    // Swap
-    const temp = board[r1][c1];
-    board[r1][c1] = board[r2][c2];
-    board[r2][c2] = temp;
-
-    const initialMatch = this.checkMatches(board);
-    if (initialMatch.size === 0) {
-      board[r2][c2] = board[r1][c1];
-      board[r1][c1] = temp;
+    const res = CandyCrushEngine.executeSwap(board, r1, c1, r2, c2);
+    if (!res.success) {
       this.sendToWs(ws, {
         type: 'SYNC_TOAST',
         message: '🍬 ไม่มีลูกอมเรียงตรงกัน 3 ลูก ลองตำแหน่งอื่นนะ',
@@ -3946,24 +3808,39 @@ export class RoomManager {
       return;
     }
 
-    const { totalDamage, comboCount, harvestedItems } = this.processCascadingMatches(board);
-
-    if (harvestedItems.length > 0) {
+    if (res.harvestedItems.length > 0) {
       if (!attacker.items) attacker.items = {};
-      harvestedItems.forEach((it) => {
+      res.harvestedItems.forEach((it) => {
         attacker.items![it] = (attacker.items![it] || 0) + 1;
       });
       game.recentLogs.unshift({
         id: 'log-' + Date.now(),
-        text: `🎁 ${attacker.userName} เก็บไอเท็มสำเร็จ ${harvestedItems.length} ชิ้น!`,
+        text: `🎁 ${attacker.userName} เก็บไอเท็มสำเร็จ ${res.harvestedItems.length} ชิ้น!`,
         type: 'item',
         timestamp: Date.now(),
       });
     }
 
-    this.applyCandyAttack(room, attacker, totalDamage, comboCount);
+    if (res.announcer) {
+      game.lastAnnouncerVoice = res.announcer;
+      this.broadcastToRoom(room.metadata.id, {
+        type: 'CANDY_EVENT_TRIGGERED',
+        eventType: 'combo_voice',
+        fromUserId: attacker.userId,
+        announcer: res.announcer,
+      });
+    }
 
-    // Advance turn to next alive player
+    if (res.comboType) {
+      this.broadcastToRoom(room.metadata.id, {
+        type: 'CANDY_EVENT_TRIGGERED',
+        eventType: 'special_blast',
+        fromUserId: attacker.userId,
+        blastType: res.comboType as any,
+      });
+    }
+
+    this.applyCandyAttack(room, attacker, res.totalDamage, res.comboCount);
     this.advanceCandyTurn(room, attacker.userId);
   }
 
@@ -3981,9 +3858,15 @@ export class RoomManager {
 
     if (r < 0 || r >= 8 || c < 0 || c >= 8) return;
 
-    board[r][c] = { id: `smashed-${r}-${c}`, type: -1, hasItem: false };
+    const harvestedItems: CandyItemType[] = [];
+    if (board[r][c].hasItem && board[r][c].itemType) {
+      harvestedItems.push(board[r][c].itemType!);
+    }
 
-    const { totalDamage, comboCount, harvestedItems } = this.processCascadingMatches(board);
+    board[r][c] = { id: `smashed-${r}-${c}`, type: -1, special: 'none', hasItem: false };
+    CandyCrushEngine.refillBoard(board, harvestedItems);
+    const cascade = CandyCrushEngine.processAllCascades(board, harvestedItems);
+
     if (harvestedItems.length > 0) {
       if (!attacker.items) attacker.items = {};
       harvestedItems.forEach((it) => {
@@ -3991,11 +3874,11 @@ export class RoomManager {
       });
     }
 
-    if (totalDamage > 0) {
-      this.applyCandyAttack(room, attacker, totalDamage, comboCount);
-    }
-
+    const totalDamage = 10 + cascade.cascadeDamage;
+    const comboCount = 1 + cascade.cascadeCombos;
+    this.applyCandyAttack(room, attacker, totalDamage, comboCount);
     this.advanceCandyTurn(room, attacker.userId);
   }
 }
+
 

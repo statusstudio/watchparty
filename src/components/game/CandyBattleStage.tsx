@@ -3,6 +3,7 @@ import {
   CandyBattleGameState,
   CandyBattlePlayer,
   CandyItemType,
+  CandyTileData,
   UserProfile,
   UserRole,
 } from '../../types/index.js';
@@ -242,6 +243,113 @@ const CANDY_COMPONENTS = [
   BlueCandySVG,
 ];
 
+
+// Striped Candy (Horizontal or Vertical Stripes with Gleaming Candy Lasers)
+const StripedCandySVG: React.FC<{ type: number; direction: 'h' | 'v'; className?: string }> = ({
+  type,
+  direction,
+  className = 'w-full h-full',
+}) => {
+  const BaseCandy = CANDY_COMPONENTS[type] || CANDY_COMPONENTS[0];
+  return (
+    <div className={`relative ${className} flex items-center justify-center`}>
+      <BaseCandy />
+      {/* Overlay Gleaming Stripes */}
+      <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none">
+        <defs>
+          <linearGradient id={`stripeShine-${direction}`} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+            <stop offset="50%" stopColor="#ffffff" stopOpacity="0.45" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.95" />
+          </linearGradient>
+        </defs>
+        {direction === 'h' ? (
+          <g stroke={`url(#stripeShine-${direction})`} strokeWidth="7" strokeLinecap="round" opacity="0.95">
+            <line x1="18" y1="35" x2="82" y2="35" />
+            <line x1="14" y1="50" x2="86" y2="50" />
+            <line x1="18" y1="65" x2="82" y2="65" />
+          </g>
+        ) : (
+          <g stroke={`url(#stripeShine-${direction})`} strokeWidth="7" strokeLinecap="round" opacity="0.95">
+            <line x1="35" y1="18" x2="35" y2="82" />
+            <line x1="50" y1="14" x2="50" y2="86" />
+            <line x1="65" y1="18" x2="65" y2="82" />
+          </g>
+        )}
+      </svg>
+      {/* Direction Arrow Badge */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <span className="text-[12px] text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,1)] animate-pulse">
+          {direction === 'h' ? '⬌' : '⬍'}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// Wrapped Candy (Translucent Cellophane Wrapper with Ribbon Bows)
+const WrappedCandySVG: React.FC<{ type: number; className?: string }> = ({
+  type,
+  className = 'w-full h-full',
+}) => {
+  const BaseCandy = CANDY_COMPONENTS[type] || CANDY_COMPONENTS[0];
+  return (
+    <div className={`relative ${className} flex items-center justify-center p-0.5`}>
+      <BaseCandy />
+      <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none">
+        <defs>
+          <radialGradient id="wrappedWings" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.8" />
+            <stop offset="60%" stopColor="#fef08a" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.9" />
+          </radialGradient>
+        </defs>
+        {/* Left bow tie */}
+        <polygon points="12,50 2,30 4,70" fill="url(#wrappedWings)" stroke="#ffffff" strokeWidth="1" />
+        {/* Right bow tie */}
+        <polygon points="88,50 98,30 96,70" fill="url(#wrappedWings)" stroke="#ffffff" strokeWidth="1" />
+        {/* Cellophane pouch highlight */}
+        <rect x="20" y="20" width="60" height="60" rx="16" fill="none" stroke="#ffffff" strokeWidth="3" opacity="0.9" />
+      </svg>
+      <div className="absolute -top-1 -right-1 text-[11px] animate-bounce">✨</div>
+    </div>
+  );
+};
+
+// Color Bomb (Dark Chocolate Truffle with Rainbow Nonpareil Sprinkles)
+const ColorBombSVG: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => (
+  <svg viewBox="0 0 100 100" className={className} style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.7))' }}>
+    <defs>
+      <radialGradient id="chocTruffle" cx="35%" cy="32%" r="68%">
+        <stop offset="0%" stopColor="#6b4124" />
+        <stop offset="40%" stopColor="#3d2314" />
+        <stop offset="85%" stopColor="#24140b" />
+        <stop offset="100%" stopColor="#100602" />
+      </radialGradient>
+      <radialGradient id="rainbowGlow" cx="50%" cy="50%" r="50%">
+        <stop offset="50%" stopColor="transparent" />
+        <stop offset="85%" stopColor="#ec4899" stopOpacity="0.4" />
+        <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.85" />
+      </radialGradient>
+    </defs>
+    <circle cx="50" cy="50" r="46" fill="url(#rainbowGlow)" />
+    <circle cx="50" cy="50" r="41" fill="url(#chocTruffle)" stroke="#f59e0b" strokeWidth="1.8" />
+    {/* Rainbow Sprinkles */}
+    <circle cx="34" cy="32" r="4.2" fill="#ef4444" stroke="#ffffff" strokeWidth="0.8" />
+    <circle cx="48" cy="24" r="4.2" fill="#3b82f6" stroke="#ffffff" strokeWidth="0.8" />
+    <circle cx="64" cy="30" r="4.2" fill="#10b981" stroke="#ffffff" strokeWidth="0.8" />
+    <circle cx="70" cy="46" r="4.2" fill="#eab308" stroke="#ffffff" strokeWidth="0.8" />
+    <circle cx="60" cy="62" r="4.2" fill="#ec4899" stroke="#ffffff" strokeWidth="0.8" />
+    <circle cx="44" cy="68" r="4.2" fill="#8b5cf6" stroke="#ffffff" strokeWidth="0.8" />
+    <circle cx="28" cy="58" r="4.2" fill="#f97316" stroke="#ffffff" strokeWidth="0.8" />
+    <circle cx="24" cy="42" r="4.2" fill="#06b6d4" stroke="#ffffff" strokeWidth="0.8" />
+    <circle cx="48" cy="46" r="4.8" fill="#fbbf24" stroke="#ffffff" strokeWidth="0.8" />
+    <circle cx="38" cy="48" r="3.6" fill="#a855f7" stroke="#ffffff" strokeWidth="0.8" />
+    <circle cx="56" cy="38" r="3.6" fill="#f43f5e" stroke="#ffffff" strokeWidth="0.8" />
+    <ellipse cx="38" cy="28" rx="8" ry="4" transform="rotate(-30 38 28)" fill="#ffffff" opacity="0.65" />
+  </svg>
+);
+
 // Mystery Aura Ring (Swirling glowing white/cyan energy portal around mystery candies)
 const MysteryAuraRing: React.FC = () => (
   <div className="absolute -inset-1.5 pointer-events-none z-10 flex items-center justify-center">
@@ -426,6 +534,45 @@ function createRandom8x8Board(): BoardTile[][] {
 // MAIN CANDY BATTLE STAGE COMPONENT
 // ---------------------------------------------------------------------------
 
+
+function playAnnouncerVoice(voice: 'sweet' | 'tasty' | 'delicious' | 'divine' | 'sugar_crush') {
+  if (typeof window === 'undefined') return;
+  // Sound effect via Web Audio
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(440, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.35);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+  } catch (e) {}
+
+  // Speech voice synthesis
+  try {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const textMap: Record<string, string> = {
+        sweet: 'Sweet!',
+        tasty: 'Tasty!',
+        delicious: 'Delicious!',
+        divine: 'Divine!',
+        sugar_crush: 'Sugar Crush!',
+      };
+      const utter = new SpeechSynthesisUtterance(textMap[voice] || voice);
+      utter.rate = 1.05;
+      utter.pitch = 1.25;
+      utter.lang = 'en-US';
+      window.speechSynthesis.speak(utter);
+    }
+  } catch (e) {}
+}
+
 export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
   gameState,
   currentUser,
@@ -449,6 +596,99 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [turnWaitToast, setTurnWaitToast] = useState(false);
+
+  const [announcerBanner, setAnnouncerBanner] = useState<{ text: string; sub: string; color: string } | null>(null);
+  const [screenShake, setScreenShake] = useState<'none' | 'light' | 'heavy'>('none');
+  const [hintMove, setHintMove] = useState<{ r1: number; c1: number; r2: number; c2: number } | null>(null);
+  const dragStartRef = useRef<{ r: number; c: number; x: number; y: number } | null>(null);
+  const prevAnnouncerRef = useRef<string | null | undefined>(null);
+
+  // Announcer & Screen Shake Listener
+  useEffect(() => {
+    const voice = gameState?.lastAnnouncerVoice;
+    if (voice && voice !== prevAnnouncerRef.current) {
+      prevAnnouncerRef.current = voice;
+      playAnnouncerVoice(voice);
+      setScreenShake('heavy');
+      setTimeout(() => setScreenShake('none'), 650);
+
+      const voiceMap: Record<string, { text: string; sub: string; color: string }> = {
+        sweet: { text: 'SWEET!', sub: '3x COMBO', color: 'from-amber-400 via-yellow-300 to-amber-500' },
+        tasty: { text: 'TASTY!', sub: '4x COMBO', color: 'from-orange-500 via-amber-400 to-yellow-400' },
+        delicious: { text: 'DELICIOUS!', sub: '5x SUPER COMBO', color: 'from-pink-500 via-purple-400 to-indigo-500' },
+        divine: { text: 'DIVINE!', sub: '6x MEGA COMBO', color: 'from-cyan-400 via-sky-300 to-blue-500' },
+        sugar_crush: { text: 'SUGAR CRUSH!', sub: 'BOARD CLEAR', color: 'from-rose-500 via-amber-300 to-fuchsia-500' },
+      };
+
+      setAnnouncerBanner(voiceMap[voice] || { text: 'AWESOME!', sub: 'COMBO', color: 'from-yellow-400 to-amber-500' });
+      const timer = setTimeout(() => setAnnouncerBanner(null), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState?.lastAnnouncerVoice]);
+
+  // Pointer Swipe / Drag Handlers
+  const handlePointerDown = (r: number, c: number, e: React.PointerEvent) => {
+    if (gameState?.phase !== 'playing' || myPlayer?.isDead || isProcessing) return;
+    if (!isMyTurn) {
+      setTurnWaitToast(true);
+      setTimeout(() => setTurnWaitToast(false), 1800);
+      return;
+    }
+    if (activeHammerMode) {
+      handleCellClick(r, c);
+      return;
+    }
+    dragStartRef.current = { r, c, x: e.clientX, y: e.clientY };
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!dragStartRef.current || !isMyTurn || myPlayer?.isDead || isProcessing) return;
+    const { r, c, x, y } = dragStartRef.current;
+    const dx = e.clientX - x;
+    const dy = e.clientY - y;
+    const threshold = 22;
+
+    if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
+      let targetR = r;
+      let targetC = c;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        targetC = dx > 0 ? c + 1 : c - 1;
+      } else {
+        targetR = dy > 0 ? r + 1 : r - 1;
+      }
+      dragStartRef.current = null; // consume drag
+
+      if (targetR >= 0 && targetR < 8 && targetC >= 0 && targetC < 8) {
+        setSelectedCell(null);
+        setIsProcessing(true);
+        if (onSwap) onSwap(r, c, targetR, targetC);
+        setTimeout(() => setIsProcessing(false), 300);
+      }
+    }
+  };
+
+  const handlePointerUp = () => {
+    dragStartRef.current = null;
+  };
+
+  const renderCandyTile = (cell: CandyTileData) => {
+    if (cell.type === -1) return null;
+    if (cell.special === 'color_bomb' || cell.type === -2) {
+      return <ColorBombSVG />;
+    }
+    if (cell.special === 'striped_h') {
+      return <StripedCandySVG type={cell.type} direction="h" />;
+    }
+    if (cell.special === 'striped_v') {
+      return <StripedCandySVG type={cell.type} direction="v" />;
+    }
+    if (cell.special === 'wrapped') {
+      return <WrappedCandySVG type={cell.type} />;
+    }
+    const CandyComp = CANDY_COMPONENTS[cell.type] || CANDY_COMPONENTS[0];
+    return <CandyComp />;
+  };
+
 
   // Player Inventory
   const [inventory, setInventory] = useState<Record<CandyItemType, number>>({
@@ -985,11 +1225,12 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
                   return (
                     <button
                       key={cell.id || `${r}-${c}`}
+                      onPointerDown={(e) => handlePointerDown(r, c, e)}
                       onClick={() => handleCellClick(r, c)}
                       disabled={myPlayer?.isDead || cell.type === -1}
-                      className={`relative rounded-lg flex items-center justify-center cursor-pointer transition-transform duration-150 active:scale-90 ${
+                      className={`relative rounded-lg flex items-center justify-center cursor-pointer transition-transform duration-150 active:scale-90 touch-none ${
                         isSelected
-                          ? 'ring-2 ring-yellow-300 scale-110 z-30 shadow-[0_0_12px_rgba(253,224,71,0.9)]'
+                          ? 'ring-2 ring-yellow-300 scale-110 z-30 shadow-[0_0_14px_rgba(253,224,71,0.95)]'
                           : isMyTurn
                           ? 'hover:scale-105'
                           : 'cursor-default opacity-95'
@@ -999,10 +1240,10 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
                       {/* Mystery Aura Glow */}
                       {cell.hasItem && <MysteryAuraRing />}
 
-                      {/* Candy Graphic */}
+                      {/* Candy Graphic with Special Candy support */}
                       {cell.type !== -1 && (
                         <div className="w-full h-full p-0.5 flex items-center justify-center">
-                          <CandyComponent />
+                          {renderCandyTile(cell)}
                         </div>
                       )}
                     </button>
@@ -1016,6 +1257,16 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
               <span className="text-xs font-bold text-yellow-300 animate-pulse tracking-wide">
                 🍬 กำลังเตรียมกระดานลูกอม...
               </span>
+            </div>
+          )}
+
+          {/* FLOATING 3D CANDY CRUSH ANNOUNCER BANNER */}
+          {announcerBanner && (
+            <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center animate-in zoom-in-75 duration-200">
+              <div className={`px-6 py-2.5 rounded-3xl bg-gradient-to-r ${announcerBanner.color} text-black font-black text-2xl sm:text-3xl shadow-[0_0_35px_rgba(255,255,255,0.95)] border-2 border-white flex flex-col items-center tracking-wider animate-bounce`}>
+                <span className="drop-shadow-md">{announcerBanner.text}</span>
+                <span className="text-[10px] font-mono font-bold tracking-widest text-black/80">{announcerBanner.sub}</span>
+              </div>
             </div>
           )}
         </div>
