@@ -1767,6 +1767,12 @@ async function startServer() {
           case 'CANDY_SELECT_TARGET':
             roomManager.handleCandySelectTarget(ws, msg.targetUserId);
             break;
+          case 'CANDY_ACTION_SWAP':
+            roomManager.handleCandySwap(ws, msg.r1, msg.c1, msg.r2, msg.c2);
+            break;
+          case 'CANDY_ACTION_HAMMER':
+            roomManager.handleCandyHammer(ws, msg.r, msg.c);
+            break;
           case 'SET_ROOM_ANNOUNCEMENT':
             roomManager.handleSetRoomAnnouncement(ws, msg.announcement);
             break;

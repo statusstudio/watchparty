@@ -2278,6 +2278,14 @@ export function App() {
     socketService.send({ type: 'CANDY_SELECT_TARGET', targetUserId });
   }, []);
 
+  const handleCandySwap = useCallback((r1: number, c1: number, r2: number, c2: number) => {
+    socketService.send({ type: 'CANDY_ACTION_SWAP', r1, c1, r2, c2 });
+  }, []);
+
+  const handleCandyHammer = useCallback((r: number, c: number) => {
+    socketService.send({ type: 'CANDY_ACTION_HAMMER', r, c });
+  }, []);
+
   // Draw and Guess Game Action Handlers
   const handleStartGame = useCallback((maxRounds: number = 3) => {
     socketService.send({ type: 'GAME_START', maxRounds });
@@ -2815,7 +2823,7 @@ export function App() {
 
             {/* Candy Battle Royale 3D Game Stage */}
             {candyGameState?.isActive && (
-              <div className="w-full h-[54vh] sm:h-[60vh] md:h-[64vh] lg:h-full min-h-[380px] flex-1 flex flex-col shrink-0 lg:shrink">
+              <div className="w-full flex-1 flex flex-col items-center justify-center min-h-[580px] sm:min-h-[620px] md:min-h-[660px] h-[75vh] max-h-[85vh] shrink-0 z-20">
                 <React.Suspense fallback={<div className="flex-1 flex items-center justify-center text-zinc-400 text-sm">กำลังโหลด Candy Battle 3D...</div>}>
                   <CandyBattleStage
                     gameState={candyGameState}
@@ -2828,6 +2836,8 @@ export function App() {
                     onAttack={handleCandyAttack}
                     onUseItem={handleCandyUseItem}
                     onSelectTarget={handleCandySelectTarget}
+                    onSwap={handleCandySwap}
+                    onHammer={handleCandyHammer}
                     theme={theme}
                   />
                 </React.Suspense>

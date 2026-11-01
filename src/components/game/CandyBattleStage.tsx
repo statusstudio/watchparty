@@ -29,9 +29,10 @@ interface CandyBattleStageProps {
   onAttack: (damage: number, combo: number, targetUserId?: string) => void;
   onUseItem: (itemType: CandyItemType) => void;
   onSelectTarget: (targetUserId: string) => void;
+  onSwap?: (r1: number, c1: number, r2: number, c2: number) => void;
+  onHammer?: (r: number, c: number) => void;
   theme?: 'dark' | 'light';
 }
-
 // ---------------------------------------------------------------------------
 // 6 WE SING CANDY VECTOR SPRITES (3D Authentic Assets)
 // ---------------------------------------------------------------------------
@@ -436,15 +437,18 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
   onAttack,
   onUseItem,
   onSelectTarget,
+  onSwap,
+  onHammer,
   theme = 'dark',
 }) => {
-  // Game Board State (8x8)
-  const [board, setBoard] = useState<BoardTile[][]>(() => createRandom8x8Board());
+  // Shared 8x8 Board from server
+  const board = gameState?.board || [];
   const [selectedCell, setSelectedCell] = useState<{ r: number; c: number } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeHammerMode, setActiveHammerMode] = useState(false);
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [turnWaitToast, setTurnWaitToast] = useState(false);
 
   // Player Inventory
   const [inventory, setInventory] = useState<Record<CandyItemType, number>>({
@@ -465,6 +469,8 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
   const myPlayer = gameState?.players.find((p) => p.userId === currentUser.id);
   const isHost = myPlayer?.isHost;
   const isAdminOrOwner = myRole === 'owner' || myRole === 'admin';
+  const isMyTurn = gameState?.currentTurnUserId === currentUser.id;
+  const currentTurnPlayer = gameState?.players.find((p) => p.userId === gameState?.currentTurnUserId);
 
   // Audio cues for countdown & victory
   useEffect(() => {
@@ -483,13 +489,13 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
     prevPhaseRef.current = gameState?.phase;
   }, [gameState?.phase, gameState?.lobbyTimeLeft]);
 
-  // Reset board on playing start
+  // Reset local helpers on playing start
   useEffect(() => {
     if (gameState?.phase === 'playing') {
-      setBoard(createRandom8x8Board());
       setInventory({ heal: 1, shield: 0, fire: 0, hammer: 1 });
       setActiveHammerMode(false);
       setShowTargetModal(false);
+      setSelectedCell(null);
     }
   }, [gameState?.phase]);
 
@@ -508,185 +514,23 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
     }
   }, [screenVFX]);
 
-  // Match-3 Processing Algorithm
-  const checkAndClearMatches = useCallback((currentBoard: BoardTile[][], currentCombo: number = 1): boolean => {
-    const matchedCoords = new Set<string>();
-
-    // Horizontal check
-    for (let r = 0; r < GRID_SIZE; r++) {
-      let matchLen = 1;
-      for (let c = 1; c < GRID_SIZE; c++) {
-        if (currentBoard[r][c].type === currentBoard[r][c - 1].type) {
-          matchLen++;
-        } else {
-          if (matchLen >= 3) {
-            for (let k = 0; k < matchLen; k++) {
-              matchedCoords.add(`${r},${c - 1 - k}`);
-            }
-          }
-          matchLen = 1;
-        }
-      }
-      if (matchLen >= 3) {
-        for (let k = 0; k < matchLen; k++) {
-          matchedCoords.add(`${r},${GRID_SIZE - 1 - k}`);
-        }
-      }
-    }
-
-    // Vertical check
-    for (let c = 0; c < GRID_SIZE; c++) {
-      let matchLen = 1;
-      for (let r = 1; r < GRID_SIZE; r++) {
-        if (currentBoard[r][c].type === currentBoard[r - 1][c].type) {
-          matchLen++;
-        } else {
-          if (matchLen >= 3) {
-            for (let k = 0; k < matchLen; k++) {
-              matchedCoords.add(`${r - 1 - k},${c}`);
-            }
-          }
-          matchLen = 1;
-        }
-      }
-      if (matchLen >= 3) {
-        for (let k = 0; k < matchLen; k++) {
-          matchedCoords.add(`${GRID_SIZE - 1 - k},${c}`);
-        }
-      }
-    }
-
-    if (matchedCoords.size === 0) {
-      return false;
-    }
-
-    // Play Pop sound
-    playCandyPop(currentCombo);
-
-    // Harvest items & calculate damage
-    const damage = Math.round(matchedCoords.size * 2.5 * (1 + (currentCombo - 1) * 0.4));
-    const itemsFound: CandyItemType[] = [];
-
-    matchedCoords.forEach((coord) => {
-      const [r, c] = coord.split(',').map(Number);
-      const tile = currentBoard[r][c];
-      if (tile.hasItem && tile.itemType) {
-        itemsFound.push(tile.itemType);
-      }
-    });
-
-    if (itemsFound.length > 0) {
-      playItemRevealSound();
-      setInventory((prev) => {
-        const next = { ...prev };
-        itemsFound.forEach((it) => {
-          next[it] = (next[it] || 0) + 1;
-        });
-        return next;
-      });
-
-      const firstItem = itemsFound[0];
-      const names: Record<CandyItemType, string> = {
-        heal: 'ยาเพิ่มเลือด (+30 HP)',
-        shield: 'เกราะป้องกัน',
-        fire: 'คลื่นไฟโจมตีหมู่ (-20 HP)',
-        hammer: 'ค้อนวิเศษ',
-      };
-      setRecentItemRevealed({ name: names[firstItem], item: firstItem });
-    }
-
-    // Send attack to server
-    if (myPlayer && !myPlayer.isDead) {
-      onAttack(damage, currentCombo, myPlayer.targetUserId || undefined);
-    }
-
-    // Drop and refill board
-    const nextBoard = currentBoard.map((row) => row.map((cell) => ({ ...cell })));
-
-    matchedCoords.forEach((coord) => {
-      const [r, c] = coord.split(',').map(Number);
-      nextBoard[r][c] = {
-        id: `empty-${r}-${c}`,
-        type: -1,
-        hasItem: false,
-      };
-    });
-
-    for (let c = 0; c < GRID_SIZE; c++) {
-      const colItems: BoardTile[] = [];
-      for (let r = 0; r < GRID_SIZE; r++) {
-        if (nextBoard[r][c].type !== -1) {
-          colItems.push(nextBoard[r][c]);
-        }
-      }
-      const missingCount = GRID_SIZE - colItems.length;
-      for (let i = 0; i < missingCount; i++) {
-        const hasItem = Math.random() < 0.18;
-        const itemType = hasItem ? ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)] : undefined;
-        colItems.unshift({
-          id: `new-${c}-${i}-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
-          type: Math.floor(Math.random() * CANDY_COUNT),
-          hasItem,
-          itemType,
-        });
-      }
-      for (let r = 0; r < GRID_SIZE; r++) {
-        nextBoard[r][c] = colItems[r];
-      }
-    }
-
-    setBoard(nextBoard);
-
-    setTimeout(() => {
-      checkAndClearMatches(nextBoard, currentCombo + 1);
-    }, 280);
-
-    return true;
-  }, [myPlayer, onAttack]);
-
-  // Handle cell click (Swap or Hammer)
+  // Handle cell click (Shared Turn-Based Swap or Hammer)
   const handleCellClick = (r: number, c: number) => {
     if (gameState?.phase !== 'playing' || myPlayer?.isDead || isProcessing) return;
+
+    // Check Turn
+    if (!isMyTurn) {
+      playCountdownBeep(false);
+      setTurnWaitToast(true);
+      setTimeout(() => setTurnWaitToast(false), 1800);
+      return;
+    }
 
     // Hammer smash mode
     if (activeHammerMode) {
       playHammerSmashSound();
       setActiveHammerMode(false);
-
-      const targetTile = board[r][c];
-      if (targetTile.hasItem && targetTile.itemType) {
-        playItemRevealSound();
-        setInventory((prev) => ({
-          ...prev,
-          [targetTile.itemType!]: (prev[targetTile.itemType!] || 0) + 1,
-        }));
-      }
-
-      const nextBoard = board.map((row) => row.map((cell) => ({ ...cell })));
-      nextBoard[r][c] = { id: `smashed-${r}-${c}`, type: -1, hasItem: false };
-
-      for (let col = 0; col < GRID_SIZE; col++) {
-        const colItems = [];
-        for (let row = 0; row < GRID_SIZE; row++) {
-          if (nextBoard[row][col].type !== -1) colItems.push(nextBoard[row][col]);
-        }
-        const missing = GRID_SIZE - colItems.length;
-        for (let i = 0; i < missing; i++) {
-          const hasItem = Math.random() < 0.18;
-          colItems.unshift({
-            id: `spawn-${col}-${i}-${Date.now()}`,
-            type: Math.floor(Math.random() * CANDY_COUNT),
-            hasItem,
-            itemType: hasItem ? ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)] : undefined,
-          });
-        }
-        for (let row = 0; row < GRID_SIZE; row++) {
-          nextBoard[row][col] = colItems[row];
-        }
-      }
-
-      setBoard(nextBoard);
-      setTimeout(() => checkAndClearMatches(nextBoard, 1), 200);
+      if (onHammer) onHammer(r, c);
       return;
     }
 
@@ -697,32 +541,20 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
     }
 
     const { r: r1, c: c1 } = selectedCell;
-    const isAdjacent = (Math.abs(r - r1) === 1 && c === c1) || (Math.abs(c - c1) === 1 && r === r1);
+    const isAdjacent = Math.abs(r - r1) + Math.abs(c - c1) === 1;
 
     if (!isAdjacent) {
       setSelectedCell({ r, c });
       return;
     }
 
-    // Try Swap
+    // Trigger Swap on shared server board
     setIsProcessing(true);
     setSelectedCell(null);
-
-    const testBoard = board.map((row) => row.map((cell) => ({ ...cell })));
-    const temp = testBoard[r1][c1];
-    testBoard[r1][c1] = testBoard[r][c];
-    testBoard[r][c] = temp;
-
-    setBoard(testBoard);
-
-    setTimeout(() => {
-      const hasMatch = checkAndClearMatches(testBoard, 1);
-      if (!hasMatch) {
-        // Swap back if no match
-        setBoard(board);
-      }
-      setIsProcessing(false);
-    }, 180);
+    if (onSwap) {
+      onSwap(r1, c1, r, c);
+    }
+    setTimeout(() => setIsProcessing(false), 300);
   };
 
   // Handle Item Use
@@ -751,7 +583,7 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
   };
 
   // -------------------------------------------------------------------------
-  // 1. LOBBY VIEW (Authentic WeSing Waiting Room - Screen 3)
+  // 1. LOBBY VIEW (Authentic WeSing Waiting Room)
   // -------------------------------------------------------------------------
   if (!gameState || gameState.phase === 'waiting' || gameState.phase === 'countdown') {
     const players = gameState?.players || [];
@@ -759,7 +591,7 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
     const isCountdown = gameState?.phase === 'countdown';
 
     return (
-      <div className="w-full h-full flex-1 flex flex-col justify-between items-center p-4 relative overflow-hidden select-none bg-gradient-to-b from-[#2e2b7a] via-[#3b3598] to-[#1e1b58] text-white font-sans">
+      <div className="w-full h-full flex-1 flex flex-col justify-between items-center p-3 sm:p-5 relative overflow-hidden select-none bg-gradient-to-b from-[#2e2b7a] via-[#3b3598] to-[#1e1b58] text-white font-sans rounded-2xl">
         {/* Soft Swirl Texture Background */}
         <div
           className="absolute inset-0 opacity-15 pointer-events-none"
@@ -769,24 +601,22 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
           }}
         />
 
-        {/* Top Header: Logo + Controls */}
-        <div className="w-full max-w-xl flex items-center justify-between z-10 pt-2 px-2">
-          {/* Candy Master Logo */}
+        {/* Top Header */}
+        <div className="w-full max-w-xl flex items-center justify-between z-10 pt-1 px-2">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">
               <RedCandySVG />
             </div>
             <div className="flex flex-col leading-none">
-              <span className="text-xl sm:text-2xl font-black tracking-tight text-[#ffdd55] drop-shadow-[0_2px_4px_rgba(180,83,9,0.8)]" style={{ fontFamily: 'system-ui, sans-serif' }}>
+              <span className="text-xl sm:text-2xl font-black tracking-tight text-[#ffdd55] drop-shadow-[0_2px_4px_rgba(180,83,9,0.8)]">
                 Candy Master
               </span>
               <span className="text-[10px] font-bold text-amber-200 tracking-wider">
-                BATTLE ROYALE
+                BATTLE ROYALE (4 PLAYERS)
               </span>
             </div>
           </div>
 
-          {/* Right Action Icons */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowHelpModal(true)}
@@ -807,23 +637,20 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
           </div>
         </div>
 
-        {/* Center Section: Ribbon Banner + 4 Circular Slots */}
-        <div className="w-full max-w-lg flex flex-col items-center my-auto z-10 py-6">
-          {/* Green Ribbon 3D Banner */}
-          <div className="relative mb-8">
-            <div className="px-10 py-2 rounded-full bg-gradient-to-r from-[#22c55e] via-[#4ade80] to-[#16a34a] text-white font-black text-base tracking-wide shadow-[0_6px_20px_rgba(34,197,94,0.5),inset_0_2px_4px_rgba(255,255,255,0.6)] border-2 border-[#86efac] flex items-center justify-center gap-2">
+        {/* Center: Ribbon Banner + 4 Circular Slots */}
+        <div className="w-full max-w-lg flex flex-col items-center my-auto z-10 py-4">
+          <div className="relative mb-6">
+            <div className="px-8 sm:px-12 py-2 rounded-full bg-gradient-to-r from-[#22c55e] via-[#4ade80] to-[#16a34a] text-white font-black text-base sm:text-lg tracking-wide shadow-[0_6px_20px_rgba(34,197,94,0.5),inset_0_2px_4px_rgba(255,255,255,0.6)] border-2 border-[#86efac] flex items-center justify-center gap-2">
               <span className="drop-shadow-md">
                 {isCountdown
                   ? `กำลังเริ่มเกมใน ${gameState.lobbyTimeLeft}s...`
                   : `รอผู้เล่น (${players.length}/4)`}
               </span>
             </div>
-            {/* 3D ribbon folds left & right */}
             <div className="absolute -left-3 top-2 w-4 h-6 bg-[#15803d] -z-10 rounded-l-md transform -skew-y-12" />
             <div className="absolute -right-3 top-2 w-4 h-6 bg-[#15803d] -z-10 rounded-r-md transform skew-y-12" />
           </div>
 
-          {/* 4 Circular Avatar Slots in a Row */}
           <div className="w-full grid grid-cols-4 gap-2 sm:gap-4 px-2">
             {[0, 1, 2, 3].map((slotIdx) => {
               const player = players[slotIdx];
@@ -833,8 +660,7 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
                   <div className="relative">
                     {player ? (
                       <>
-                        {/* Circular Avatar with Glowing Green Ring */}
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full p-1 bg-gradient-to-b from-[#4ade80] to-[#15803d] shadow-[0_4px_16px_rgba(34,197,94,0.6)]">
+                        <div className="w-14 h-14 sm:w-18 sm:h-18 rounded-full p-1 bg-gradient-to-b from-[#4ade80] to-[#15803d] shadow-[0_4px_16px_rgba(34,197,94,0.6)]">
                           <img
                             src={player.avatar || 'https://api.dicebear.com/7.x/bottts/svg'}
                             alt={player.userName}
@@ -842,7 +668,6 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
                           />
                         </div>
 
-                        {/* Host Home Icon 🏠 Badge on Slot 0 */}
                         {player.isHost && (
                           <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full bg-[#ef4444] border-2 border-white text-[10px] shadow-md flex items-center justify-center">
                             🏠
@@ -850,11 +675,10 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
                         )}
                       </>
                     ) : (
-                      /* Empty Slot */
                       <button
                         onClick={onJoinLobby}
                         disabled={!!myPlayer}
-                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-dashed border-white/40 bg-white/10 hover:bg-white/20 flex flex-col items-center justify-center cursor-pointer transition-all active:scale-95 group shadow-inner"
+                        className="w-14 h-14 sm:w-18 sm:h-18 rounded-full border-2 border-dashed border-white/40 bg-white/10 hover:bg-white/20 flex flex-col items-center justify-center cursor-pointer transition-all active:scale-95 group shadow-inner"
                       >
                         <span className="material-symbols-outlined text-white/60 group-hover:text-white text-2xl">
                           add
@@ -863,7 +687,6 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
                     )}
                   </div>
 
-                  {/* Player Name */}
                   <div className="mt-2 text-center max-w-[80px]">
                     <p className="text-xs font-bold text-white truncate drop-shadow-sm">
                       {player ? player.userName : `ที่นั่ง ${slotIdx + 1}`}
@@ -882,33 +705,33 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
             })}
           </div>
 
-          {/* Action Button: 3D Glossy Green Capsule */}
-          <div className="mt-8 flex flex-col items-center gap-3">
+          {/* Action Button */}
+          <div className="mt-6 flex flex-col items-center gap-3">
             {isHost ? (
               <button
                 onClick={onStartGame}
                 disabled={players.length < 1 || isCountdown}
-                className="px-12 py-3 rounded-full bg-gradient-to-b from-[#4ade80] via-[#22c55e] to-[#15803d] hover:brightness-110 active:scale-95 text-white font-black text-lg tracking-wide shadow-[0_8px_24px_rgba(34,197,94,0.6),inset_0_2px_4px_rgba(255,255,255,0.7)] border-2 border-[#86efac] cursor-pointer transition-all disabled:opacity-50"
+                className="px-10 py-2.5 sm:px-14 sm:py-3 rounded-full bg-gradient-to-b from-[#4ade80] via-[#22c55e] to-[#15803d] hover:brightness-110 active:scale-95 text-white font-black text-base sm:text-lg tracking-wide shadow-[0_8px_24px_rgba(34,197,94,0.6),inset_0_2px_4px_rgba(255,255,255,0.7)] border-2 border-[#86efac] cursor-pointer transition-all disabled:opacity-50"
               >
                 เริ่มเกม (Start)
               </button>
             ) : !myPlayer && !isFull ? (
               <button
                 onClick={onJoinLobby}
-                className="px-12 py-3 rounded-full bg-gradient-to-b from-[#4ade80] via-[#22c55e] to-[#15803d] hover:brightness-110 active:scale-95 text-white font-black text-lg tracking-wide shadow-[0_8px_24px_rgba(34,197,94,0.6),inset_0_2px_4px_rgba(255,255,255,0.7)] border-2 border-[#86efac] cursor-pointer transition-all"
+                className="px-10 py-2.5 sm:px-14 sm:py-3 rounded-full bg-gradient-to-b from-[#4ade80] via-[#22c55e] to-[#15803d] hover:brightness-110 active:scale-95 text-white font-black text-base sm:text-lg tracking-wide shadow-[0_8px_24px_rgba(34,197,94,0.6),inset_0_2px_4px_rgba(255,255,255,0.7)] border-2 border-[#86efac] cursor-pointer transition-all"
               >
                 เข้าร่วม (Join)
               </button>
             ) : (
-              <div className="px-8 py-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold text-amber-200 animate-pulse">
+              <div className="px-6 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold text-amber-200 animate-pulse">
                 ⏳ กำลังรอหัวหน้าห้องกดเริ่มเกม...
               </div>
             )}
           </div>
         </div>
 
-        {/* Bottom Pro Tip (Authentic WeSing Tip) */}
-        <div className="w-full max-w-md text-center text-xs text-white/70 py-2 z-10 px-4">
+        {/* Bottom Tip */}
+        <div className="w-full max-w-md text-center text-xs text-white/70 py-1 z-10 px-4">
           💡 การใช้ไอเท็มอย่างเหมาะสมจะช่วยเพิ่มโอกาสชนะ
         </div>
 
@@ -920,14 +743,14 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
                 <h3 className="font-black text-base text-yellow-300">📖 กติกา Candy Master</h3>
                 <button
                   onClick={() => setShowHelpModal(false)}
-                  className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs"
+                  className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
-              <div className="text-xs space-y-2.5 mt-3 text-zinc-200">
-                <p>• ผู้เล่น 4 คน เริ่มต้นด้วย <strong>100 HP</strong> เท่ากันทุกคน</p>
-                <p>• เรียงลูกอมสีเดียวกัน 3 ลูกขึ้นไปเพื่อสร้างดาเมจโจมตีคู่ต่อสู้</p>
+              <div className="text-xs space-y-2 mt-3 text-zinc-200">
+                <p>• ผู้เล่น 4 คน มีเลือด <strong>100 HP</strong> เท่ากัน และเล่นบน<strong>กระดานเดียวกัน!</strong></p>
+                <p>• ผลัดกันเล่นคนละ 1 ตา (15 วินาที) สลับลูกอมสีเดียวกัน 3 ลูกเพื่อโจมตีคู่ต่อสู้</p>
                 <p>• ลูกอมที่มี <strong>วงแหวนเวทมนตร์เรืองแสง ✨</strong> ซ่อนไอเทมลับไว้ด้านใน!</p>
                 <p>• แตะอวตารด้านบนเพื่อเปลี่ยนเป้าหมายที่ต้องการโจมตี</p>
                 <p>• ผู้รอดชีวิตคนสุดท้ายคือผู้ชนะ!</p>
@@ -946,13 +769,13 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
   }
 
   // -------------------------------------------------------------------------
-  // 2. PLAYING & GAME OVER VIEW (Screenshots 1 & 2)
+  // 2. PLAYING & GAME OVER VIEW (Shared 8x8 Board & Synced Sizing)
   // -------------------------------------------------------------------------
   const players = gameState.players;
   const isGameOver = gameState.phase === 'game_over';
 
   return (
-    <div className="w-full h-full flex-1 flex flex-col justify-between items-center relative overflow-hidden select-none bg-gradient-to-b from-[#2e2a7e] via-[#35308c] to-[#1c1a52] text-white font-sans">
+    <div className="w-full h-full flex-1 flex flex-col justify-between items-center relative overflow-hidden select-none bg-gradient-to-b from-[#2e2a7e] via-[#35308c] to-[#1c1a52] text-white font-sans rounded-2xl p-2 sm:p-3">
       {/* Screen VFX Overlay */}
       {screenVFX === 'fire' && (
         <div className="absolute inset-0 z-50 pointer-events-none bg-red-600/30 animate-pulse border-4 border-red-500 flex items-center justify-center">
@@ -972,21 +795,28 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
 
       {/* Floating Mystery Item Popover */}
       {recentItemRevealed && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-pink-500 text-white font-black text-xs shadow-2xl animate-bounce flex items-center gap-2 border border-white/40">
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-1.5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-pink-500 text-white font-black text-xs shadow-2xl animate-bounce flex items-center gap-2 border border-white/40">
           <span>✨ ปลดล็อกไอเทม:</span>
           <span>{recentItemRevealed.name}</span>
         </div>
       )}
 
+      {/* Turn Wait Toast */}
+      {turnWaitToast && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-1.5 rounded-full bg-black/85 border border-amber-400/80 text-amber-300 font-bold text-xs shadow-2xl animate-fade-in flex items-center gap-1.5">
+          <span>⏳ ยังไม่ถึงตาของคุณ กรุณารอสักครู่ (กำลังเป็นตาของ {currentTurnPlayer?.userName || 'เพื่อน'})</span>
+        </div>
+      )}
+
       {/* =====================================================================
-          TOP HUD: 4 Players Avatars + HP Bars + Target Badge (Exact WeSing HUD)
+          TOP HUD: 4 Players Avatars + HP Bars + Target Badge + Turn Indicator
           ===================================================================== */}
-      <div className="w-full max-w-xl px-2 pt-2 z-20 flex items-center justify-between">
-        {/* 4 Player Circles in a Row */}
+      <div className="w-full max-w-xl px-2 pt-1 z-20 flex items-center justify-between shrink-0">
         <div className="flex-1 grid grid-cols-4 gap-1.5 sm:gap-3">
           {players.map((p) => {
             const isTarget = myPlayer?.targetUserId === p.userId;
             const isSelf = p.userId === currentUser.id;
+            const isTurn = gameState?.currentTurnUserId === p.userId;
 
             return (
               <div
@@ -1001,18 +831,20 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
                 {/* Avatar with Ring */}
                 <div className="relative">
                   <div
-                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full p-0.5 shadow-md flex items-center justify-center ${
+                    className={`w-11 h-11 sm:w-13 sm:h-13 rounded-full p-0.5 shadow-md flex items-center justify-center transition-all ${
                       p.isDead
-                        ? 'bg-zinc-700 opacity-60 grayscale'
+                        ? 'bg-zinc-700 opacity-50 grayscale'
+                        : isTurn
+                        ? 'bg-gradient-to-b from-yellow-300 to-amber-500 ring-4 ring-yellow-400 ring-offset-2 ring-offset-[#2e2a7e] animate-pulse scale-105'
                         : isTarget
-                        ? 'bg-gradient-to-b from-rose-500 to-red-700 ring-2 ring-rose-400 animate-pulse'
+                        ? 'bg-gradient-to-b from-rose-500 to-red-700 ring-2 ring-rose-400'
                         : isSelf
-                        ? 'bg-gradient-to-b from-yellow-400 to-amber-600 ring-2 ring-yellow-300'
+                        ? 'bg-gradient-to-b from-cyan-400 to-blue-600 ring-2 ring-cyan-300'
                         : 'bg-gradient-to-b from-[#4ade80] to-[#15803d]'
                     }`}
                   >
                     {p.isDead ? (
-                      <div className="w-full h-full rounded-full bg-[#1b1c24] flex items-center justify-center text-xl">
+                      <div className="w-full h-full rounded-full bg-[#1b1c24] flex items-center justify-center text-lg">
                         💀
                       </div>
                     ) : (
@@ -1024,24 +856,30 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
                     )}
                   </div>
 
-                  {/* Target Swords ⚔️ Badge (If current player is targeting this opponent) */}
+                  {/* Active Turn Badge */}
+                  {isTurn && !p.isDead && (
+                    <div className="absolute -bottom-1 -right-1 px-1 rounded-full bg-yellow-400 text-black font-black text-[7px] border border-white shadow-sm leading-tight">
+                      ตาเล่น
+                    </div>
+                  )}
+
+                  {/* Target Swords ⚔️ Badge */}
                   {isTarget && !p.isDead && (
-                    <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-rose-600 border border-white flex items-center justify-center text-[11px] shadow-md animate-bounce">
+                    <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-600 border border-white flex items-center justify-center text-[10px] shadow-md animate-bounce">
                       ⚔️
                     </div>
                   )}
 
                   {/* Shield badge */}
                   {p.shield && !p.isDead && (
-                    <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-cyan-500 border border-white flex items-center justify-center text-[10px] shadow-sm">
+                    <div className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-cyan-500 border border-white flex items-center justify-center text-[9px] shadow-sm">
                       🛡️
                     </div>
                   )}
                 </div>
 
-                {/* HP Pill: [====] 78/100 */}
-                <div className="w-full max-w-[70px] h-3.5 rounded-full bg-[#181926] border border-white/20 mt-1 relative overflow-hidden flex items-center justify-center shadow-inner">
-                  {/* Green Fill */}
+                {/* HP Pill */}
+                <div className="w-full max-w-[65px] h-3 rounded-full bg-[#181926] border border-white/20 mt-1 relative overflow-hidden flex items-center justify-center shadow-inner">
                   <div
                     className={`absolute left-0 top-0 bottom-0 rounded-full transition-all duration-300 ${
                       p.hp > 50
@@ -1052,14 +890,13 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
                     }`}
                     style={{ width: `${Math.max(0, Math.min(100, p.hp))}%` }}
                   />
-                  {/* Text: 78/100 */}
                   <span className="font-mono text-[8px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] z-10 leading-none">
                     {p.hp}/100
                   </span>
                 </div>
 
                 {/* Player Name */}
-                <span className="text-[10px] font-bold text-white/90 truncate max-w-[70px] mt-0.5 text-center drop-shadow-sm">
+                <span className="text-[10px] font-bold text-white/90 truncate max-w-[65px] mt-0.5 text-center drop-shadow-sm">
                   {p.userName}
                 </span>
               </div>
@@ -1088,28 +925,48 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
         </div>
       </div>
 
+      {/* TURN STATUS BANNER */}
+      <div className="w-full flex items-center justify-center my-0.5 shrink-0 z-20">
+        {isMyTurn ? (
+          <div className="px-3.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-black font-black text-xs shadow-md animate-pulse flex items-center gap-1.5 border border-white/60">
+            <span>✨ ถึงตาของคุณแล้ว! สลับลูกอมเพื่อโจมตี</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-black text-yellow-300 font-mono text-[10px]">
+              {gameState?.turnTimeLeft ?? 15}s
+            </span>
+          </div>
+        ) : (
+          <div className="px-3 py-0.5 rounded-full bg-black/40 border border-white/10 text-white/90 font-bold text-xs flex items-center gap-1.5">
+            <span>⏳ รอตาของ {currentTurnPlayer?.userName || 'ผู้เล่น'}...</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-white/20 text-cyan-300 font-mono text-[10px]">
+              {gameState?.turnTimeLeft ?? 15}s
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* =====================================================================
-          CENTER: 8x8 MATCH-3 CANDY BOARD (Authentic WeSing Board & Assets)
+          CENTER: 8x8 SHARED MATCH-3 CANDY BOARD (Identical for All Players)
           ===================================================================== */}
-      <div className="flex-1 w-full flex flex-col items-center justify-center p-1 sm:p-2 z-10 overflow-hidden">
-        {/* Active Hammer Notification */}
+      <div className="flex-1 w-full flex flex-col items-center justify-center p-0.5 sm:p-1 z-10 overflow-hidden shrink-0">
         {activeHammerMode && (
-          <div className="mb-1 px-4 py-1 rounded-full bg-amber-400 text-black text-[11px] font-black shadow-lg animate-pulse flex items-center gap-1.5">
-            <span>🔨 โหมดค้อนวิเศษ: แตะทุบลูกแคนดี้ที่ต้องการ 1 ลูกทันที!</span>
+          <div className="mb-1 px-3 py-0.5 rounded-full bg-amber-400 text-black text-[10px] font-black shadow-lg animate-pulse flex items-center gap-1">
+            <span>🔨 โหมดค้อน: แตะทุบลูกแคนดี้บนกระดาน 1 ช่องทันที!</span>
           </div>
         )}
 
-        {/* Board Frame Container (Rounded Blue Outer Border with Soft Swirl Interior) */}
+        {/* Board Frame Container (Scaled to fit without vertical cropping!) */}
         <div
-          className="relative p-1.5 sm:p-2 rounded-2xl sm:rounded-3xl border-2 sm:border-3 border-[#5b54d6] shadow-[0_12px_32px_rgba(0,0,0,0.6),inset_0_2px_6px_rgba(255,255,255,0.2)]"
+          className="relative p-1.5 sm:p-2 rounded-2xl sm:rounded-3xl border-2 sm:border-3 border-[#5b54d6] shadow-[0_8px_24px_rgba(0,0,0,0.6),inset_0_2px_6px_rgba(255,255,255,0.2)] mx-auto"
           style={{
-            maxWidth: '430px',
-            width: '96vw',
+            height: 'min(48vh, 390px)',
+            width: 'min(48vh, 390px)',
+            maxHeight: '390px',
+            maxWidth: '390px',
             aspectRatio: '1/1',
             backgroundColor: '#27266b',
           }}
         >
-          {/* Subtle spiral background within board */}
+          {/* Subtle spiral background */}
           <div
             className="absolute inset-0 rounded-2xl sm:rounded-3xl opacity-10 pointer-events-none"
             style={{
@@ -1117,41 +974,46 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
             }}
           />
 
-          {/* 8x8 Grid Tiles */}
-          <div className="w-full h-full grid grid-cols-8 gap-0.5 sm:gap-1 relative z-10">
-            {board.map((row, r) =>
-              row.map((cell, c) => {
-                const CandyComponent = CANDY_COMPONENTS[cell.type] || CANDY_COMPONENTS[0];
-                const isSelected = selectedCell?.r === r && selectedCell?.c === c;
+          {/* 8x8 Grid Tiles (SHARED SERVER BOARD) */}
+          <div className="w-full h-full grid grid-cols-8 gap-0.5 relative z-10">
+            {board.length === 8 &&
+              board.map((row, r) =>
+                row.map((cell, c) => {
+                  const CandyComponent = CANDY_COMPONENTS[cell.type] || CANDY_COMPONENTS[0];
+                  const isSelected = selectedCell?.r === r && selectedCell?.c === c;
 
-                return (
-                  <button
-                    key={cell.id}
-                    onClick={() => handleCellClick(r, c)}
-                    disabled={myPlayer?.isDead}
-                    className={`relative rounded-lg flex items-center justify-center cursor-pointer transition-transform duration-150 active:scale-90 ${
-                      isSelected
-                        ? 'ring-2 ring-yellow-300 scale-110 z-30 shadow-[0_0_12px_rgba(253,224,71,0.9)]'
-                        : 'hover:scale-102'
-                    }`}
-                    style={{ aspectRatio: '1/1' }}
-                  >
-                    {/* Mystery Aura Glow (Surrounds mystery candies before matched) */}
-                    {cell.hasItem && <MysteryAuraRing />}
+                  return (
+                    <button
+                      key={cell.id || `${r}-${c}`}
+                      onClick={() => handleCellClick(r, c)}
+                      disabled={myPlayer?.isDead || cell.type === -1}
+                      className={`relative rounded-lg flex items-center justify-center cursor-pointer transition-transform duration-150 active:scale-90 ${
+                        isSelected
+                          ? 'ring-2 ring-yellow-300 scale-110 z-30 shadow-[0_0_12px_rgba(253,224,71,0.9)]'
+                          : isMyTurn
+                          ? 'hover:scale-105'
+                          : 'cursor-default opacity-95'
+                      }`}
+                      style={{ aspectRatio: '1/1' }}
+                    >
+                      {/* Mystery Aura Glow */}
+                      {cell.hasItem && <MysteryAuraRing />}
 
-                    {/* 3D Vector Candy Graphic */}
-                    <div className="w-full h-full p-0.5 flex items-center justify-center">
-                      <CandyComponent />
-                    </div>
-                  </button>
-                );
-              })
-            )}
+                      {/* Candy Graphic */}
+                      {cell.type !== -1 && (
+                        <div className="w-full h-full p-0.5 flex items-center justify-center">
+                          <CandyComponent />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })
+              )}
           </div>
         </div>
 
-        {/* Combat Action Marquee */}
-        <div className="mt-1 px-3 py-0.5 rounded-full bg-black/40 text-[10px] text-zinc-300 font-mono truncate max-w-sm text-center">
+        {/* Combat Log */}
+        <div className="mt-1 px-3 py-0.5 rounded-full bg-black/40 text-[9px] text-zinc-300 font-mono truncate max-w-sm text-center">
           {gameState.recentLogs[0]?.text || '⚔️ แข่งขันกันทำลายลูกอมเพื่อลดเลือดคู่ต่อสู้!'}
         </div>
       </div>
@@ -1159,21 +1021,20 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
       {/* =====================================================================
           BOTTOM: 4 CIRCULAR ITEM DOCKS (Heal, Hammer, Shield, Firestorm)
           ===================================================================== */}
-      <div className="w-full max-w-md pb-2 px-4 z-20">
-        <div className="grid grid-cols-4 gap-2 sm:gap-4 items-center justify-items-center">
+      <div className="w-full max-w-md pb-1 px-2 z-20 shrink-0">
+        <div className="grid grid-cols-4 gap-2 sm:gap-3 items-center justify-items-center">
           {/* 1. Heal Potion */}
           <button
             onClick={() => handleTriggerItem('heal')}
-            disabled={inventory.heal <= 0 || myPlayer?.isDead}
-            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full relative p-1.5 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95 ${
-              inventory.heal > 0
-                ? 'bg-gradient-to-b from-[#252850] to-[#12132e] border-2 border-red-400/80 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
-                : 'bg-[#181930] opacity-40 border border-white/10'
+            disabled={inventory.heal <= 0 || myPlayer?.isDead || !isMyTurn}
+            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full relative p-1.5 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95 ${
+              inventory.heal > 0 && isMyTurn
+                ? 'bg-gradient-to-b from-[#252850] to-[#12132e] border-2 border-red-400/80 shadow-[0_0_10px_rgba(239,68,68,0.5)]'
+                : 'bg-[#181930] opacity-35 border border-white/10'
             }`}
           >
             <ItemHealSVG />
-            {/* Count Badge */}
-            <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-red-500 text-white font-black text-[9px] shadow-md border border-white">
+            <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-red-500 text-white font-black text-[8px] shadow-md border border-white">
               {inventory.heal}
             </span>
           </button>
@@ -1181,18 +1042,17 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
           {/* 2. Hammer */}
           <button
             onClick={() => handleTriggerItem('hammer')}
-            disabled={inventory.hammer <= 0 || myPlayer?.isDead}
-            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full relative p-1.5 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95 ${
+            disabled={inventory.hammer <= 0 || myPlayer?.isDead || !isMyTurn}
+            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full relative p-1.5 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95 ${
               activeHammerMode
                 ? 'bg-amber-500 ring-4 ring-yellow-300 scale-105 animate-bounce'
-                : inventory.hammer > 0
-                ? 'bg-gradient-to-b from-[#252850] to-[#12132e] border-2 border-yellow-400/80 shadow-[0_0_12px_rgba(234,179,8,0.5)]'
-                : 'bg-[#181930] opacity-40 border border-white/10'
+                : inventory.hammer > 0 && isMyTurn
+                ? 'bg-gradient-to-b from-[#252850] to-[#12132e] border-2 border-yellow-400/80 shadow-[0_0_10px_rgba(234,179,8,0.5)]'
+                : 'bg-[#181930] opacity-35 border border-white/10'
             }`}
           >
             <ItemHammerSVG />
-            {/* Count Badge */}
-            <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-black font-black text-[9px] shadow-md border border-white">
+            <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-black font-black text-[8px] shadow-md border border-white">
               {inventory.hammer}
             </span>
           </button>
@@ -1200,16 +1060,15 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
           {/* 3. Shield */}
           <button
             onClick={() => handleTriggerItem('shield')}
-            disabled={inventory.shield <= 0 || myPlayer?.isDead}
-            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full relative p-1.5 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95 ${
-              inventory.shield > 0
-                ? 'bg-gradient-to-b from-[#252850] to-[#12132e] border-2 border-emerald-400/80 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
-                : 'bg-[#181930] opacity-40 border border-white/10'
+            disabled={inventory.shield <= 0 || myPlayer?.isDead || !isMyTurn}
+            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full relative p-1.5 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95 ${
+              inventory.shield > 0 && isMyTurn
+                ? 'bg-gradient-to-b from-[#252850] to-[#12132e] border-2 border-emerald-400/80 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
+                : 'bg-[#181930] opacity-35 border border-white/10'
             }`}
           >
             <ItemShieldSVG />
-            {/* Count Badge */}
-            <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-emerald-500 text-white font-black text-[9px] shadow-md border border-white">
+            <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-emerald-500 text-white font-black text-[8px] shadow-md border border-white">
               {inventory.shield}
             </span>
           </button>
@@ -1217,40 +1076,34 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
           {/* 4. Firestorm */}
           <button
             onClick={() => handleTriggerItem('fire')}
-            disabled={inventory.fire <= 0 || myPlayer?.isDead}
-            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full relative p-1.5 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95 ${
-              inventory.fire > 0
-                ? 'bg-gradient-to-b from-[#252850] to-[#12132e] border-2 border-orange-400/80 shadow-[0_0_12px_rgba(249,115,22,0.5)]'
-                : 'bg-[#181930] opacity-40 border border-white/10'
+            disabled={inventory.fire <= 0 || myPlayer?.isDead || !isMyTurn}
+            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full relative p-1.5 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95 ${
+              inventory.fire > 0 && isMyTurn
+                ? 'bg-gradient-to-b from-[#252850] to-[#12132e] border-2 border-orange-400/80 shadow-[0_0_10px_rgba(249,115,22,0.5)]'
+                : 'bg-[#181930] opacity-35 border border-white/10'
             }`}
           >
             <ItemFireSVG />
-            {/* Count Badge */}
-            <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-orange-500 text-white font-black text-[9px] shadow-md border border-white">
+            <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-orange-500 text-white font-black text-[8px] shadow-md border border-white">
               {inventory.fire}
             </span>
           </button>
         </div>
       </div>
 
-      {/* =====================================================================
-          TARGET SELECTOR MODAL (Exact WeSing Target Modal - Screenshot 2)
-          "Pilih siapa yang akan diserang" / "เลือกคนที่ต้องการโจมตี"
-          ===================================================================== */}
+      {/* TARGET SELECTOR MODAL */}
       {showTargetModal && (
         <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
           <div className="w-full max-w-sm rounded-3xl p-5 bg-gradient-to-b from-[#34309c] via-[#2d2888] to-[#1d195e] border-2 border-[#818cf8] shadow-[0_16px_40px_rgba(0,0,0,0.8)] text-white relative">
-            {/* Close Button */}
             <button
               onClick={() => setShowTargetModal(false)}
-              className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-xs font-bold"
+              className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-xs font-bold cursor-pointer"
             >
               ✕
             </button>
 
-            {/* Current Player (Top with Yellow Glowing Ring) */}
             <div className="flex flex-col items-center">
-              <div className="w-16 h-16 rounded-full p-1 bg-gradient-to-b from-yellow-300 to-amber-500 shadow-[0_0_16px_rgba(253,224,71,0.8)] ring-2 ring-yellow-200">
+              <div className="w-14 h-14 rounded-full p-1 bg-gradient-to-b from-yellow-300 to-amber-500 shadow-[0_0_16px_rgba(253,224,71,0.8)] ring-2 ring-yellow-200">
                 <img
                   src={myPlayer?.avatar || currentUser.avatar || 'https://api.dicebear.com/7.x/bottts/svg'}
                   alt="You"
@@ -1260,7 +1113,6 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
               <p className="text-xs font-bold text-white mt-1.5 truncate max-w-[120px]">
                 {currentUser.name || currentUser.username || 'คุณ (Me)'}
               </p>
-              {/* HP Bar */}
               <div className="w-20 h-2.5 rounded-full bg-black/50 border border-white/20 mt-0.5 overflow-hidden">
                 <div
                   className="h-full bg-emerald-400 rounded-full"
@@ -1269,7 +1121,6 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
               </div>
             </div>
 
-            {/* Divider with Crossed Swords ⚔️ */}
             <div className="my-3 flex items-center justify-center relative">
               <div className="w-full h-[1px] bg-white/20" />
               <div className="absolute px-2.5 py-0.5 rounded-full bg-[#4338ca] border border-[#a5b4fc] text-sm shadow-md">
@@ -1277,13 +1128,11 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
               </div>
             </div>
 
-            {/* Title: เลือกคนที่ต้องการโจมตี */}
             <p className="text-center font-bold text-xs text-indigo-100 mb-3">
               เลือกคนที่ต้องการโจมตี
             </p>
 
-            {/* Opponent Selection List */}
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center justify-center gap-3">
               {players
                 .filter((p) => p.userId !== currentUser.id)
                 .map((opp) => (
@@ -1302,7 +1151,7 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
                         : 'hover:bg-white/10'
                     }`}
                   >
-                    <div className="w-14 h-14 rounded-full p-1 bg-gradient-to-b from-[#4ade80] to-[#15803d] shadow-md">
+                    <div className="w-12 h-12 rounded-full p-1 bg-gradient-to-b from-[#4ade80] to-[#15803d] shadow-md">
                       {opp.isDead ? (
                         <div className="w-full h-full rounded-full bg-black/60 flex items-center justify-center text-lg">
                           💀
@@ -1315,11 +1164,10 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
                         />
                       )}
                     </div>
-                    <span className="text-[11px] font-bold text-white mt-1 max-w-[70px] truncate text-center">
+                    <span className="text-[10px] font-bold text-white mt-1 max-w-[65px] truncate text-center">
                       {opp.userName}
                     </span>
-                    {/* HP Bar */}
-                    <div className="w-14 h-2 rounded-full bg-black/50 border border-white/20 mt-0.5 overflow-hidden">
+                    <div className="w-12 h-2 rounded-full bg-black/50 border border-white/20 mt-0.5 overflow-hidden">
                       <div
                         className="h-full bg-emerald-400 rounded-full"
                         style={{ width: `${Math.max(0, Math.min(100, opp.hp))}%` }}
@@ -1332,9 +1180,7 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
         </div>
       )}
 
-      {/* =====================================================================
-          GAME OVER VICTORY SCREEN
-          ===================================================================== */}
+      {/* GAME OVER VICTORY SCREEN */}
       {isGameOver && (
         <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
           <div className="w-full max-w-sm rounded-3xl p-6 text-center border-2 border-amber-400 bg-gradient-to-b from-[#2e2b7a] to-[#16143c] shadow-2xl flex flex-col items-center">

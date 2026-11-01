@@ -332,20 +332,31 @@ export interface CandyBattlePlayer {
   isDead: boolean;
   isHost: boolean;
   combo: number;
+  items?: Partial<Record<CandyItemType, number>>;
 }
 
 export interface CandyBattleLog {
   id: string;
   text: string;
-  type: 'attack' | 'heal' | 'shield' | 'fire' | 'ko' | 'system';
+  type: 'attack' | 'heal' | 'shield' | 'fire' | 'ko' | 'system' | 'item';
   timestamp: number;
+}
+
+export interface CandyTileData {
+  id: string;
+  type: number;
+  hasItem: boolean;
+  itemType?: CandyItemType;
 }
 
 export interface CandyBattleGameState {
   isActive: boolean;
   phase: 'waiting' | 'countdown' | 'playing' | 'game_over';
-  lobbyTimeLeft: number; // 30s countdown
-  gameTimeLeft: number; // match duration
+  lobbyTimeLeft: number;
+  gameTimeLeft: number;
+  currentTurnUserId?: string | null;
+  turnTimeLeft?: number;
+  board?: CandyTileData[][];
   players: CandyBattlePlayer[];
   winner: CandyBattlePlayer | null;
   recentLogs: CandyBattleLog[];
@@ -412,7 +423,9 @@ export type WSClientMessage =
   | { type: 'CANDY_STOP_GAME' }
   | { type: 'CANDY_ACTION_ATTACK'; damage: number; combo: number; targetUserId?: string }
   | { type: 'CANDY_ACTION_USE_ITEM'; itemType: CandyItemType }
-  | { type: 'CANDY_SELECT_TARGET'; targetUserId: string };
+  | { type: 'CANDY_SELECT_TARGET'; targetUserId: string }
+  | { type: 'CANDY_ACTION_SWAP'; r1: number; c1: number; r2: number; c2: number }
+  | { type: 'CANDY_ACTION_HAMMER'; r: number; c: number };
 
 export type WSServerMessage =
   | { type: 'ROOMS_LIST'; rooms: RoomSummary[] }

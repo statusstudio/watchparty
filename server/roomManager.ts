@@ -30,6 +30,7 @@ import {
   CandyBattlePlayer,
   CandyBattleLog,
   CandyItemType,
+  CandyTileData,
 } from '../src/types/index.js';
 import { THAI_WORD_BANK, getRandomWordChoices } from './wordBank.js';
 
@@ -3189,6 +3190,116 @@ export class RoomManager {
     }, 1000);
   }
 
+  
+  private createRandom8x8Board(): CandyTileData[][] {
+    const board: CandyTileData[][] = [];
+    const itemTypes: CandyItemType[] = ['heal', 'shield', 'fire', 'hammer'];
+    for (let r = 0; r < 8; r++) {
+      const row: CandyTileData[] = [];
+      for (let c = 0; c < 8; c++) {
+        let type: number;
+        do {
+          type = Math.floor(Math.random() * 6);
+        } while (
+          (c >= 2 && row[c - 1].type === type && row[c - 2].type === type) ||
+          (r >= 2 && board[r - 1][c].type === type && board[r - 2][c].type === type)
+        );
+        const hasItem = Math.random() < 0.18;
+        const itemType = hasItem ? itemTypes[Math.floor(Math.random() * itemTypes.length)] : undefined;
+        row.push({
+          id: `t-${r}-${c}-${Math.random().toString(36).substring(2, 6)}`,
+          type,
+          hasItem,
+          itemType,
+        });
+      }
+      board.push(row);
+    }
+    return board;
+  }
+
+  private checkMatches(board: CandyTileData[][]): Set<string> {
+    const matches = new Set<string>();
+    for (let r = 0; r < 8; r++) {
+      let len = 1;
+      for (let c = 1; c < 8; c++) {
+        if (board[r][c].type !== -1 && board[r][c].type === board[r][c - 1].type) {
+          len++;
+        } else {
+          if (len >= 3) {
+            for (let k = 0; k < len; k++) matches.add(`${r},${c - 1 - k}`);
+          }
+          len = 1;
+        }
+      }
+      if (len >= 3) {
+        for (let k = 0; k < len; k++) matches.add(`${r},${7 - k}`);
+      }
+    }
+    for (let c = 0; c < 8; c++) {
+      let len = 1;
+      for (let r = 1; r < 8; r++) {
+        if (board[r][c].type !== -1 && board[r][c].type === board[r - 1][c].type) {
+          len++;
+        } else {
+          if (len >= 3) {
+            for (let k = 0; k < len; k++) matches.add(`${r - 1 - k},${c}`);
+          }
+          len = 1;
+        }
+      }
+      if (len >= 3) {
+        for (let k = 0; k < len; k++) matches.add(`${7 - k},${c}`);
+      }
+    }
+    return matches;
+  }
+
+  private processCascadingMatches(board: CandyTileData[][]): { totalDamage: number; comboCount: number; harvestedItems: CandyItemType[] } {
+    let totalDamage = 0;
+    let comboCount = 0;
+    const harvestedItems: CandyItemType[] = [];
+    const itemTypes: CandyItemType[] = ['heal', 'shield', 'fire', 'hammer'];
+
+    while (true) {
+      const matched = this.checkMatches(board);
+      if (matched.size === 0) break;
+      comboCount++;
+      const stepDmg = Math.round(matched.size * 2.5 * (1 + (comboCount - 1) * 0.4));
+      totalDamage += stepDmg;
+
+      matched.forEach((coord) => {
+        const [r, c] = coord.split(',').map(Number);
+        if (board[r][c].hasItem && board[r][c].itemType) {
+          harvestedItems.push(board[r][c].itemType!);
+        }
+        board[r][c] = { id: `del-${r}-${c}`, type: -1, hasItem: false };
+      });
+
+      for (let c = 0; c < 8; c++) {
+        const col: CandyTileData[] = [];
+        for (let r = 0; r < 8; r++) {
+          if (board[r][c].type !== -1) col.push(board[r][c]);
+        }
+        const missing = 8 - col.length;
+        for (let i = 0; i < missing; i++) {
+          const hasItem = Math.random() < 0.18;
+          const itemType = hasItem ? itemTypes[Math.floor(Math.random() * itemTypes.length)] : undefined;
+          col.unshift({
+            id: `spawn-${c}-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+            type: Math.floor(Math.random() * 6),
+            hasItem,
+            itemType,
+          });
+        }
+        for (let r = 0; r < 8; r++) {
+          board[r][c] = col[r];
+        }
+      }
+    }
+    return { totalDamage, comboCount, harvestedItems };
+  }
+
   private startCandyBattlePlaying(room: InternalRoomData) {
     if (!room.candyGameState) return;
     if (room.candyTimer) {
@@ -3240,6 +3351,9 @@ export class RoomManager {
         if (room.candyGameState) {
           room.candyGameState.phase = 'playing';
           room.candyGameState.gameTimeLeft = 120;
+          room.candyGameState.board = this.createRandom8x8Board();
+          room.candyGameState.currentTurnUserId = room.candyGameState.players[0]?.userId || null;
+          room.candyGameState.turnTimeLeft = 15;
           this.broadcastCandyGameState(room.metadata.id);
           this.startCandyPlayingTimer(room);
         }
@@ -3263,6 +3377,23 @@ export class RoomManager {
       }
 
       room.candyGameState.gameTimeLeft -= 1;
+      if (room.candyGameState.turnTimeLeft && room.candyGameState.turnTimeLeft > 0) {
+        room.candyGameState.turnTimeLeft -= 1;
+      } else if (room.candyGameState.turnTimeLeft !== undefined && room.candyGameState.turnTimeLeft <= 0) {
+        const living = room.candyGameState.players.filter((p) => !p.isDead);
+        if (living.length > 0) {
+          const curIdx = living.findIndex((p) => p.userId === room.candyGameState!.currentTurnUserId);
+          const nextIdx = (curIdx + 1) % living.length;
+          room.candyGameState.currentTurnUserId = living[nextIdx].userId;
+          room.candyGameState.turnTimeLeft = 15;
+          room.candyGameState.recentLogs.unshift({
+            id: 'log-' + Date.now(),
+            text: `⏳ สลับตาเป็น ${living[nextIdx].userName}! (15 วิ)`,
+            type: 'system',
+            timestamp: Date.now(),
+          });
+        }
+      }
       if (room.candyGameState.gameTimeLeft <= 0) {
         const living = room.candyGameState.players.filter((p) => !p.isDead);
         const sorted = living.sort((a, b) => b.hp - a.hp);
@@ -3533,5 +3664,115 @@ export class RoomManager {
       message: '🛑 เกม Candy Battle Royale ถูกยุติแล้ว',
       toastType: 'info',
     });
+  }
+
+  public handleCandySwap(ws: WebSocket, r1: number, c1: number, r2: number, c2: number) {
+    const client = this.clients.get(ws);
+    if (!client || !client.roomId) return;
+    const room = this.rooms.get(client.roomId);
+    if (!room || !room.candyGameState || room.candyGameState.phase !== 'playing' || !room.candyGameState.board) return;
+
+    const game = room.candyGameState;
+    const board = game.board;
+    if (!board) return;
+    const attacker = game.players.find((p) => p.userId === client.user.id);
+    if (!attacker || attacker.isDead) return;
+
+    if (game.currentTurnUserId && game.currentTurnUserId !== attacker.userId) {
+      this.sendToWs(ws, {
+        type: 'SYNC_TOAST',
+        message: '⏳ ยังไม่ถึงตาของคุณ กรุณารอสักครู่',
+        toastType: 'warning',
+      });
+      return;
+    }
+
+    if (r1 < 0 || r1 >= 8 || c1 < 0 || c1 >= 8 || r2 < 0 || r2 >= 8 || c2 < 0 || c2 >= 8) return;
+    const isAdjacent = Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1;
+    if (!isAdjacent) return;
+
+    // Swap
+    const temp = board[r1][c1];
+    board[r1][c1] = board[r2][c2];
+    board[r2][c2] = temp;
+
+    const initialMatch = this.checkMatches(board);
+    if (initialMatch.size === 0) {
+      board[r2][c2] = board[r1][c1];
+      board[r1][c1] = temp;
+      this.sendToWs(ws, {
+        type: 'SYNC_TOAST',
+        message: '🍬 ไม่มีลูกอมเรียงตรงกัน 3 ลูก ลองตำแหน่งอื่นนะ',
+        toastType: 'info',
+      });
+      return;
+    }
+
+    const { totalDamage, comboCount, harvestedItems } = this.processCascadingMatches(board);
+
+    if (harvestedItems.length > 0) {
+      if (!attacker.items) attacker.items = {};
+      harvestedItems.forEach((it) => {
+        attacker.items![it] = (attacker.items![it] || 0) + 1;
+      });
+      game.recentLogs.unshift({
+        id: 'log-' + Date.now(),
+        text: `🎁 ${attacker.userName} เก็บไอเท็มสำเร็จ ${harvestedItems.length} ชิ้น!`,
+        type: 'item',
+        timestamp: Date.now(),
+      });
+    }
+
+    this.handleCandyAttack(ws, totalDamage, comboCount);
+
+    // Advance turn to next alive player
+    const living = game.players.filter((p) => !p.isDead);
+    if (living.length > 0) {
+      const curIdx = living.findIndex((p) => p.userId === attacker.userId);
+      const nextIdx = (curIdx + 1) % living.length;
+      game.currentTurnUserId = living[nextIdx].userId;
+      game.turnTimeLeft = 15;
+    }
+
+    this.broadcastCandyGameState(client.roomId);
+  }
+
+  public handleCandyHammer(ws: WebSocket, r: number, c: number) {
+    const client = this.clients.get(ws);
+    if (!client || !client.roomId) return;
+    const room = this.rooms.get(client.roomId);
+    if (!room || !room.candyGameState || room.candyGameState.phase !== 'playing' || !room.candyGameState.board) return;
+
+    const game = room.candyGameState;
+    const board = game.board;
+    if (!board) return;
+    const attacker = game.players.find((p) => p.userId === client.user.id);
+    if (!attacker || attacker.isDead) return;
+
+    if (r < 0 || r >= 8 || c < 0 || c >= 8) return;
+
+    board[r][c] = { id: `smashed-${r}-${c}`, type: -1, hasItem: false };
+
+    const { totalDamage, comboCount, harvestedItems } = this.processCascadingMatches(board);
+    if (harvestedItems.length > 0) {
+      if (!attacker.items) attacker.items = {};
+      harvestedItems.forEach((it) => {
+        attacker.items![it] = (attacker.items![it] || 0) + 1;
+      });
+    }
+
+    if (totalDamage > 0) {
+      this.handleCandyAttack(ws, totalDamage, comboCount);
+    }
+
+    const living = game.players.filter((p) => !p.isDead);
+    if (living.length > 0) {
+      const curIdx = living.findIndex((p) => p.userId === attacker.userId);
+      const nextIdx = (curIdx + 1) % living.length;
+      game.currentTurnUserId = living[nextIdx].userId;
+      game.turnTimeLeft = 15;
+    }
+
+    this.broadcastCandyGameState(client.roomId);
   }
 }
