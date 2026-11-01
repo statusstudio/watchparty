@@ -3,6 +3,12 @@ import { CandyTileData, CandySpecialType } from '../../types/index.js';
 import { CandyCrushEngine } from '../../services/candyEngine.js';
 import { CANDY_LEVELS, CandyLevelConfig } from '../../services/candyLevels.js';
 import {
+  CANDY_COMPONENTS,
+  StripedCandySVG,
+  WrappedCandySVG,
+  ColorBombSVG,
+} from './CandyGraphics.js';
+import {
   playCandyPop,
   playCandySwapSound,
   playLaserBeamSound,
@@ -13,293 +19,6 @@ import {
   playVictoryFanfare,
   playAnnouncerVoice,
 } from '../../services/candySoundEffects.js';
-
-// ---------------------------------------------------------------------------
-// TRUE 3D CANDY CRUSH SAGA VECTOR ART
-// ---------------------------------------------------------------------------
-
-// 1. Red Jelly Bean (Iconic kidney bean shape with curved specular reflection)
-const RedCandySVG: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => (
-  <svg viewBox="0 0 100 100" className={className} style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' }}>
-    <defs>
-      <radialGradient id="redBeanGrad" cx="35%" cy="30%" r="70%">
-        <stop offset="0%" stopColor="#ff8a8a" />
-        <stop offset="30%" stopColor="#ef233c" />
-        <stop offset="75%" stopColor="#b70928" />
-        <stop offset="100%" stopColor="#4a040d" />
-      </radialGradient>
-      <linearGradient id="redBeanGlint" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
-        <stop offset="60%" stopColor="#ffffff" stopOpacity="0.2" />
-        <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-      </linearGradient>
-    </defs>
-    {/* Deep Drop Shadow */}
-    <path
-      d="M 32 20 C 62 10, 86 32, 78 64 C 70 88, 38 92, 22 72 C 10 52, 14 26, 32 20 Z"
-      fill="#2b0207"
-      opacity="0.4"
-      transform="translate(0, 4)"
-    />
-    {/* Main Jelly Bean Body */}
-    <path
-      d="M 32 20 C 62 10, 86 32, 78 64 C 70 88, 38 92, 22 72 C 10 52, 14 26, 32 20 Z"
-      fill="url(#redBeanGrad)"
-      stroke="#ff6b6b"
-      strokeWidth="1.5"
-    />
-    {/* Curved Specular Glare */}
-    <path
-      d="M 32 26 C 50 20, 68 32, 66 48"
-      fill="none"
-      stroke="url(#redBeanGlint)"
-      strokeWidth="4.5"
-      strokeLinecap="round"
-    />
-    {/* Bottom Translucent Amber Reflection */}
-    <ellipse cx="38" cy="74" rx="14" ry="5" fill="#fca5a5" opacity="0.3" />
-  </svg>
-);
-
-// 2. Orange Lozenge (Pill/Oval shape with beveled glossy candy shell)
-const OrangeCandySVG: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => (
-  <svg viewBox="0 0 100 100" className={className} style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' }}>
-    <defs>
-      <radialGradient id="orngGrad" cx="35%" cy="30%" r="70%">
-        <stop offset="0%" stopColor="#fed7aa" />
-        <stop offset="35%" stopColor="#f97316" />
-        <stop offset="80%" stopColor="#c2410c" />
-        <stop offset="100%" stopColor="#431407" />
-      </radialGradient>
-    </defs>
-    {/* Shadow base */}
-    <ellipse cx="50" cy="54" rx="42" ry="32" fill="#2d0d04" opacity="0.4" />
-    {/* Main Oval Body */}
-    <ellipse cx="50" cy="50" rx="42" ry="32" fill="url(#orngGrad)" stroke="#fb923c" strokeWidth="1.6" />
-    {/* Top-left specular shine */}
-    <ellipse cx="34" cy="36" rx="14" ry="6" transform="rotate(-15 34 36)" fill="#ffffff" opacity="0.75" />
-    <circle cx="60" cy="36" r="3" fill="#ffffff" opacity="0.6" />
-    {/* Bottom glow */}
-    <ellipse cx="52" cy="68" rx="20" ry="4" fill="#fed7aa" opacity="0.3" />
-  </svg>
-);
-
-// 3. Yellow Lemon Drop (Pointed teardrop with dual apex gloss)
-const YellowCandySVG: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => (
-  <svg viewBox="0 0 100 100" className={className} style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' }}>
-    <defs>
-      <radialGradient id="yelGrad" cx="40%" cy="35%" r="68%">
-        <stop offset="0%" stopColor="#fef9c3" />
-        <stop offset="35%" stopColor="#eab308" />
-        <stop offset="80%" stopColor="#a16207" />
-        <stop offset="100%" stopColor="#422006" />
-      </radialGradient>
-    </defs>
-    <path
-      d="M 50 12 C 50 12, 18 52, 18 68 C 18 84, 32 92, 50 92 C 68 92, 82 84, 82 68 C 82 52, 50 12, 50 12 Z"
-      fill="#291404"
-      opacity="0.4"
-      transform="translate(0, 4)"
-    />
-    <path
-      d="M 50 12 C 50 12, 18 52, 18 68 C 18 84, 32 92, 50 92 C 68 92, 82 84, 82 68 C 82 52, 50 12, 50 12 Z"
-      fill="url(#yelGrad)"
-      stroke="#fde047"
-      strokeWidth="1.8"
-    />
-    {/* Glare along curve */}
-    <path d="M 44 26 C 30 46, 26 62, 28 72" fill="none" stroke="#ffffff" strokeWidth="4" strokeLinecap="round" opacity="0.75" />
-    <circle cx="50" cy="22" r="3" fill="#ffffff" opacity="0.85" />
-    {/* Bottom Amber Glow */}
-    <ellipse cx="50" cy="78" rx="16" ry="6" fill="#fef08a" opacity="0.3" />
-  </svg>
-);
-
-// 4. Green Chiclet (Square with rounded corners and jewel green luster)
-const GreenCandySVG: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => (
-  <svg viewBox="0 0 100 100" className={className} style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' }}>
-    <defs>
-      <radialGradient id="grnGrad" cx="36%" cy="32%" r="70%">
-        <stop offset="0%" stopColor="#bbf7d0" />
-        <stop offset="35%" stopColor="#22c55e" />
-        <stop offset="80%" stopColor="#15803d" />
-        <stop offset="100%" stopColor="#052e16" />
-      </radialGradient>
-    </defs>
-    <rect x="14" y="18" width="72" height="72" rx="20" fill="#031f0e" opacity="0.4" />
-    <rect x="14" y="14" width="72" height="72" rx="20" fill="url(#grnGrad)" stroke="#4ade80" strokeWidth="1.8" />
-    {/* Top left glossy highlight bevel */}
-    <path d="M 24 24 L 76 24 C 76 24, 72 34, 50 34 C 28 34, 24 24, 24 24 Z" fill="#ffffff" opacity="0.4" />
-    <circle cx="30" cy="30" r="5" fill="#ffffff" opacity="0.8" />
-    <circle cx="42" cy="28" r="2.5" fill="#ffffff" opacity="0.6" />
-    {/* Bottom rim light */}
-    <ellipse cx="50" cy="74" rx="22" ry="5" fill="#86efac" opacity="0.25" />
-  </svg>
-);
-
-// 5. Blue Lollipop Sphere (Concentric sapphire reflections)
-const BlueCandySVG: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => (
-  <svg viewBox="0 0 100 100" className={className} style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' }}>
-    <defs>
-      <radialGradient id="bluGrad" cx="35%" cy="30%" r="70%">
-        <stop offset="0%" stopColor="#bae6fd" />
-        <stop offset="35%" stopColor="#0284c7" />
-        <stop offset="80%" stopColor="#0369a1" />
-        <stop offset="100%" stopColor="#082f49" />
-      </radialGradient>
-    </defs>
-    <circle cx="50" cy="54" r="41" fill="#041826" opacity="0.4" />
-    <circle cx="50" cy="50" r="41" fill="url(#bluGrad)" stroke="#38bdf8" strokeWidth="1.8" />
-    {/* Crescent highlight */}
-    <path
-      d="M 28 26 C 42 16, 68 22, 74 36 C 68 28, 46 24, 34 32 Z"
-      fill="#ffffff"
-      opacity="0.85"
-    />
-    <circle cx="34" cy="34" r="3.5" fill="#ffffff" opacity="0.85" />
-    {/* Bottom glow */}
-    <ellipse cx="50" cy="76" rx="18" ry="6" fill="#7dd3fc" opacity="0.28" />
-  </svg>
-);
-
-// 6. Purple Cluster (Faceted grape crystal with sparkling facets)
-const PurpleCandySVG: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => (
-  <svg viewBox="0 0 100 100" className={className} style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' }}>
-    <defs>
-      <radialGradient id="purpGrad" cx="35%" cy="30%" r="70%">
-        <stop offset="0%" stopColor="#f3e8ff" />
-        <stop offset="35%" stopColor="#a855f7" />
-        <stop offset="80%" stopColor="#7e22ce" />
-        <stop offset="100%" stopColor="#3b0764" />
-      </radialGradient>
-    </defs>
-    <circle cx="50" cy="54" r="41" fill="#200438" opacity="0.4" />
-    <circle cx="50" cy="50" r="41" fill="url(#purpGrad)" stroke="#c084fc" strokeWidth="1.8" />
-    {/* Facet lines */}
-    <polygon points="50,22 72,36 68,66 32,66 28,36" fill="none" stroke="#e9d5ff" strokeWidth="1.2" opacity="0.4" />
-    {/* Specular Star Glint */}
-    <circle cx="35" cy="32" r="5" fill="#ffffff" opacity="0.85" />
-    <path d="M 35 24 L 35 40 M 27 32 L 43 32" stroke="#ffffff" strokeWidth="1.5" opacity="0.75" />
-    <ellipse cx="50" cy="76" rx="18" ry="6" fill="#d8b4fe" opacity="0.25" />
-  </svg>
-);
-
-const CANDY_COMPONENTS = [
-  RedCandySVG,
-  PurpleCandySVG,
-  YellowCandySVG,
-  GreenCandySVG,
-  OrangeCandySVG,
-  BlueCandySVG,
-];
-
-// Special Candies
-const StripedCandySVG: React.FC<{ type: number; direction: 'h' | 'v'; className?: string }> = ({
-  type,
-  direction,
-  className = 'w-full h-full',
-}) => {
-  const BaseCandy = CANDY_COMPONENTS[type] || CANDY_COMPONENTS[0];
-  return (
-    <div className={`relative ${className} flex items-center justify-center`}>
-      <BaseCandy />
-      {/* 3D Diagonal Confectioner Sugar Laser Stripes */}
-      <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none">
-        <defs>
-          <linearGradient id={`strShine-${direction}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
-            <stop offset="50%" stopColor="#ffffff" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.95" />
-          </linearGradient>
-        </defs>
-        {direction === 'h' ? (
-          <g stroke={`url(#strShine-${direction})`} strokeWidth="7.5" strokeLinecap="round" opacity="0.95">
-            <line x1="16" y1="34" x2="84" y2="34" />
-            <line x1="12" y1="50" x2="88" y2="50" />
-            <line x1="16" y1="66" x2="84" y2="66" />
-          </g>
-        ) : (
-          <g stroke={`url(#strShine-${direction})`} strokeWidth="7.5" strokeLinecap="round" opacity="0.95">
-            <line x1="34" y1="16" x2="34" y2="84" />
-            <line x1="50" y1="12" x2="50" y2="88" />
-            <line x1="66" y1="16" x2="66" y2="84" />
-          </g>
-        )}
-      </svg>
-      {/* Animated Directional Laser Arrow Badge */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <span className="text-[14px] text-white font-black drop-shadow-[0_0_10px_rgba(255,255,255,1)] animate-pulse">
-          {direction === 'h' ? '⬌' : '⬍'}
-        </span>
-      </div>
-    </div>
-  );
-};
-
-const WrappedCandySVG: React.FC<{ type: number; className?: string }> = ({
-  type,
-  className = 'w-full h-full',
-}) => {
-  const BaseCandy = CANDY_COMPONENTS[type] || CANDY_COMPONENTS[0];
-  return (
-    <div className={`relative ${className} flex items-center justify-center p-0.5`}>
-      <BaseCandy />
-      {/* 3D Cellophane Wrapper with Twisted Bow Tails */}
-      <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none">
-        <defs>
-          <radialGradient id="wrapWing" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
-            <stop offset="60%" stopColor="#fef08a" stopOpacity="0.45" />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.95" />
-          </radialGradient>
-        </defs>
-        {/* Left twisted wing */}
-        <polygon points="12,50 2,28 3,72" fill="url(#wrapWing)" stroke="#ffffff" strokeWidth="1.2" />
-        {/* Right twisted wing */}
-        <polygon points="88,50 98,28 97,72" fill="url(#wrapWing)" stroke="#ffffff" strokeWidth="1.2" />
-        {/* Square pouch highlight */}
-        <rect x="18" y="18" width="64" height="64" rx="18" fill="none" stroke="#ffffff" strokeWidth="3" opacity="0.92" />
-      </svg>
-      <div className="absolute -top-1 -right-1 text-[13px] animate-bounce">✨</div>
-    </div>
-  );
-};
-
-const ColorBombSVG: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => (
-  <svg viewBox="0 0 100 100" className={className} style={{ filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.75))' }}>
-    <defs>
-      <radialGradient id="chocTruffle" cx="35%" cy="30%" r="70%">
-        <stop offset="0%" stopColor="#6b4124" />
-        <stop offset="40%" stopColor="#3d2314" />
-        <stop offset="85%" stopColor="#24140b" />
-        <stop offset="100%" stopColor="#100602" />
-      </radialGradient>
-      <radialGradient id="rainbowGlow" cx="50%" cy="50%" r="50%">
-        <stop offset="50%" stopColor="transparent" />
-        <stop offset="85%" stopColor="#ec4899" stopOpacity="0.5" />
-        <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.9" />
-      </radialGradient>
-    </defs>
-    {/* Twinkling Rainbow Corona */}
-    <circle cx="50" cy="50" r="47" fill="url(#rainbowGlow)" />
-    {/* Dark Chocolate Truffle Core */}
-    <circle cx="50" cy="50" r="41" fill="url(#chocTruffle)" stroke="#f59e0b" strokeWidth="2" />
-    {/* 12 Rainbow Nonpareil Sprinkles */}
-    <circle cx="34" cy="30" r="4.2" fill="#ef4444" stroke="#ffffff" strokeWidth="0.8" />
-    <circle cx="48" cy="22" r="4.2" fill="#3b82f6" stroke="#ffffff" strokeWidth="0.8" />
-    <circle cx="64" cy="28" r="4.2" fill="#10b981" stroke="#ffffff" strokeWidth="0.8" />
-    <circle cx="70" cy="44" r="4.2" fill="#eab308" stroke="#ffffff" strokeWidth="0.8" />
-    <circle cx="60" cy="62" r="4.2" fill="#ec4899" stroke="#ffffff" strokeWidth="0.8" />
-    <circle cx="44" cy="68" r="4.2" fill="#8b5cf6" stroke="#ffffff" strokeWidth="0.8" />
-    <circle cx="28" cy="58" r="4.2" fill="#f97316" stroke="#ffffff" strokeWidth="0.8" />
-    <circle cx="24" cy="42" r="4.2" fill="#06b6d4" stroke="#ffffff" strokeWidth="0.8" />
-    <circle cx="48" cy="44" r="4.8" fill="#fbbf24" stroke="#ffffff" strokeWidth="0.8" />
-    <circle cx="38" cy="46" r="3.6" fill="#a855f7" stroke="#ffffff" strokeWidth="0.8" />
-    <circle cx="56" cy="36" r="3.6" fill="#f43f5e" stroke="#ffffff" strokeWidth="0.8" />
-    {/* Specular curved glaze */}
-    <ellipse cx="38" cy="26" rx="9" ry="4" transform="rotate(-30 38 26)" fill="#ffffff" opacity="0.75" />
-  </svg>
-);
 
 // ---------------------------------------------------------------------------
 // HTML5 CANVAS PARTICLE SYSTEM FOR REAL SUGAR SPARKLES & FLYING SCORE
@@ -885,7 +604,7 @@ export const CandySagaStage: React.FC<CandySagaStageProps> = ({ onClose }) => {
   const currentStars = score >= activeLevel.starScores[2] ? 3 : score >= activeLevel.starScores[1] ? 2 : score >= activeLevel.starScores[0] ? 1 : 0;
 
   return (
-    <div className="w-full h-full flex flex-col justify-between items-center bg-gradient-to-b from-[#2e1065] via-[#3b0764] to-[#1e1b4b] text-white p-2 sm:p-4 select-none relative overflow-hidden rounded-3xl border-2 border-amber-400/40 shadow-2xl">
+    <div className="w-full h-full flex flex-col justify-between items-center bg-gradient-to-b from-[#38bdf8] via-[#7dd3fc] to-[#bae6fd] text-white p-2 sm:p-4 select-none relative overflow-hidden rounded-3xl border-2 border-amber-400/40 shadow-2xl">
       {/* Top Header HUD */}
       <div className="w-full max-w-md flex items-center justify-between z-20 shrink-0">
         <button
@@ -941,12 +660,12 @@ export const CandySagaStage: React.FC<CandySagaStageProps> = ({ onClose }) => {
       <div
         onPointerMove={handlePointerMove}
         onPointerUp={() => (dragStartRef.current = null)}
-        className={`rounded-3xl p-2 relative shadow-2xl flex items-center justify-center shrink-0 border-4 border-[#854d0e] select-none backdrop-blur-md transition-transform duration-75 ${
+        className={`rounded-3xl p-2 relative shadow-2xl flex items-center justify-center shrink-0 border-4 border-amber-400/90 select-none backdrop-blur-md transition-transform duration-75 ${
           screenShake === 'heavy' ? 'translate-x-2 -translate-y-1 rotate-1 scale-[1.03]' : ''
         }`}
         style={{
-          background: 'radial-gradient(circle at 50% 50%, #451a03 0%, #1c0a00 100%)',
-          boxShadow: '0 16px 40px rgba(0, 0, 0, 0.9), inset 0 0 25px rgba(234, 179, 8, 0.2)',
+          background: 'linear-gradient(180deg, rgba(30, 58, 138, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), inset 0 0 30px rgba(56, 189, 248, 0.4)',
           height: 'min(48vh, 390px)',
           width: 'min(48vh, 390px)',
         }}
@@ -967,7 +686,7 @@ export const CandySagaStage: React.FC<CandySagaStageProps> = ({ onClose }) => {
                   onClick={() => handleCellClick(r, c)}
                   disabled={cell.type === -1}
                   className={`relative rounded-xl flex items-center justify-center cursor-pointer transition-transform duration-150 active:scale-90 touch-none shadow-inner ${
-                    isLightSlot ? 'bg-[#50240d]' : 'bg-[#3b1706]'
+                    isLightSlot ? 'bg-white/15' : 'bg-black/25'
                   } ${
                     isSelected
                       ? 'ring-4 ring-yellow-300 scale-110 z-30 shadow-[0_0_20px_rgba(253,224,71,1)]'
