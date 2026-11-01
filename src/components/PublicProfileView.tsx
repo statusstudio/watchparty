@@ -521,7 +521,7 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex flex-col items-center justify-center p-4 transition-colors ${
+      <div className={`fixed inset-0 flex flex-col items-center justify-center p-4 transition-colors z-50 ${
         isLight ? 'bg-[#faf8ff] text-[#131b2e]' : 'bg-[#111319] text-[#e2e2ea]'
       }`}>
         <div className="w-12 h-12 rounded-full border-3 border-[#0075de]/20 border-t-[#0075de] animate-spin mb-4" />
@@ -532,7 +532,7 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
 
   if (error || !profile) {
     return (
-      <div className={`min-h-screen flex flex-col transition-colors ${
+      <div className={`fixed inset-0 overflow-y-auto overflow-x-hidden flex flex-col transition-colors z-50 ${
         isLight ? 'bg-[#faf8ff] text-[#131b2e]' : 'bg-[#111319] text-[#e2e2ea]'
       }`}>
         {/* Top Header - Main Menu Style */}
@@ -596,7 +596,7 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
   const banner = profile.bannerUrl || defaultBanner;
 
   return (
-    <div className={`min-h-screen overflow-y-auto overflow-x-hidden flex flex-col transition-colors duration-300 ${
+    <div className={`fixed inset-0 overflow-y-auto overflow-x-hidden flex flex-col transition-colors duration-300 z-30 ${
       isLight ? 'bg-[#faf8ff] text-[#131b2e]' : 'bg-[#111319] text-[#e2e2ea]'
     }`}>
       {/* 1. TOP HEADER (Exact Same Menu as Main Home Page) */}

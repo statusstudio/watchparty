@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile, RoomSummary } from '../../types/index.js';
 
 interface StitchHeaderProps {
@@ -43,6 +43,34 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
   const isLight = theme === 'light';
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close profile dropdown when clicking/touching outside or pressing Escape
+  useEffect(() => {
+    if (!isProfileDropdownOpen) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setIsProfileDropdownOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsProfileDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isProfileDropdownOpen]);
 
   return (
     <header className={`fixed top-0 inset-x-0 z-50 backdrop-blur-xl border-b shadow-sm transition-colors duration-300 ${
@@ -239,7 +267,7 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
           )}
 
           {/* User Profile Avatar & Dropdown Controller */}
-          <div className="relative">
+          <div ref={profileDropdownRef} className="relative">
             <button
               onClick={() => {
                 // On mobile and tablet (< 1024px), directly link to public profile page
