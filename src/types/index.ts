@@ -332,6 +332,7 @@ export interface CandyBattlePlayer {
   isDead: boolean;
   isHost: boolean;
   combo: number;
+  isBot?: boolean;
   items?: Partial<Record<CandyItemType, number>>;
 }
 

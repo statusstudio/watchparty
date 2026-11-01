@@ -72,6 +72,14 @@ interface InternalRoomData {
   candyTimer?: NodeJS.Timeout | null;
 }
 
+
+const CANDY_BOT_TEMPLATES = [
+  { name: '🤖 บอทลูกกวาด', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=candybot1', color: '#ec4899' },
+  { name: '🦊 จิ้งจอกสายหวาน', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=sweetfox2', color: '#f59e0b' },
+  { name: '🐻 หมีมาร์ชเมลโล่', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=marshybear3', color: '#10b981' },
+  { name: '🐰 ต่ายน้อยเยลลี่', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=jellybunny4', color: '#8b5cf6' },
+];
+
 export class RoomManager {
   private rooms: Map<string, InternalRoomData> = new Map();
   private clients: Map<WebSocket, ClientConnection> = new Map();
@@ -3300,6 +3308,219 @@ export class RoomManager {
     return { totalDamage, comboCount, harvestedItems };
   }
 
+  
+  private findBotValidMove(board: CandyTileData[][]): { r1: number; c1: number; r2: number; c2: number } | null {
+    const dirs = [
+      [0, 1],
+      [1, 0],
+    ];
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        for (const [dr, dc] of dirs) {
+          const nr = r + dr;
+          const nc = c + dc;
+          if (nr < 8 && nc < 8) {
+            // Test swap
+            const temp = board[r][c];
+            board[r][c] = board[nr][nc];
+            board[nr][nc] = temp;
+            const matches = this.checkMatches(board);
+            // Revert
+            board[nr][nc] = board[r][c];
+            board[r][c] = temp;
+            if (matches.size > 0) {
+              return { r1: r, c1: c, r2: nr, c2: nc };
+            }
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  private executeBotTurn(room: InternalRoomData, botUserId: string) {
+    if (!room.candyGameState || room.candyGameState.phase !== 'playing' || !room.candyGameState.board) return;
+    const game = room.candyGameState;
+    const board = game.board;
+    if (!board) return;
+    if (game.currentTurnUserId !== botUserId) return;
+
+    const bot = game.players.find((p) => p.userId === botUserId);
+    if (!bot || bot.isDead) return;
+
+    // 1. If HP low and has heal item, use heal
+    if (bot.hp <= 40 && (bot.items?.heal || 0) > 0) {
+      bot.items!.heal = (bot.items!.heal || 0) - 1;
+      bot.hp = Math.min(100, bot.hp + 30);
+      game.recentLogs.unshift({
+        id: 'log-' + Date.now(),
+        text: `💖 ${bot.userName} ใช้ยาวิเศษเพิ่มพลัง (+30 HP)!`,
+        type: 'heal',
+        timestamp: Date.now(),
+      });
+      this.broadcastToRoom(room.metadata.id, {
+        type: 'CANDY_EVENT_TRIGGERED',
+        eventType: 'heal',
+        fromUserId: bot.userId,
+      });
+    }
+
+    // 2. Play move
+    const move = this.findBotValidMove(board);
+    if (move) {
+      const { r1, c1, r2, c2 } = move;
+      const temp = board[r1][c1];
+      board[r1][c1] = board[r2][c2];
+      board[r2][c2] = temp;
+
+      const { totalDamage, comboCount, harvestedItems } = this.processCascadingMatches(board);
+      if (harvestedItems.length > 0) {
+        if (!bot.items) bot.items = {};
+        harvestedItems.forEach((it) => {
+          bot.items![it] = (bot.items![it] || 0) + 1;
+        });
+        game.recentLogs.unshift({
+          id: 'log-' + Date.now(),
+          text: `🎁 ${bot.userName} สุ่มได้รับไอเท็มพิเศษจากกระดาน!`,
+          type: 'item',
+          timestamp: Date.now(),
+        });
+      }
+
+      this.applyCandyAttack(room, bot, totalDamage, comboCount);
+    } else {
+      // Use hammer on random tile
+      const r = Math.floor(Math.random() * 8);
+      const c = Math.floor(Math.random() * 8);
+      board[r][c] = { id: `bot-smash-${r}-${c}`, type: -1, hasItem: false };
+      const { totalDamage, comboCount, harvestedItems } = this.processCascadingMatches(board);
+      if (harvestedItems.length > 0) {
+        if (!bot.items) bot.items = {};
+        harvestedItems.forEach((it) => {
+          bot.items![it] = (bot.items![it] || 0) + 1;
+        });
+      }
+      if (totalDamage > 0) {
+        this.applyCandyAttack(room, bot, totalDamage, comboCount);
+      }
+    }
+
+    // 3. Advance turn to next alive player
+    this.advanceCandyTurn(room, bot.userId);
+  }
+
+  private advanceCandyTurn(room: InternalRoomData, currentUserId?: string) {
+    if (!room.candyGameState || room.candyGameState.phase !== 'playing') return;
+    const game = room.candyGameState;
+    const living = game.players.filter((p) => !p.isDead);
+    if (living.length <= 1) {
+      this.checkCandySurvivors(room);
+      return;
+    }
+
+    const curId = currentUserId || game.currentTurnUserId;
+    const curIdx = living.findIndex((p) => p.userId === curId);
+    const nextIdx = (curIdx + 1) % living.length;
+    const nextPlayer = living[nextIdx];
+
+    game.currentTurnUserId = nextPlayer.userId;
+    game.turnTimeLeft = 15;
+
+    game.recentLogs.unshift({
+      id: 'log-' + Date.now(),
+      text: `⏳ สลับตาเป็น ${nextPlayer.userName}! (15 วิ)`,
+      type: 'system',
+      timestamp: Date.now(),
+    });
+
+    this.broadcastCandyGameState(room.metadata.id);
+
+    // If bot, trigger AI turn
+    if (nextPlayer.isBot && !nextPlayer.isDead) {
+      setTimeout(() => {
+        this.executeBotTurn(room, nextPlayer.userId);
+      }, 1800);
+    }
+  }
+
+  public applyCandyAttack(
+    room: InternalRoomData,
+    attacker: CandyBattlePlayer,
+    damage: number,
+    combo: number,
+    targetUserId?: string
+  ) {
+    if (!room.candyGameState || room.candyGameState.phase !== 'playing') return;
+    const game = room.candyGameState;
+
+    attacker.combo = combo;
+
+    let targetId = targetUserId || attacker.targetUserId;
+    let target = game.players.find((p) => p.userId === targetId && !p.isDead);
+
+    if (!target || target.userId === attacker.userId) {
+      target = game.players.find((p) => p.userId !== attacker.userId && !p.isDead);
+    }
+
+    if (!target) return;
+
+    attacker.targetUserId = target.userId;
+
+    const actualDamage = Math.max(5, Math.min(damage, 40));
+
+    if (target.shield) {
+      target.shield = false;
+      game.recentLogs.unshift({
+        id: 'log-' + Date.now() + Math.random().toString(36).substring(2, 5),
+        text: `🛡️ เกราะของ ${target.userName} ป้องกันการโจมตีจาก ${attacker.userName} ไว้ได้!`,
+        type: 'shield',
+        timestamp: Date.now(),
+      });
+
+      this.broadcastToRoom(room.metadata.id, {
+        type: 'CANDY_EVENT_TRIGGERED',
+        eventType: 'shield',
+        fromUserId: attacker.userId,
+        targetUserId: target.userId,
+      });
+    } else {
+      target.hp = Math.max(0, target.hp - actualDamage);
+
+      game.recentLogs.unshift({
+        id: 'log-' + Date.now() + Math.random().toString(36).substring(2, 5),
+        text: `💥 ${attacker.userName} โจมตีใส่ ${target.userName} สร้างความเสียหาย ${actualDamage} HP! (คอมโบ x${combo})`,
+        type: 'attack',
+        timestamp: Date.now(),
+      });
+
+      this.broadcastToRoom(room.metadata.id, {
+        type: 'CANDY_EVENT_TRIGGERED',
+        eventType: 'attack',
+        fromUserId: attacker.userId,
+        targetUserId: target.userId,
+      });
+
+      if (target.hp <= 0) {
+        target.isDead = true;
+        game.recentLogs.unshift({
+          id: 'log-' + Date.now() + Math.random().toString(36).substring(2, 5),
+          text: `💀 ${target.userName} ถูกกำจัดแล้ว!`,
+          type: 'ko',
+          timestamp: Date.now(),
+        });
+
+        this.broadcastToRoom(room.metadata.id, {
+          type: 'CANDY_EVENT_TRIGGERED',
+          eventType: 'ko',
+          fromUserId: attacker.userId,
+          targetUserId: target.userId,
+        });
+
+        this.checkCandySurvivors(room);
+      }
+    }
+  }
+
   private startCandyBattlePlaying(room: InternalRoomData) {
     if (!room.candyGameState) return;
     if (room.candyTimer) {
@@ -3308,6 +3529,30 @@ export class RoomManager {
     }
 
     const game = room.candyGameState;
+
+    // Fill bots if fewer than 4 players (so single player gets 3 bot opponents!)
+    if (game.players.length < 4) {
+      const needed = 4 - game.players.length;
+      for (let i = 0; i < needed; i++) {
+        const t = CANDY_BOT_TEMPLATES[i % CANDY_BOT_TEMPLATES.length];
+        game.players.push({
+          userId: `bot-${Date.now()}-${i}`,
+          userName: t.name,
+          avatar: t.avatar,
+          color: t.color,
+          hp: 100,
+          maxHp: 100,
+          shield: false,
+          targetUserId: null,
+          isDead: false,
+          isHost: false,
+          combo: 0,
+          isBot: true,
+          items: { heal: 1, shield: 0, fire: 0, hammer: 1 },
+        });
+      }
+    }
+
     game.phase = 'countdown';
     game.lobbyTimeLeft = 3;
 
@@ -3318,12 +3563,9 @@ export class RoomManager {
       p.shield = false;
       p.isDead = false;
       p.combo = 0;
-      if (game.players.length > 1) {
-        const nextIdx = (i + 1) % game.players.length;
-        p.targetUserId = game.players[nextIdx].userId;
-      } else {
-        p.targetUserId = null;
-      }
+      if (!p.items) p.items = { heal: 1, shield: 0, fire: 0, hammer: 1 };
+      const nextIdx = (i + 1) % game.players.length;
+      p.targetUserId = game.players[nextIdx].userId;
     });
 
     game.recentLogs.unshift({
@@ -3352,10 +3594,17 @@ export class RoomManager {
           room.candyGameState.phase = 'playing';
           room.candyGameState.gameTimeLeft = 120;
           room.candyGameState.board = this.createRandom8x8Board();
-          room.candyGameState.currentTurnUserId = room.candyGameState.players[0]?.userId || null;
+          const firstPlayer = room.candyGameState.players[0];
+          room.candyGameState.currentTurnUserId = firstPlayer?.userId || null;
           room.candyGameState.turnTimeLeft = 15;
           this.broadcastCandyGameState(room.metadata.id);
           this.startCandyPlayingTimer(room);
+
+          if (firstPlayer?.isBot && !firstPlayer.isDead) {
+            setTimeout(() => {
+              this.executeBotTurn(room, firstPlayer.userId);
+            }, 1800);
+          }
         }
       }
     }, 1000);
@@ -3380,20 +3629,9 @@ export class RoomManager {
       if (room.candyGameState.turnTimeLeft && room.candyGameState.turnTimeLeft > 0) {
         room.candyGameState.turnTimeLeft -= 1;
       } else if (room.candyGameState.turnTimeLeft !== undefined && room.candyGameState.turnTimeLeft <= 0) {
-        const living = room.candyGameState.players.filter((p) => !p.isDead);
-        if (living.length > 0) {
-          const curIdx = living.findIndex((p) => p.userId === room.candyGameState!.currentTurnUserId);
-          const nextIdx = (curIdx + 1) % living.length;
-          room.candyGameState.currentTurnUserId = living[nextIdx].userId;
-          room.candyGameState.turnTimeLeft = 15;
-          room.candyGameState.recentLogs.unshift({
-            id: 'log-' + Date.now(),
-            text: `⏳ สลับตาเป็น ${living[nextIdx].userName}! (15 วิ)`,
-            type: 'system',
-            timestamp: Date.now(),
-          });
-        }
+        this.advanceCandyTurn(room);
       }
+
       if (room.candyGameState.gameTimeLeft <= 0) {
         const living = room.candyGameState.players.filter((p) => !p.isDead);
         const sorted = living.sort((a, b) => b.hp - a.hp);
@@ -3723,18 +3961,10 @@ export class RoomManager {
       });
     }
 
-    this.handleCandyAttack(ws, totalDamage, comboCount);
+    this.applyCandyAttack(room, attacker, totalDamage, comboCount);
 
     // Advance turn to next alive player
-    const living = game.players.filter((p) => !p.isDead);
-    if (living.length > 0) {
-      const curIdx = living.findIndex((p) => p.userId === attacker.userId);
-      const nextIdx = (curIdx + 1) % living.length;
-      game.currentTurnUserId = living[nextIdx].userId;
-      game.turnTimeLeft = 15;
-    }
-
-    this.broadcastCandyGameState(client.roomId);
+    this.advanceCandyTurn(room, attacker.userId);
   }
 
   public handleCandyHammer(ws: WebSocket, r: number, c: number) {
@@ -3762,17 +3992,10 @@ export class RoomManager {
     }
 
     if (totalDamage > 0) {
-      this.handleCandyAttack(ws, totalDamage, comboCount);
+      this.applyCandyAttack(room, attacker, totalDamage, comboCount);
     }
 
-    const living = game.players.filter((p) => !p.isDead);
-    if (living.length > 0) {
-      const curIdx = living.findIndex((p) => p.userId === attacker.userId);
-      const nextIdx = (curIdx + 1) % living.length;
-      game.currentTurnUserId = living[nextIdx].userId;
-      game.turnTimeLeft = 15;
-    }
-
-    this.broadcastCandyGameState(client.roomId);
+    this.advanceCandyTurn(room, attacker.userId);
   }
 }
+

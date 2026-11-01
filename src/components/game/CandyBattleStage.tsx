@@ -975,9 +975,9 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
           />
 
           {/* 8x8 Grid Tiles (SHARED SERVER BOARD) */}
-          <div className="w-full h-full grid grid-cols-8 gap-0.5 relative z-10">
-            {board.length === 8 &&
-              board.map((row, r) =>
+          {board && board.length === 8 ? (
+            <div className="w-full h-full grid grid-cols-8 gap-0.5 relative z-10">
+              {board.map((row, r) =>
                 row.map((cell, c) => {
                   const CandyComponent = CANDY_COMPONENTS[cell.type] || CANDY_COMPONENTS[0];
                   const isSelected = selectedCell?.r === r && selectedCell?.c === c;
@@ -1009,7 +1009,15 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
                   );
                 })
               )}
-          </div>
+            </div>
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-3 relative z-10">
+              <div className="w-10 h-10 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin shadow-lg" />
+              <span className="text-xs font-bold text-yellow-300 animate-pulse tracking-wide">
+                🍬 กำลังเตรียมกระดานลูกอม...
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Combat Log */}
