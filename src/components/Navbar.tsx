@@ -47,6 +47,8 @@ interface NavbarProps {
   isFavoriteRoom?: boolean;
   isGameActive?: boolean;
   onToggleGame?: () => void;
+  isCandyGameActive?: boolean;
+  onToggleCandyGame?: () => void;
   onToggleFavoriteRoom?: () => void;
   onRefreshRoom: () => void;
   onToggleOledSleep: () => void;
@@ -84,6 +86,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   isFavoriteRoom,
   isGameActive,
   onToggleGame,
+  isCandyGameActive,
+  onToggleCandyGame,
   onToggleFavoriteRoom,
   onRefreshRoom,
   onToggleOledSleep,
@@ -579,6 +583,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                     >
                       <Moon className="w-3.5 h-3.5 text-[#615d59]" />
                       <span>โหมดพักหน้าจอ (OLED Black)</span>
+                    </button>
+                  )}
+
+                  {/* Candy Battle Royale 3D Game */}
+                  {currentView === 'room' && onToggleCandyGame && (
+                    <button
+                      onClick={() => {
+                        onToggleCandyGame();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full px-2 py-1.5 rounded-lg text-left text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
+                        isCandyGameActive
+                          ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300'
+                          : 'bg-pink-50 text-pink-700 hover:bg-pink-100 dark:bg-pink-950/40 dark:text-pink-300'
+                      }`}
+                    >
+                      <span className="text-sm">🍬</span>
+                      <span>{isCandyGameActive ? 'ออกจากเกมแคนดี้ 3D' : 'เล่นเกม Candy Battle Royale 3D (4 ผู้เล่น)'}</span>
                     </button>
                   )}
 

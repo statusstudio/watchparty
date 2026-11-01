@@ -274,6 +274,7 @@ export interface RoomState {
   myRole: UserRole;
   isStealth?: boolean;
   gameState?: DrawAndGuessGameState | null;
+  candyGameState?: CandyBattleGameState | null;
 }
 
 export interface DrawStroke {
@@ -315,6 +316,39 @@ export interface DrawAndGuessGameState {
   timeLeft: number;
   scores: GamePlayerScore[];
   winner?: GamePlayerScore;
+}
+
+export type CandyItemType = 'heal' | 'shield' | 'fire' | 'hammer';
+
+export interface CandyBattlePlayer {
+  userId: string;
+  userName: string;
+  avatar: string;
+  color?: string;
+  hp: number; // 0 to 100
+  maxHp: number; // 100
+  shield: boolean;
+  targetUserId: string | null;
+  isDead: boolean;
+  isHost: boolean;
+  combo: number;
+}
+
+export interface CandyBattleLog {
+  id: string;
+  text: string;
+  type: 'attack' | 'heal' | 'shield' | 'fire' | 'ko' | 'system';
+  timestamp: number;
+}
+
+export interface CandyBattleGameState {
+  isActive: boolean;
+  phase: 'waiting' | 'countdown' | 'playing' | 'game_over';
+  lobbyTimeLeft: number; // 30s countdown
+  gameTimeLeft: number; // match duration
+  players: CandyBattlePlayer[];
+  winner: CandyBattlePlayer | null;
+  recentLogs: CandyBattleLog[];
 }
 
 export type WSClientMessage =
@@ -371,7 +405,14 @@ export type WSClientMessage =
   | { type: 'CALL_ACCEPT'; callId: string; targetUserId: string; user: UserProfile }
   | { type: 'CALL_REJECT'; callId: string; targetUserId: string; reason?: string }
   | { type: 'CALL_END'; callId: string; targetUserId: string }
-  | { type: 'CALL_SIGNAL'; callId: string; targetUserId: string; senderId: string; data: any };
+  | { type: 'CALL_SIGNAL'; callId: string; targetUserId: string; senderId: string; data: any }
+  | { type: 'CANDY_JOIN_LOBBY' }
+  | { type: 'CANDY_LEAVE_LOBBY' }
+  | { type: 'CANDY_START_GAME' }
+  | { type: 'CANDY_STOP_GAME' }
+  | { type: 'CANDY_ACTION_ATTACK'; damage: number; combo: number; targetUserId?: string }
+  | { type: 'CANDY_ACTION_USE_ITEM'; itemType: CandyItemType }
+  | { type: 'CANDY_SELECT_TARGET'; targetUserId: string };
 
 export type WSServerMessage =
   | { type: 'ROOMS_LIST'; rooms: RoomSummary[] }
@@ -410,7 +451,9 @@ export type WSServerMessage =
   | { type: 'CALL_ACCEPTED'; callId: string; user: UserProfile }
   | { type: 'CALL_REJECTED'; callId: string; reason?: string }
   | { type: 'CALL_ENDED'; callId: string }
-  | { type: 'CALL_SIGNAL'; callId: string; senderId: string; data: any };
+  | { type: 'CALL_SIGNAL'; callId: string; senderId: string; data: any }
+  | { type: 'CANDY_STATE_UPDATED'; state: CandyBattleGameState | null }
+  | { type: 'CANDY_EVENT_TRIGGERED'; eventType: 'attack' | 'heal' | 'shield' | 'fire' | 'hammer' | 'ko'; fromUserId: string; targetUserId?: string; value?: number };
 
 // Platform Owner & Super Admin Types
 export interface PlatformUser {

@@ -1746,6 +1746,27 @@ async function startServer() {
           case 'GAME_GUESS':
             roomManager.handleGameGuess(ws, msg.guess);
             break;
+          case 'CANDY_JOIN_LOBBY':
+            roomManager.handleCandyJoinLobby(ws);
+            break;
+          case 'CANDY_LEAVE_LOBBY':
+            roomManager.handleCandyLeaveLobby(ws);
+            break;
+          case 'CANDY_START_GAME':
+            roomManager.handleCandyStartGame(ws);
+            break;
+          case 'CANDY_STOP_GAME':
+            roomManager.handleCandyStopGame(ws);
+            break;
+          case 'CANDY_ACTION_ATTACK':
+            roomManager.handleCandyAttack(ws, msg.damage, msg.combo, msg.targetUserId);
+            break;
+          case 'CANDY_ACTION_USE_ITEM':
+            roomManager.handleCandyUseItem(ws, msg.itemType);
+            break;
+          case 'CANDY_SELECT_TARGET':
+            roomManager.handleCandySelectTarget(ws, msg.targetUserId);
+            break;
           case 'SET_ROOM_ANNOUNCEMENT':
             roomManager.handleSetRoomAnnouncement(ws, msg.announcement);
             break;

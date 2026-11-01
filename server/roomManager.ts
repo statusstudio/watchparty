@@ -26,6 +26,10 @@ import {
   DrawStroke,
   GamePlayerScore,
   WordChoice,
+  CandyBattleGameState,
+  CandyBattlePlayer,
+  CandyBattleLog,
+  CandyItemType,
 } from '../src/types/index.js';
 import { THAI_WORD_BANK, getRandomWordChoices } from './wordBank.js';
 
@@ -63,6 +67,8 @@ interface InternalRoomData {
   gameTimer?: NodeJS.Timeout | null;
   gameTurnOrder?: string[];
   gameCurrentTurnIndex?: number;
+  candyGameState?: CandyBattleGameState | null;
+  candyTimer?: NodeJS.Timeout | null;
 }
 
 export class RoomManager {
@@ -680,6 +686,7 @@ export class RoomManager {
       myRole,
       isStealth,
       gameState: this.getSanitizedGameState(roomId, requestingUserId),
+      candyGameState: room.candyGameState || null,
     };
   }
 
@@ -2983,6 +2990,547 @@ export class RoomManager {
     this.broadcastToRoom(client.roomId, {
       type: 'SYNC_TOAST',
       message: '🛑 เกมวาดรูปทายคำถูกยุติแล้ว',
+      toastType: 'info',
+    });
+  }
+
+  // =========================================================================
+  // CANDY BATTLE ROYALE 3D MULTIPLAYER ENGINE
+  // =========================================================================
+
+  private sendToWs(ws: WebSocket, message: any) {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+    }
+  }
+
+  public broadcastCandyGameState(roomId: string) {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+    this.broadcastToRoom(roomId, {
+      type: 'CANDY_STATE_UPDATED',
+      state: room.candyGameState || null,
+    });
+  }
+
+  public handleCandyJoinLobby(ws: WebSocket) {
+    const client = this.clients.get(ws);
+    if (!client || !client.roomId) return;
+    const room = this.rooms.get(client.roomId);
+    if (!room) return;
+
+    if (!room.candyGameState) {
+      room.candyGameState = {
+        isActive: true,
+        phase: 'waiting',
+        lobbyTimeLeft: 30,
+        gameTimeLeft: 90,
+        players: [],
+        winner: null,
+        recentLogs: [
+          {
+            id: 'log-' + Date.now(),
+            text: '🍭 เปิดล็อบบี้ Candy Battle Royale! ขึ้นเล่นได้สูงสุด 4 คน',
+            type: 'system',
+            timestamp: Date.now(),
+          },
+        ],
+      };
+    }
+
+    const game = room.candyGameState;
+    // Don't join if already in match or playing
+    if (game.phase !== 'waiting') {
+      this.sendToWs(ws, {
+        type: 'SYNC_TOAST',
+        message: 'เกมกำลังแข่งขันอยู่ ไม่สามารถขึ้นเล่นได้ในขณะนี้ ⚠️',
+        toastType: 'warning',
+      });
+      return;
+    }
+
+    if (game.players.some((p) => p.userId === client.user.id)) return;
+    if (game.players.length >= 4) {
+      this.sendToWs(ws, {
+        type: 'SYNC_TOAST',
+        message: 'ที่นั่งผู้เล่นเต็ม 4 คนแล้ว ⚠️',
+        toastType: 'warning',
+      });
+      return;
+    }
+
+    const isFirst = game.players.length === 0;
+    const newPlayer: CandyBattlePlayer = {
+      userId: client.user.id,
+      userName: client.user.name,
+      avatar: client.user.avatar || '',
+      color: client.user.color,
+      hp: 100,
+      maxHp: 100,
+      shield: false,
+      targetUserId: null,
+      isDead: false,
+      isHost: isFirst,
+      combo: 0,
+    };
+
+    game.players.push(newPlayer);
+    game.recentLogs.unshift({
+      id: 'log-' + Date.now() + Math.random().toString(36).substring(2, 5),
+      text: `✨ ${client.user.name} ขึ้นนั่งที่นั่งที่ ${game.players.length}/4`,
+      type: 'system',
+      timestamp: Date.now(),
+    });
+
+    if (isFirst) {
+      this.startCandyLobbyCountdown(room);
+    }
+
+    // Auto-start immediately if full 4 players!
+    if (game.players.length >= 4) {
+      this.startCandyBattlePlaying(room);
+    } else {
+      this.broadcastCandyGameState(client.roomId);
+    }
+  }
+
+  public handleCandyLeaveLobby(ws: WebSocket) {
+    const client = this.clients.get(ws);
+    if (!client || !client.roomId) return;
+    const room = this.rooms.get(client.roomId);
+    if (!room || !room.candyGameState) return;
+
+    const game = room.candyGameState;
+    const pIdx = game.players.findIndex((p) => p.userId === client.user.id);
+    if (pIdx === -1) return;
+
+    const leavingPlayer = game.players[pIdx];
+    game.players.splice(pIdx, 1);
+
+    if (game.phase === 'waiting') {
+      if (game.players.length === 0) {
+        if (room.candyTimer) {
+          clearInterval(room.candyTimer);
+          room.candyTimer = null;
+        }
+        room.candyGameState = null;
+        this.broadcastCandyGameState(client.roomId);
+        return;
+      }
+
+      if (leavingPlayer.isHost && game.players.length > 0) {
+        game.players[0].isHost = true;
+      }
+    } else if (game.phase === 'playing') {
+      this.checkCandySurvivors(room);
+    }
+
+    this.broadcastCandyGameState(client.roomId);
+  }
+
+  public handleCandyStartGame(ws: WebSocket) {
+    const client = this.clients.get(ws);
+    if (!client || !client.roomId) return;
+    const room = this.rooms.get(client.roomId);
+    if (!room || !room.candyGameState) return;
+
+    const game = room.candyGameState;
+    if (game.phase !== 'waiting') return;
+
+    const player = game.players.find((p) => p.userId === client.user.id);
+    const isAdmin = room.adminIds.has(client.user.id) || room.metadata.ownerId === client.user.id;
+    if (!player?.isHost && !isAdmin) {
+      this.sendToWs(ws, {
+        type: 'SYNC_TOAST',
+        message: 'เฉพาะผู้เล่นคนแรกหรือเจ้าของห้องเท่านั้นที่กดเริ่มเกมได้ 🚀',
+        toastType: 'warning',
+      });
+      return;
+    }
+
+    if (game.players.length < 1) return;
+    this.startCandyBattlePlaying(room);
+  }
+
+  private startCandyLobbyCountdown(room: InternalRoomData) {
+    if (!room.candyGameState) return;
+    if (room.candyTimer) {
+      clearInterval(room.candyTimer);
+      room.candyTimer = null;
+    }
+
+    room.candyGameState.lobbyTimeLeft = 30;
+
+    room.candyTimer = setInterval(() => {
+      if (!room.candyGameState || room.candyGameState.phase !== 'waiting') {
+        if (room.candyTimer) {
+          clearInterval(room.candyTimer);
+          room.candyTimer = null;
+        }
+        return;
+      }
+
+      room.candyGameState.lobbyTimeLeft -= 1;
+
+      if (room.candyGameState.lobbyTimeLeft <= 0) {
+        if (room.candyGameState.players.length > 0) {
+          this.startCandyBattlePlaying(room);
+        } else {
+          if (room.candyTimer) {
+            clearInterval(room.candyTimer);
+            room.candyTimer = null;
+          }
+          room.candyGameState = null;
+          this.broadcastCandyGameState(room.metadata.id);
+        }
+      } else {
+        this.broadcastCandyGameState(room.metadata.id);
+      }
+    }, 1000);
+  }
+
+  private startCandyBattlePlaying(room: InternalRoomData) {
+    if (!room.candyGameState) return;
+    if (room.candyTimer) {
+      clearInterval(room.candyTimer);
+      room.candyTimer = null;
+    }
+
+    const game = room.candyGameState;
+    game.phase = 'countdown';
+    game.lobbyTimeLeft = 3;
+
+    // Reset player HP and setup default circular targets
+    game.players.forEach((p, i) => {
+      p.hp = 100;
+      p.maxHp = 100;
+      p.shield = false;
+      p.isDead = false;
+      p.combo = 0;
+      if (game.players.length > 1) {
+        const nextIdx = (i + 1) % game.players.length;
+        p.targetUserId = game.players[nextIdx].userId;
+      } else {
+        p.targetUserId = null;
+      }
+    });
+
+    game.recentLogs.unshift({
+      id: 'log-' + Date.now(),
+      text: '⚔️ เริ่มการต่อสู้ Candy Battle Royale! รักษาสุขภาพและเลือกเป้าหมาย!',
+      type: 'system',
+      timestamp: Date.now(),
+    });
+
+    this.broadcastCandyGameState(room.metadata.id);
+
+    // 3s countdown transition to playing
+    let cd = 3;
+    const cdInterval = setInterval(() => {
+      if (!room.candyGameState) {
+        clearInterval(cdInterval);
+        return;
+      }
+      cd -= 1;
+      room.candyGameState.lobbyTimeLeft = cd;
+      this.broadcastCandyGameState(room.metadata.id);
+
+      if (cd <= 0) {
+        clearInterval(cdInterval);
+        if (room.candyGameState) {
+          room.candyGameState.phase = 'playing';
+          room.candyGameState.gameTimeLeft = 120;
+          this.broadcastCandyGameState(room.metadata.id);
+          this.startCandyPlayingTimer(room);
+        }
+      }
+    }, 1000);
+  }
+
+  private startCandyPlayingTimer(room: InternalRoomData) {
+    if (room.candyTimer) {
+      clearInterval(room.candyTimer);
+      room.candyTimer = null;
+    }
+
+    room.candyTimer = setInterval(() => {
+      if (!room.candyGameState || room.candyGameState.phase !== 'playing') {
+        if (room.candyTimer) {
+          clearInterval(room.candyTimer);
+          room.candyTimer = null;
+        }
+        return;
+      }
+
+      room.candyGameState.gameTimeLeft -= 1;
+      if (room.candyGameState.gameTimeLeft <= 0) {
+        const living = room.candyGameState.players.filter((p) => !p.isDead);
+        const sorted = living.sort((a, b) => b.hp - a.hp);
+        this.endCandyGame(room, sorted[0] || null);
+      } else {
+        this.broadcastCandyGameState(room.metadata.id);
+      }
+    }, 1000);
+  }
+
+  public handleCandyAttack(ws: WebSocket, damage: number, combo: number, targetUserId?: string) {
+    const client = this.clients.get(ws);
+    if (!client || !client.roomId) return;
+    const room = this.rooms.get(client.roomId);
+    if (!room || !room.candyGameState || room.candyGameState.phase !== 'playing') return;
+
+    const game = room.candyGameState;
+    const attacker = game.players.find((p) => p.userId === client.user.id);
+    if (!attacker || attacker.isDead) return;
+
+    attacker.combo = combo;
+
+    let targetId = targetUserId || attacker.targetUserId;
+    let target = game.players.find((p) => p.userId === targetId && !p.isDead);
+
+    if (!target || target.userId === attacker.userId) {
+      target = game.players.find((p) => p.userId !== attacker.userId && !p.isDead);
+    }
+
+    if (!target) return;
+
+    attacker.targetUserId = target.userId;
+
+    const actualDamage = Math.max(5, Math.min(damage, 40));
+
+    if (target.shield) {
+      target.shield = false;
+      game.recentLogs.unshift({
+        id: 'log-' + Date.now() + Math.random().toString(36).substring(2, 5),
+        text: `🛡️ เกราะของ ${target.userName} ป้องกันการโจมตีจาก ${attacker.userName} ไว้ได้!`,
+        type: 'shield',
+        timestamp: Date.now(),
+      });
+
+      this.broadcastToRoom(client.roomId, {
+        type: 'CANDY_EVENT_TRIGGERED',
+        eventType: 'shield',
+        fromUserId: attacker.userId,
+        targetUserId: target.userId,
+      });
+    } else {
+      target.hp = Math.max(0, target.hp - actualDamage);
+
+      game.recentLogs.unshift({
+        id: 'log-' + Date.now() + Math.random().toString(36).substring(2, 5),
+        text: `💥 ${attacker.userName} โจมตี ${target.userName} -${actualDamage} HP (Combo x${combo})`,
+        type: 'attack',
+        timestamp: Date.now(),
+      });
+
+      this.broadcastToRoom(client.roomId, {
+        type: 'CANDY_EVENT_TRIGGERED',
+        eventType: 'attack',
+        fromUserId: attacker.userId,
+        targetUserId: target.userId,
+        value: actualDamage,
+      });
+
+      if (target.hp <= 0) {
+        target.isDead = true;
+        game.recentLogs.unshift({
+          id: 'log-' + Date.now() + Math.random().toString(36).substring(2, 5),
+          text: `💀 ${target.userName} ถูก K.O. ตกรอบ!`,
+          type: 'ko',
+          timestamp: Date.now(),
+        });
+
+        this.broadcastToRoom(client.roomId, {
+          type: 'CANDY_EVENT_TRIGGERED',
+          eventType: 'ko',
+          fromUserId: attacker.userId,
+          targetUserId: target.userId,
+        });
+
+        this.checkCandySurvivors(room);
+      }
+    }
+
+    if (game.recentLogs.length > 25) {
+      game.recentLogs = game.recentLogs.slice(0, 25);
+    }
+
+    this.broadcastCandyGameState(client.roomId);
+  }
+
+  public handleCandyUseItem(ws: WebSocket, itemType: CandyItemType) {
+    const client = this.clients.get(ws);
+    if (!client || !client.roomId) return;
+    const room = this.rooms.get(client.roomId);
+    if (!room || !room.candyGameState || room.candyGameState.phase !== 'playing') return;
+
+    const game = room.candyGameState;
+    const user = game.players.find((p) => p.userId === client.user.id);
+    if (!user || user.isDead) return;
+
+    if (itemType === 'heal') {
+      const healAmount = 30;
+      user.hp = Math.min(user.maxHp, user.hp + healAmount);
+      game.recentLogs.unshift({
+        id: 'log-' + Date.now() + Math.random().toString(36).substring(2, 5),
+        text: `💚 ${user.userName} ใช้ยาเพิ่มเลือด +${healAmount} HP!`,
+        type: 'heal',
+        timestamp: Date.now(),
+      });
+
+      this.broadcastToRoom(client.roomId, {
+        type: 'CANDY_EVENT_TRIGGERED',
+        eventType: 'heal',
+        fromUserId: user.userId,
+        value: healAmount,
+      });
+    } else if (itemType === 'shield') {
+      user.shield = true;
+      game.recentLogs.unshift({
+        id: 'log-' + Date.now() + Math.random().toString(36).substring(2, 5),
+        text: `🛡️ ${user.userName} กางเกราะป้องกันการโจมตี!`,
+        type: 'shield',
+        timestamp: Date.now(),
+      });
+
+      this.broadcastToRoom(client.roomId, {
+        type: 'CANDY_EVENT_TRIGGERED',
+        eventType: 'shield',
+        fromUserId: user.userId,
+      });
+    } else if (itemType === 'fire') {
+      const fireDamage = 20;
+      game.recentLogs.unshift({
+        id: 'log-' + Date.now() + Math.random().toString(36).substring(2, 5),
+        text: `🔥 ${user.userName} ปล่อยคลื่นเปลวไฟโจมตีทุกคนรอบกระดาน! (-${fireDamage} HP)`,
+        type: 'fire',
+        timestamp: Date.now(),
+      });
+
+      this.broadcastToRoom(client.roomId, {
+        type: 'CANDY_EVENT_TRIGGERED',
+        eventType: 'fire',
+        fromUserId: user.userId,
+        value: fireDamage,
+      });
+
+      game.players.forEach((p) => {
+        if (p.userId !== user.userId && !p.isDead) {
+          if (p.shield) {
+            p.shield = false;
+          } else {
+            p.hp = Math.max(0, p.hp - fireDamage);
+            if (p.hp <= 0) {
+              p.isDead = true;
+              game.recentLogs.unshift({
+                id: 'log-' + Date.now() + Math.random().toString(36).substring(2, 5),
+                text: `💀 ${p.userName} ถูกคลื่นไฟเผา K.O. ตกรอบ!`,
+                type: 'ko',
+                timestamp: Date.now(),
+              });
+            }
+          }
+        }
+      });
+
+      this.checkCandySurvivors(room);
+    }
+
+    if (game.recentLogs.length > 25) {
+      game.recentLogs = game.recentLogs.slice(0, 25);
+    }
+
+    this.broadcastCandyGameState(client.roomId);
+  }
+
+  public handleCandySelectTarget(ws: WebSocket, targetUserId: string) {
+    const client = this.clients.get(ws);
+    if (!client || !client.roomId) return;
+    const room = this.rooms.get(client.roomId);
+    if (!room || !room.candyGameState || room.candyGameState.phase !== 'playing') return;
+
+    const game = room.candyGameState;
+    const user = game.players.find((p) => p.userId === client.user.id);
+    if (!user || user.isDead) return;
+
+    const target = game.players.find((p) => p.userId === targetUserId && !p.isDead);
+    if (!target || target.userId === user.userId) return;
+
+    user.targetUserId = target.userId;
+    this.broadcastCandyGameState(client.roomId);
+  }
+
+  private checkCandySurvivors(room: InternalRoomData) {
+    if (!room.candyGameState || room.candyGameState.phase !== 'playing') return;
+    const living = room.candyGameState.players.filter((p) => !p.isDead);
+
+    if (room.candyGameState.players.length > 1 && living.length <= 1) {
+      this.endCandyGame(room, living[0] || null);
+    } else if (room.candyGameState.players.length === 1 && living.length === 0) {
+      this.endCandyGame(room, null);
+    }
+  }
+
+  private endCandyGame(room: InternalRoomData, winner: CandyBattlePlayer | null) {
+    if (!room.candyGameState) return;
+    if (room.candyTimer) {
+      clearInterval(room.candyTimer);
+      room.candyTimer = null;
+    }
+
+    const game = room.candyGameState;
+    game.phase = 'game_over';
+    game.winner = winner;
+
+    game.recentLogs.unshift({
+      id: 'log-' + Date.now(),
+      text: winner ? `👑 ขอแสดงความยินดีกับ ${winner.userName} ผู้ชนะอันดับ 1 Candy Battle Royale!` : '🏆 จบการแข่งขัน Candy Battle Royale!',
+      type: 'system',
+      timestamp: Date.now(),
+    });
+
+    this.broadcastCandyGameState(room.metadata.id);
+
+    setTimeout(() => {
+      if (room.candyGameState && room.candyGameState.phase === 'game_over') {
+        room.candyGameState.phase = 'waiting';
+        room.candyGameState.lobbyTimeLeft = 30;
+        room.candyGameState.players = [];
+        room.candyGameState.winner = null;
+        this.broadcastCandyGameState(room.metadata.id);
+      }
+    }, 15000);
+  }
+
+  public handleCandyStopGame(ws: WebSocket) {
+    const client = this.clients.get(ws);
+    if (!client || !client.roomId) return;
+    const room = this.rooms.get(client.roomId);
+    if (!room) return;
+
+    const isAdmin = room.adminIds.has(client.user.id) || room.metadata.ownerId === client.user.id;
+    if (!isAdmin) {
+      this.sendToWs(ws, {
+        type: 'SYNC_TOAST',
+        message: 'เฉพาะเจ้าของห้องหรือแอดมินเท่านั้นที่ยุติเกมได้ 🛡️',
+        toastType: 'warning',
+      });
+      return;
+    }
+
+    if (room.candyTimer) {
+      clearInterval(room.candyTimer);
+      room.candyTimer = null;
+    }
+    room.candyGameState = null;
+
+    this.broadcastToRoom(client.roomId, {
+      type: 'CANDY_STATE_UPDATED',
+      state: null,
+    });
+    this.broadcastToRoom(client.roomId, {
+      type: 'SYNC_TOAST',
+      message: '🛑 เกม Candy Battle Royale ถูกยุติแล้ว',
       toastType: 'info',
     });
   }
