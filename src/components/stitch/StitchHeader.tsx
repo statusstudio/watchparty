@@ -242,6 +242,17 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
           <div className="relative">
             <button
               onClick={() => {
+                // On mobile and tablet (< 1024px), directly link to public profile page
+                if (window.innerWidth < 1024) {
+                  if (onNavigateToPublicProfile && (currentUser?.username || currentUser?.id)) {
+                    onNavigateToPublicProfile(currentUser.username || currentUser.id);
+                    return;
+                  }
+                  if (onOpenProfile) {
+                    onOpenProfile();
+                    return;
+                  }
+                }
                 if (currentUser?.provider && currentUser.provider !== 'guest') {
                   setIsProfileDropdownOpen(!isProfileDropdownOpen);
                 } else if (onOpenProfile) {

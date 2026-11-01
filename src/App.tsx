@@ -1498,6 +1498,13 @@ export function App() {
     }
   };
 
+  // Navigate to Own Profile Page (@handle)
+  const handleNavigateToMyProfile = useCallback(() => {
+    const handle = currentUser.username || currentUser.name || currentUser.id;
+    window.history.pushState({}, '', `/@${encodeURIComponent(handle)}`);
+    setProfileHandleRoute(handle);
+  }, [currentUser]);
+
   const handleClosePasswordGate = useCallback(() => {
     setIsPasswordGateOpen(false);
     setPasswordGateError(null);
@@ -2227,10 +2234,18 @@ export function App() {
         <PublicProfileView
           handle={profileHandleRoute}
           currentUser={currentUser}
+          theme={theme}
+          onToggleTheme={toggleTheme}
           onNavigateHome={() => {
             window.history.pushState({}, '', '/');
             setProfileHandleRoute(null);
             setCurrentView('home');
+          }}
+          onNavigateTab={(tab) => {
+            window.history.pushState({}, '', '/');
+            setProfileHandleRoute(null);
+            setCurrentView('home');
+            setStitchTab(tab);
           }}
           onJoinRoom={(targetRoomId) => {
             window.history.pushState({}, '', `/#${targetRoomId}`);
@@ -2240,10 +2255,21 @@ export function App() {
           onOpenEditProfile={() => {
             setIsProfileModalOpen(true);
           }}
+          onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
+          onOpenRoomCodeModal={() => setIsStitchRoomCodeModalOpen(true)}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onLogout={handleLogout}
+          onOpenDM={() => setIsDMModalOpen(true)}
+          unreadDmCount={unreadDmCount}
+          myActiveRoom={roomsList.find((r) => r.ownerId === currentUser.id)}
           onPlaySong={handlePlaySongFromProfile}
           onShowToast={showToast}
           onStartDM={handleStartDM}
           onStartCall={handleStartCall}
+          onNavigateToProfile={(newHandle) => {
+            window.history.pushState({}, '', `/@${newHandle}`);
+            setProfileHandleRoute(newHandle);
+          }}
         />
         <ProfileModal
           isOpen={isProfileModalOpen}
@@ -2366,11 +2392,8 @@ export function App() {
           onMinimizeRoom={handleMinimizeRoom}
           onLeaveRoom={handleLeaveRoom}
           onNavigateHome={handleNavigateHome}
-          onOpenProfile={() => setIsProfileModalOpen(true)}
-          onOpenFullProfile={() => {
-            setSelectedUserForProfile(currentUser);
-            setIsUserProfileModalOpen(true);
-          }}
+          onOpenProfile={handleNavigateToMyProfile}
+          onOpenFullProfile={handleNavigateToMyProfile}
           onOpenAuth={() => {
             setAuthModalInitialTab('member');
             setIsAuthModalOpen(true);
@@ -2497,7 +2520,7 @@ export function App() {
               onTabChange={(tab) => setStitchTab(tab)}
               onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
               onOpenRoomCodeModal={() => setIsStitchRoomCodeModalOpen(true)}
-              onOpenProfile={() => setIsProfileModalOpen(true)}
+              onOpenProfile={handleNavigateToMyProfile}
               onOpenAuth={() => setIsAuthModalOpen(true)}
               onLogout={handleLogout}
               onNavigateToPublicProfile={(handle) => {
@@ -2546,13 +2569,14 @@ export function App() {
 
             <StitchMobileBottomNav
               currentTab={stitchTab as any}
+              currentUser={currentUser}
               onTabChange={(t) => {
-                if (t === 'profile') setIsProfileModalOpen(true);
+                if (t === 'profile') handleNavigateToMyProfile();
                 else if (t === 'create') setIsCreateRoomModalOpen(true);
                 else setStitchTab(t as any);
               }}
               onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
-              onOpenProfile={() => setIsProfileModalOpen(true)}
+              onOpenProfile={handleNavigateToMyProfile}
               theme={theme}
             />
 
@@ -3018,7 +3042,7 @@ export function App() {
                   onToggleMute={handleToggleMute}
                   onSpeakingState={handleSpeakingState}
                   onLocalStreamReady={handleLocalStreamReady}
-                  onOpenProfile={() => setIsProfileModalOpen(true)}
+                  onOpenProfile={handleNavigateToMyProfile}
                   onSelectUser={handleOpenUserCard}
                   onShowToast={showToast}
                   onRequestToSpeak={handleRequestToSpeak}

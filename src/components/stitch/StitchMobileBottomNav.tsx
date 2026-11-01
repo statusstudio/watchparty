@@ -1,4 +1,5 @@
 import React from 'react';
+import { UserProfile } from '../../types/index.js';
 
 interface StitchMobileBottomNavProps {
   currentTab: 'explore' | 'feed' | 'favorites' | 'create' | 'profile';
@@ -6,6 +7,7 @@ interface StitchMobileBottomNavProps {
   onOpenCreateRoom: () => void;
   onOpenProfile: () => void;
   theme?: 'dark' | 'light';
+  currentUser?: UserProfile;
 }
 
 export const StitchMobileBottomNav: React.FC<StitchMobileBottomNavProps> = ({
@@ -14,6 +16,7 @@ export const StitchMobileBottomNav: React.FC<StitchMobileBottomNavProps> = ({
   onOpenCreateRoom,
   onOpenProfile,
   theme = 'dark',
+  currentUser,
 }) => {
   const isLight = theme === 'light';
 
@@ -97,12 +100,29 @@ export const StitchMobileBottomNav: React.FC<StitchMobileBottomNavProps> = ({
       <button
         type="button"
         onClick={onOpenProfile}
-        className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1 transition-all cursor-pointer ${
-          isLight ? 'text-[#707881] hover:text-[#131b2e]' : 'text-[#94A3B8] hover:text-white'
+        className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1 transition-all cursor-pointer relative ${
+          currentTab === 'profile'
+            ? isLight ? 'text-[#006194] font-bold' : 'text-[#00daf3] font-bold'
+            : isLight ? 'text-[#707881] hover:text-[#131b2e]' : 'text-[#94A3B8] hover:text-white'
         }`}
       >
-        <span className="material-symbols-outlined text-[22px]">account_circle</span>
+        {currentUser?.avatar ? (
+          <div className={`w-5 h-5 rounded-full overflow-hidden border transition-all ${
+            currentTab === 'profile'
+              ? isLight ? 'border-[#006194] ring-2 ring-[#006194]/40 scale-110' : 'border-[#00daf3] ring-2 ring-[#00daf3]/40 scale-110'
+              : 'border-white/20'
+          }`}>
+            <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <span className="material-symbols-outlined text-[22px]">account_circle</span>
+        )}
         <span className="text-[10px] font-semibold">โปรไฟล์</span>
+        {currentTab === 'profile' && (
+          <span className={`w-1 h-1 rounded-full absolute -bottom-0.5 ${
+            isLight ? 'bg-[#006194]' : 'bg-[#00daf3]'
+          }`} />
+        )}
       </button>
     </nav>
   );
