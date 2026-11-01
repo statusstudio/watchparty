@@ -41,7 +41,8 @@ async function startServer() {
   await roomManager.init();
 
 
-  app.use(express.json());
+  app.use(express.json({ limit: '25mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
   // API endpoints
   app.get('/api/health', (req, res) => {
@@ -1161,13 +1162,17 @@ async function startServer() {
         authorUsername,
         authorAvatar,
         authorColor,
-        content,
-        images,
+        content = '',
+        images = [],
         songAttachment,
       } = req.body;
 
-      if (!authorId || !content || !content.trim()) {
-        return res.status(400).json({ error: 'authorId and content are required' });
+      const hasContent = Boolean(content && content.trim());
+      const hasImages = Boolean(images && Array.isArray(images) && images.length > 0);
+      const hasSong = Boolean(songAttachment && songAttachment.videoId);
+
+      if (!authorId || (!hasContent && !hasImages && !hasSong)) {
+        return res.status(400).json({ error: 'ต้องมีข้อความ รูปภาพ หรือเพลงอย่างน้อยหนึ่งอย่างครับ' });
       }
 
       const post = platformManager.createSocialPost({
@@ -1176,8 +1181,8 @@ async function startServer() {
         authorUsername,
         authorAvatar: authorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
         authorColor,
-        content: content.trim(),
-        images,
+        content: (content || '').trim(),
+        images: Array.isArray(images) ? images : [],
         songAttachment,
       });
 

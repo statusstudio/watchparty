@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { UserProfile, SocialPost, SocialSongAttachment, RoomSummary } from '../../types/index.js';
 import { socketService } from '../../services/socket.js';
-import { compressProfileImage } from '../../services/imageCompressor.js';
+import { compressChatImage } from '../../services/imageCompressor.js';
 
 interface StitchSocialFeedViewProps {
   currentUser?: UserProfile;
@@ -45,8 +45,13 @@ function formatRelativeTime(timestamp: number): string {
 }
 
 function extractYouTubeId(urlOrText: string): string | null {
-  const regExp = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/;
-  const match = urlOrText.match(regExp);
+  if (!urlOrText) return null;
+  const trimmed = urlOrText.trim();
+  if (trimmed.length === 11 && /^[\w-]{11}$/.test(trimmed)) {
+    return trimmed;
+  }
+  const regExp = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|live\/))([\w-]{11})/;
+  const match = trimmed.match(regExp);
   return match ? match[1] : null;
 }
 
@@ -74,6 +79,8 @@ export const StitchSocialFeedView: React.FC<StitchSocialFeedViewProps> = ({
   const [isAttachingSong, setIsAttachingSong] = useState(false);
   const [songInput, setSongInput] = useState('');
   const [isCompressingImg, setIsCompressingImg] = useState(false);
+  const [isSearchingSong, setIsSearchingSong] = useState(false);
+  const [songSearchResults, setSongSearchResults] = useState<Array<{ videoId: string; title: string; channel?: string; thumbnail: string; duration?: string }>>([]);
 
   // Active expanded comments
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
@@ -166,16 +173,16 @@ export const StitchSocialFeedView: React.FC<StitchSocialFeedViewProps> = ({
     };
   }, [currentUser?.id]);
 
-  // Handle Image Upload
+  // Handle Image Upload with proportional aspect ratio
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
       setIsCompressingImg(true);
-      const compressed = await compressProfileImage(file, 800);
+      const compressed = await compressChatImage(file, 1200, 0.82);
       setImages((prev) => [...prev, compressed]);
-      onShowToast?.('แนบรูปภาพเรียบร้อยแล้ว', 'info');
+      onShowToast?.('แนบรูปภาพเรียบร้อยแล้ว 📸', 'info');
     } catch (err: any) {
       onShowToast?.(err.message || 'ไม่สามารถอัปโหลดรูปภาพได้', 'warning');
     } finally {
@@ -184,32 +191,63 @@ export const StitchSocialFeedView: React.FC<StitchSocialFeedViewProps> = ({
     }
   };
 
-  // Handle Attach Song
-  const handleAttachSongConfirm = () => {
-    if (!songInput.trim()) return;
-    const ytid = extractYouTubeId(songInput.trim());
+  // Handle Search or Attach Song with real YouTube integration
+  const handleSearchOrAttachSong = async () => {
+    const query = songInput.trim();
+    if (!query) return;
 
-    if (ytid) {
+    // 1. Direct YouTube link or 11-char ID
+    const directId = extractYouTubeId(query);
+    if (directId) {
+      setIsSearchingSong(true);
+      try {
+        const oembedRes = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${directId}`);
+        if (oembedRes.ok) {
+          const data = await oembedRes.json();
+          setSongAttachment({
+            videoId: directId,
+            title: data.title || 'วิดีโอ YouTube',
+            thumbnail: `https://i.ytimg.com/vi/${directId}/hqdefault.jpg`,
+            channel: data.author_name || 'YouTube',
+          });
+          setIsAttachingSong(false);
+          setSongInput('');
+          setSongSearchResults([]);
+          onShowToast?.(`แนบเพลง "${(data.title || directId).slice(0, 24)}..." สำเร็จ 🎵`, 'success');
+          return;
+        }
+      } catch {}
+
       setSongAttachment({
-        videoId: ytid,
+        videoId: directId,
         title: 'เพลง YouTube',
-        thumbnail: `https://i.ytimg.com/vi/${ytid}/hqdefault.jpg`,
+        thumbnail: `https://i.ytimg.com/vi/${directId}/hqdefault.jpg`,
         channel: 'YouTube',
       });
       setIsAttachingSong(false);
       setSongInput('');
+      setSongSearchResults([]);
       onShowToast?.('แนบเพลงสำเร็จแล้ว 🎵', 'success');
-    } else {
-      // If entered song title or keyword
-      setSongAttachment({
-        videoId: 'jfKfPfyJRdk',
-        title: songInput.trim(),
-        thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80',
-        channel: 'Music',
-      });
-      setIsAttachingSong(false);
-      setSongInput('');
-      onShowToast?.('แนบชื่อเพลงสำเร็จ 🎵', 'success');
+      setIsSearchingSong(false);
+      return;
+    }
+
+    // 2. Keyword Search
+    setIsSearchingSong(true);
+    try {
+      const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(query)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.results && data.results.length > 0) {
+          setSongSearchResults(data.results.slice(0, 6));
+        } else {
+          onShowToast?.('ไม่พบเพลงที่ค้นหา ลองพิมพ์ชื่อเพลงหรือศิลปินอื่นครับ', 'warning');
+        }
+      }
+    } catch {
+      onShowToast?.('ไม่สามารถค้นหาเพลงได้ กรุณาลองใหม่อีกครั้ง', 'warning');
+    } finally {
+      setIsSearchingSong(false);
     }
   };
 
@@ -247,7 +285,8 @@ export const StitchSocialFeedView: React.FC<StitchSocialFeedViewProps> = ({
       });
 
       if (!res.ok) {
-        throw new Error('ไม่สามารถโพสต์ได้');
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || 'ไม่สามารถโพสต์ได้');
       }
 
       const data = await res.json();
@@ -518,26 +557,43 @@ export const StitchSocialFeedView: React.FC<StitchSocialFeedViewProps> = ({
 
           {/* Attach Song Inline Input Box */}
           {isAttachingSong && (
-            <div className="p-3 rounded-2xl bg-black/20 border border-white/10 space-y-2 animate-in fade-in duration-150">
+            <div className="p-3.5 rounded-2xl bg-black/30 border border-white/15 space-y-2.5 animate-in fade-in duration-150">
               <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={songInput}
-                  onChange={(e) => setSongInput(e.target.value)}
-                  placeholder="วางลิงก์ YouTube (เช่น https://youtu.be/... ) หรือพิมพ์ชื่อเพลง"
-                  className="flex-1 px-3 py-1.5 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-[#00daf3]"
-                />
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={songInput}
+                    onChange={(e) => setSongInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSearchOrAttachSong();
+                      }
+                    }}
+                    placeholder="พิมพ์ชื่อเพลง ศิลปิน หรือวาง YouTube URL..."
+                    className="w-full pl-8 pr-3 py-2 rounded-xl bg-black/50 border border-white/15 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-[#00daf3]"
+                  />
+                  <Music className="w-4 h-4 text-purple-400 absolute left-2.5 top-2.5 pointer-events-none" />
+                </div>
                 <button
                   type="button"
-                  onClick={handleAttachSongConfirm}
-                  className="px-3 py-1.5 rounded-xl bg-[#0075de] text-white text-xs font-bold hover:bg-[#005bab] transition-all cursor-pointer"
+                  onClick={handleSearchOrAttachSong}
+                  disabled={isSearchingSong || !songInput.trim()}
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#0075de] to-[#00daf3] text-white text-xs font-bold hover:brightness-110 disabled:opacity-50 transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
                 >
-                  แนบเพลง
+                  {isSearchingSong ? (
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <span>ค้นหา / แนบ</span>
+                  )}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsAttachingSong(false)}
-                  className="p-1.5 text-gray-400 hover:text-white transition-colors"
+                  onClick={() => {
+                    setIsAttachingSong(false);
+                    setSongSearchResults([]);
+                  }}
+                  className="p-2 text-gray-400 hover:text-white transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -552,14 +608,64 @@ export const StitchSocialFeedView: React.FC<StitchSocialFeedViewProps> = ({
                       videoId: myActiveRoom.currentVideo.videoId,
                       title: myActiveRoom.currentVideo.title,
                       thumbnail: myActiveRoom.currentVideo.thumbnail || `https://i.ytimg.com/vi/${myActiveRoom.currentVideo.videoId}/hqdefault.jpg`,
+                      channel: (myActiveRoom.currentVideo as any).channel || 'YouTube',
                     });
                     setIsAttachingSong(false);
+                    setSongSearchResults([]);
+                    onShowToast?.(`ดึงเพลง "${myActiveRoom.currentVideo.title.slice(0, 24)}..." สำเร็จ 🎵`, 'success');
                   }}
-                  className="text-[11px] text-[#00daf3] hover:underline flex items-center gap-1 cursor-pointer"
+                  className="text-[11px] text-[#00daf3] hover:underline flex items-center gap-1.5 cursor-pointer bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg w-full text-left"
                 >
                   <span>⚡ ดึงเพลงจากห้องปาร์ตี้ของคุณ:</span>
-                  <span className="font-bold truncate max-w-xs">{myActiveRoom.currentVideo.title}</span>
+                  <span className="font-bold truncate max-w-xs text-white">{myActiveRoom.currentVideo.title}</span>
                 </button>
+              )}
+
+              {/* Search Results List */}
+              {songSearchResults.length > 0 && (
+                <div className="space-y-1 pt-1 max-h-48 overflow-y-auto">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">เลือกเพลงที่ต้องการแนบ:</span>
+                  {songSearchResults.map((song) => (
+                    <button
+                      key={song.videoId}
+                      type="button"
+                      onClick={() => {
+                        setSongAttachment({
+                          videoId: song.videoId,
+                          title: song.title,
+                          thumbnail: song.thumbnail,
+                          channel: song.channel,
+                          duration: song.duration,
+                        });
+                        setIsAttachingSong(false);
+                        setSongSearchResults([]);
+                        setSongInput('');
+                        onShowToast?.(`แนบเพลง "${song.title.slice(0, 24)}..." สำเร็จ 🎵`, 'success');
+                      }}
+                      className="w-full flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-white/10 transition-colors text-left cursor-pointer group"
+                    >
+                      <div className="w-12 h-8 rounded-lg overflow-hidden shrink-0 bg-black/60 relative">
+                        <img src={song.thumbnail} alt="" className="w-full h-full object-cover" />
+                        {song.duration && (
+                          <span className="absolute bottom-0.5 right-0.5 text-[8px] font-mono bg-black/80 px-1 rounded text-white font-bold">
+                            {song.duration}
+                          </span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-white truncate group-hover:text-[#00daf3] transition-colors">
+                          {song.title}
+                        </p>
+                        <p className="text-[10px] text-gray-400 truncate">
+                          {song.channel || 'YouTube'}
+                        </p>
+                      </div>
+                      <span className="text-xs text-[#00daf3] opacity-0 group-hover:opacity-100 font-bold shrink-0 transition-opacity">
+                        + เลือก
+                      </span>
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -576,8 +682,15 @@ export const StitchSocialFeedView: React.FC<StitchSocialFeedViewProps> = ({
               />
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isCompressingImg || (!currentUser || currentUser.provider === 'guest')}
+                onClick={() => {
+                  if (!currentUser || currentUser.provider === 'guest') {
+                    onShowToast?.('กรุณาเข้าสู่ระบบก่อนแนบรูปภาพครับ', 'warning');
+                    onOpenAuth?.();
+                    return;
+                  }
+                  fileInputRef.current?.click();
+                }}
+                disabled={isCompressingImg}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                   isLight
                     ? 'hover:bg-gray-100 text-[#475569]'
@@ -590,10 +703,18 @@ export const StitchSocialFeedView: React.FC<StitchSocialFeedViewProps> = ({
 
               <button
                 type="button"
-                onClick={() => setIsAttachingSong(!isAttachingSong)}
-                disabled={!currentUser || currentUser.provider === 'guest'}
+                onClick={() => {
+                  if (!currentUser || currentUser.provider === 'guest') {
+                    onShowToast?.('กรุณาเข้าสู่ระบบก่อนแนบเพลงครับ', 'warning');
+                    onOpenAuth?.();
+                    return;
+                  }
+                  setIsAttachingSong(!isAttachingSong);
+                }}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  isLight
+                  isAttachingSong
+                    ? 'bg-purple-500/20 text-purple-300 ring-1 ring-purple-400/50'
+                    : isLight
                     ? 'hover:bg-gray-100 text-[#475569]'
                     : 'hover:bg-white/10 text-[#94A3B8]'
                 }`}
