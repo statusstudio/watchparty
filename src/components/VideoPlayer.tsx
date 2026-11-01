@@ -63,8 +63,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const hlsVideoRef = useRef<HTMLVideoElement | null>(null);
   const hlsInstanceRef = useRef<Hls | null>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
-  const [isMuted, setIsMuted] = useState(true); // Start muted to guarantee browser autoplay
-  const [showUnmutePrompt, setShowUnmutePrompt] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [musicVolume, setMusicVolume] = useState<number>(() => {
     const saved = localStorage.getItem('watchparty_music_volume');
     return saved ? parseInt(saved, 10) : 70; // Default 70% for balanced listening
@@ -72,24 +71,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Touch & Drag Gesture Volume Control State
   const [showVolumeHud, setShowVolumeHud] = useState(false);
-  const [isGestureActive, setIsGestureActive] = useState(false);
-  const [tapRipple, setTapRipple] = useState<'play' | 'pause' | null>(null);
   const volumeHudTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const tapRippleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const gestureStateRef = useRef<{
-    isDown: boolean;
-    startY: number;
-    startVol: number;
-    hasMoved: boolean;
-    startTime: number;
-  }>({
-    isDown: false,
-    startY: 0,
-    startVol: 70,
-    hasMoved: false,
-    startTime: 0,
-  });
 
   // Keep latest props in refs to avoid stale closures
   const videoRef = useRef<VideoState>(video);
@@ -153,11 +135,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useEffect(() => {
     hasEndedRef.current = false;
     setEmbedError(null);
-    setTapRipple(null);
-    if (tapRippleTimeoutRef.current) {
-      clearTimeout(tapRippleTimeoutRef.current);
-      tapRippleTimeoutRef.current = null;
-    }
   }, [video.videoId, video.streamUrl]);
 
   // Load YouTube IFrame API
@@ -324,7 +301,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       videoId: currentVid.videoId,
       playerVars: {
         autoplay: 1,
-        mute: 1, // Muted autoplay is allowed by 100% of modern browsers!
+        mute: 0,
         start: startSec > 0 ? startSec : 0,
         controls: 1,
         rel: 0,
@@ -339,6 +316,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onReady: (event: any) => {
           setIsPlayerReady(true);
           disablePlayerCaptions(event.target);
+          try {
+            event.target.unMute();
+            event.target.setVolume(musicVolume);
+          } catch (e) {}
           const freshVideo = videoRef.current;
           applyRoomVideoState(freshVideo, true);
         },
@@ -629,6 +610,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (silentAudioRef.current && silentAudioRef.current.paused) {
         silentAudioRef.current.play().catch(() => {});
       }
+      try {
+        if (playerRef.current?.unMute) {
+          playerRef.current.unMute();
+          playerRef.current.setVolume(musicVolume);
+        }
+        if (hlsVideoRef.current && hlsVideoRef.current.muted) {
+          hlsVideoRef.current.muted = false;
+        }
+        setIsMuted(false);
+      } catch (e) {}
     };
 
     window.addEventListener('click', startAudioOnInteraction, { once: true });
@@ -726,7 +717,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
 
     setIsMuted(false);
-    setShowUnmutePrompt(false);
 
     // 1. Unmute HLS / Live TV video if active
     if (hlsVideoRef.current) {
@@ -795,17 +785,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  const triggerTapRipple = useCallback((type: 'play' | 'pause') => {
-    setTapRipple(type);
-    if (tapRippleTimeoutRef.current) {
-      clearTimeout(tapRippleTimeoutRef.current);
-    }
-    tapRippleTimeoutRef.current = setTimeout(() => {
-      setTapRipple(null);
-      tapRippleTimeoutRef.current = null;
-    }, 600);
-  }, []);
-
   const triggerVolumeHud = useCallback(() => {
     setShowVolumeHud(true);
     if (volumeHudTimeoutRef.current) {
@@ -815,105 +794,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       setShowVolumeHud(false);
     }, 1200);
   }, []);
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return;
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {}
-
-    gestureStateRef.current = {
-      isDown: true,
-      startY: e.clientY,
-      startVol: isMuted ? 0 : musicVolume,
-      hasMoved: false,
-      startTime: Date.now(),
-    };
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const state = gestureStateRef.current;
-    if (!state.isDown) return;
-
-    const deltaY = state.startY - e.clientY;
-
-    if (!state.hasMoved && Math.abs(deltaY) > 6) {
-      state.hasMoved = true;
-      setIsGestureActive(true);
-    }
-
-    if (state.hasMoved) {
-      // 180px slide spans 0% to 100% volume
-      const deltaPercent = Math.round((deltaY / 180) * 100);
-      const newVol = Math.max(0, Math.min(100, state.startVol + deltaPercent));
-      handleMusicVolumeChange(newVol);
-      setShowVolumeHud(true);
-      if (volumeHudTimeoutRef.current) {
-        clearTimeout(volumeHudTimeoutRef.current);
-      }
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    const state = gestureStateRef.current;
-    if (!state.isDown) return;
-    state.isDown = false;
-    setIsGestureActive(false);
-
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {}
-
-    if (state.hasMoved) {
-      triggerVolumeHud();
-    } else {
-      // Quick single tap
-      const duration = Date.now() - state.startTime;
-      if (duration < 350) {
-        if (isMuted) {
-          handleUnmute();
-        } else if (isHlsStream && hlsVideoRef.current) {
-          if (hlsVideoRef.current.paused) {
-            hlsVideoRef.current.play().catch(() => {});
-            onPlay(0, 0);
-            triggerTapRipple('play');
-          } else {
-            hlsVideoRef.current.pause();
-            onPause(0, 0);
-            triggerTapRipple('pause');
-          }
-        } else if (playerRef.current) {
-          try {
-            const playerState = playerRef.current.getPlayerState?.();
-            if (playerState === window.YT?.PlayerState?.PLAYING) {
-              playerRef.current.pauseVideo();
-              onPause(calculateTargetTime(videoRef.current));
-              triggerTapRipple('pause');
-            } else {
-              playerRef.current.playVideo();
-              onPlay(calculateTargetTime(videoRef.current));
-              triggerTapRipple('play');
-            }
-          } catch (err) {}
-        }
-      }
-    }
-  };
-
-  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
-    gestureStateRef.current.isDown = false;
-    setIsGestureActive(false);
-    triggerVolumeHud();
-  };
-
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const step = 5;
-    const current = isMuted ? 0 : musicVolume;
-    const newVol = e.deltaY < 0 ? Math.min(100, current + step) : Math.max(0, current - step);
-    handleMusicVolumeChange(newVol);
-    triggerVolumeHud();
-  };
 
   const handleFullscreen = () => {
     if (containerRef.current) {
@@ -973,19 +853,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Gesture Control Touch/Drag Overlay over video */}
-      {video.videoId && (
-        <div
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerCancel}
-          onWheel={handleWheel}
-          className="absolute inset-0 z-10 touch-none select-none cursor-ns-resize"
-          title="แตะค้างแล้วเลื่อนขึ้นเพื่อเพิ่มเสียง / เลื่อนลงเพื่อลดเสียง"
-        />
-      )}
-
       {/* Sleek Floating Volume HUD Indicator */}
       {showVolumeHud && (
         <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center animate-fade-in">
@@ -1016,21 +883,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </div>
 
             <span className="text-[11px] text-white/80 font-medium">
-              {isGestureActive ? 'กำลังปรับระดับเสียง...' : 'ระดับเสียงเพลง'}
+              ระดับเสียงเพลง
             </span>
-          </div>
-        </div>
-      )}
-
-      {/* Tap Feedback Ripple */}
-      {tapRipple && (
-        <div className="absolute inset-0 z-25 pointer-events-none flex items-center justify-center animate-fade-in">
-          <div className="w-20 h-20 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white flex items-center justify-center animate-ping-once shadow-2xl">
-            {tapRipple === 'play' ? (
-              <Play className="w-10 h-10 text-white fill-current translate-x-0.5" />
-            ) : (
-              <Pause className="w-10 h-10 text-white fill-current" />
-            )}
           </div>
         </div>
       )}
@@ -1074,19 +928,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               <ExternalLink className="w-4 h-4" />
             </a>
           </div>
-        </div>
-      )}
-
-      {/* Prominent floating Unmute button overlay when video autoplays muted */}
-      {isMuted && (
-        <div className={`absolute ${isHlsStream ? 'top-14' : 'top-4'} left-4 z-40 animate-fade-in`}>
-          <button
-            onClick={handleUnmute}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-lg border border-white/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-          >
-            <VolumeOff className="w-4 h-4 animate-bounce text-amber-300" />
-            <span>แตะที่นี่เพื่อเปิดเสียง (Unmute) 🔊</span>
-          </button>
         </div>
       )}
 
