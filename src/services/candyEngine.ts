@@ -464,6 +464,93 @@ export class CandyCrushEngine {
   }
 
   /**
+   * Validate if a swap is legitimate without permanently modifying the board
+   */
+  public static validateSwap(
+    board: CandyTileData[][],
+    r1: number,
+    c1: number,
+    r2: number,
+    c2: number
+  ): { valid: boolean; isSpecialCombo: boolean } {
+    if (r1 < 0 || r1 >= 8 || c1 < 0 || c1 >= 8 || r2 < 0 || r2 >= 8 || c2 < 0 || c2 >= 8) {
+      return { valid: false, isSpecialCombo: false };
+    }
+    const tile1 = board[r1][c1];
+    const tile2 = board[r2][c2];
+    if (tile1.type === -1 || tile2.type === -1) return { valid: false, isSpecialCombo: false };
+
+    // Check special combination
+    const isSp1 = tile1.special && tile1.special !== 'none';
+    const isSp2 = tile2.special && tile2.special !== 'none';
+    if (tile1.special === 'color_bomb' || tile2.special === 'color_bomb' || (isSp1 && isSp2)) {
+      return { valid: true, isSpecialCombo: true };
+    }
+
+    // Try temporary swap
+    const temp = board[r1][c1];
+    board[r1][c1] = board[r2][c2];
+    board[r2][c2] = temp;
+
+    const matches = this.findMatches(board);
+
+    // Revert back
+    board[r2][c2] = board[r1][c1];
+    board[r1][c1] = temp;
+
+    return { valid: matches.matchedCoords.size > 0, isSpecialCombo: false };
+  }
+
+  /**
+   * Refill columns from top with gravity and tracking of drop distances
+   */
+  public static refillBoardWithTracking(
+    board: CandyTileData[][],
+    harvestedItems: CandyItemType[] = []
+  ): { dropMap: Record<string, number> } {
+    const dropMap: Record<string, number> = {};
+
+    for (let c = 0; c < 8; c++) {
+      const surviving: { tile: CandyTileData; origR: number }[] = [];
+      for (let r = 0; r < 8; r++) {
+        if (board[r][c].type !== -1) {
+          surviving.push({ tile: board[r][c], origR: r });
+        }
+      }
+
+      const missing = 8 - surviving.length;
+      const newCol: CandyTileData[] = [];
+
+      for (let i = 0; i < missing; i++) {
+        const hasItem = Math.random() < 0.18;
+        const itemType = hasItem ? this.ITEM_TYPES[Math.floor(Math.random() * this.ITEM_TYPES.length)] : undefined;
+        const id = `spawn-${c}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+        const newTile: CandyTileData = {
+          id,
+          type: Math.floor(Math.random() * 6),
+          special: 'none',
+          hasItem,
+          itemType,
+        };
+        newCol.push(newTile);
+        dropMap[id] = missing;
+      }
+
+      surviving.forEach((item, idx) => {
+        const targetR = missing + idx;
+        newCol.push(item.tile);
+        dropMap[item.tile.id] = targetR - item.origR;
+      });
+
+      for (let r = 0; r < 8; r++) {
+        board[r][c] = newCol[r];
+      }
+    }
+
+    return { dropMap };
+  }
+
+  /**
    * Main player/bot swap execution
    */
   public static executeSwap(

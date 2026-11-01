@@ -15,6 +15,7 @@ import {
   ColorBombSVG,
 } from './CandyGraphics.js';
 import {
+  playCandySwapSound,
   playCandyPop,
   playItemRevealSound,
   playAttackHitSound,
@@ -281,6 +282,11 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
 }) => {
   // Shared 8x8 Board from server
   const board = gameState?.board || [];
+
+  // Clear swapping animation once server broadcasts new board
+  useEffect(() => {
+    setSwappingPair(null);
+  }, [gameState?.board]);
   const [selectedCell, setSelectedCell] = useState<{ r: number; c: number } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeHammerMode, setActiveHammerMode] = useState(false);
@@ -290,6 +296,7 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
 
   const [announcerBanner, setAnnouncerBanner] = useState<{ text: string; sub: string; color: string } | null>(null);
   const [screenShake, setScreenShake] = useState<'none' | 'light' | 'heavy'>('none');
+  const [swappingPair, setSwappingPair] = useState<{ r1: number; c1: number; r2: number; c2: number } | null>(null);
   const [hintMove, setHintMove] = useState<{ r1: number; c1: number; r2: number; c2: number } | null>(null);
   const dragStartRef = useRef<{ r: number; c: number; x: number; y: number } | null>(null);
   const prevAnnouncerRef = useRef<string | null | undefined>(null);
@@ -352,8 +359,13 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
       if (targetR >= 0 && targetR < 8 && targetC >= 0 && targetC < 8) {
         setSelectedCell(null);
         setIsProcessing(true);
+        playCandySwapSound();
+        setSwappingPair({ r1: r, c1: c, r2: targetR, c2: targetC });
         if (onSwap) onSwap(r, c, targetR, targetC);
-        setTimeout(() => setIsProcessing(false), 300);
+        setTimeout(() => {
+          setIsProcessing(false);
+          setSwappingPair(null);
+        }, 320);
       }
     }
   };
@@ -482,10 +494,15 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
     // Trigger Swap on shared server board
     setIsProcessing(true);
     setSelectedCell(null);
+    playCandySwapSound();
+    setSwappingPair({ r1, c1, r2: r, c2: c });
     if (onSwap) {
       onSwap(r1, c1, r, c);
     }
-    setTimeout(() => setIsProcessing(false), 300);
+    setTimeout(() => {
+      setIsProcessing(false);
+      setSwappingPair(null);
+    }, 320);
   };
 
   // Handle Item Use
@@ -910,34 +927,62 @@ export const CandyBattleStage: React.FC<CandyBattleStageProps> = ({
             <div className="w-full h-full grid grid-cols-8 gap-0.5 relative z-10">
               {board.map((row, r) =>
                 row.map((cell, c) => {
-                  const CandyComponent = CANDY_COMPONENTS[cell.type] || CANDY_COMPONENTS[0];
                   const isSelected = selectedCell?.r === r && selectedCell?.c === c;
+                  const isSwapping = swappingPair &&
+                    ((swappingPair.r1 === r && swappingPair.c1 === c) || (swappingPair.r2 === r && swappingPair.c2 === c));
+
+                  let tileTransform = '';
+                  let tileTransition = '';
+                  let zIndex = isSelected ? 40 : 10;
+
+                  if (isSwapping) {
+                    zIndex = 50;
+                    const isFirst = swappingPair.r1 === r && swappingPair.c1 === c;
+                    const targetR = isFirst ? swappingPair.r2 : swappingPair.r1;
+                    const targetC = isFirst ? swappingPair.c2 : swappingPair.c1;
+                    const dX = (targetC - c) * 100;
+                    const dY = (targetR - r) * 100;
+                    tileTransform = `translate(${dX}%, ${dY}%) scale(1.15)`;
+                    tileTransition = 'transform 180ms cubic-bezier(0.25, 1, 0.5, 1)';
+                  }
 
                   return (
-                    <button
-                      key={cell.id || `${r}-${c}`}
-                      onPointerDown={(e) => handlePointerDown(r, c, e)}
-                      onClick={() => handleCellClick(r, c)}
-                      disabled={myPlayer?.isDead || cell.type === -1}
-                      className={`relative rounded-lg flex items-center justify-center cursor-pointer transition-transform duration-150 active:scale-90 touch-none ${
-                        isSelected
-                          ? 'ring-2 ring-yellow-300 scale-110 z-30 shadow-[0_0_14px_rgba(253,224,71,0.95)]'
-                          : isMyTurn
-                          ? 'hover:scale-105'
-                          : 'cursor-default opacity-95'
-                      }`}
-                      style={{ aspectRatio: '1/1' }}
+                    <div
+                      key={`battle-slot-${r}-${c}`}
+                      className="relative rounded-lg flex items-center justify-center bg-black/25 select-none"
+                      style={{
+                        aspectRatio: '1/1',
+                        boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.6)',
+                      }}
                     >
-                      {/* Mystery Aura Glow */}
-                      {cell.hasItem && <MysteryAuraRing />}
+                      <button
+                        onPointerDown={(e) => handlePointerDown(r, c, e)}
+                        onClick={() => handleCellClick(r, c)}
+                        disabled={myPlayer?.isDead || cell.type === -1}
+                        className={`w-full h-full relative rounded-lg flex items-center justify-center cursor-pointer active:scale-90 touch-none ${
+                          isSelected
+                            ? 'ring-2 ring-yellow-300 scale-110 shadow-[0_0_14px_rgba(253,224,71,0.95)]'
+                            : isMyTurn
+                            ? 'hover:scale-105'
+                            : 'cursor-default opacity-95'
+                        }`}
+                        style={{
+                          zIndex,
+                          transform: tileTransform,
+                          transition: tileTransition,
+                        }}
+                      >
+                        {/* Mystery Aura Glow */}
+                        {cell.hasItem && <MysteryAuraRing />}
 
-                      {/* Candy Graphic with Special Candy support */}
-                      {cell.type !== -1 && (
-                        <div className="w-full h-full p-0.5 flex items-center justify-center">
-                          {renderCandyTile(cell)}
-                        </div>
-                      )}
-                    </button>
+                        {/* Candy Graphic with Special Candy support */}
+                        {cell.type !== -1 && (
+                          <div className="w-full h-full p-0.5 flex items-center justify-center">
+                            {renderCandyTile(cell)}
+                          </div>
+                        )}
+                      </button>
+                    </div>
                   );
                 })
               )}

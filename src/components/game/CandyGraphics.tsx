@@ -320,3 +320,122 @@ export const ColorBombSVG: React.FC<{ className?: string }> = ({ className = 'w-
     <ellipse cx="38" cy="26" rx="9" ry="4" transform="rotate(-30 38 26)" fill="#ffffff" opacity="0.65" />
   </svg>
 );
+
+// ---------------------------------------------------------------------------
+// DYNAMIC SPECIAL CANDY VISUAL FX OVERLAYS
+// ---------------------------------------------------------------------------
+
+/**
+ * High-Energy Laser Beam Overlay for Striped Candy Activation
+ * Cuts across entire board row or column with expanding thickness, glow and sparks
+ */
+export const LaserBeamOverlay: React.FC<{
+  type: 'h' | 'v';
+  index: number;
+  color?: string;
+}> = ({ type, index, color = '#38bdf8' }) => {
+  const percent = index * 12.5 + 6.25;
+  return (
+    <div
+      className={`absolute pointer-events-none z-50 flex items-center justify-center ${
+        type === 'h' ? 'left-0 right-0 h-12 -translate-y-1/2' : 'top-0 bottom-0 w-12 -translate-x-1/2'
+      }`}
+      style={type === 'h' ? { top: `${percent}%` } : { left: `${percent}%` }}
+    >
+      {/* Outer Glow Wave */}
+      <div
+        className={`${
+          type === 'h' ? 'w-full h-8' : 'h-full w-8'
+        } rounded-full opacity-70 blur-md`}
+        style={{ backgroundColor: color }}
+      />
+      {/* High-Voltage White Core */}
+      <div
+        className={`absolute ${
+          type === 'h' ? 'w-full h-3' : 'h-full w-3'
+        } bg-white rounded-full animate-pulse`}
+        style={{ boxShadow: `0 0 20px #ffffff, 0 0 35px ${color}` }}
+      />
+      {/* Laser Flare Heads */}
+      <span className="absolute left-1 text-2xl text-white font-black animate-ping">✦</span>
+      <span className="absolute right-1 text-2xl text-white font-black animate-ping">✦</span>
+      <span className="absolute text-3xl text-yellow-200 animate-spin-slow">💥</span>
+    </div>
+  );
+};
+
+/**
+ * Concentric 3x3 Expanding Shockwave Blast Overlay for Wrapped Candy Explosion
+ */
+export const ShockwaveBlastOverlay: React.FC<{ r: number; c: number }> = ({ r, c }) => {
+  const top = (r + 0.5) * 12.5;
+  const left = (c + 0.5) * 12.5;
+  return (
+    <div
+      className="absolute pointer-events-none z-50 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center"
+      style={{ top: `${top}%`, left: `${left}%`, width: '37.5%', height: '37.5%' }}
+    >
+      {/* Outer Ripple */}
+      <div className="w-full h-full rounded-full border-4 border-amber-300 shadow-[0_0_40px_rgba(251,191,36,1),inset_0_0_30px_rgba(239,68,68,0.8)] bg-gradient-to-tr from-amber-500/40 via-rose-500/30 to-yellow-300/40 animate-ping" />
+      {/* Inner Core Flash */}
+      <div className="absolute w-2/3 h-2/3 rounded-full bg-white/80 blur-sm animate-pulse" />
+      <span className="absolute text-5xl animate-bounce">💥</span>
+    </div>
+  );
+};
+
+/**
+ * Multi-colored Rainbow Lightning Arcs for Color Bomb Activation
+ */
+export const LightningZapOverlay: React.FC<{
+  fromR: number;
+  fromC: number;
+  targets: Array<{ r: number; c: number }>;
+}> = ({ fromR, fromC, targets }) => {
+  const startX = (fromC + 0.5) * 12.5;
+  const startY = (fromR + 0.5) * 12.5;
+
+  return (
+    <svg className="absolute inset-0 w-full h-full pointer-events-none z-50">
+      <defs>
+        <filter id="zapGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      {targets.map((tgt, i) => {
+        const endX = (tgt.c + 0.5) * 12.5;
+        const endY = (tgt.r + 0.5) * 12.5;
+        const midX = (startX + endX) / 2 + (i % 2 === 0 ? 4 : -4);
+        const midY = (startY + endY) / 2 + (i % 2 === 0 ? -4 : 4);
+        const rainbowColors = ['#f43f5e', '#38bdf8', '#eab308', '#a855f7', '#22c55e', '#f97316'];
+        const strokeColor = rainbowColors[i % rainbowColors.length];
+
+        return (
+          <g key={i}>
+            <path
+              d={`M ${startX}% ${startY}% Q ${midX}% ${midY}% ${endX}% ${endY}%`}
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="5"
+              filter="url(#zapGlow)"
+              strokeDasharray="6 3"
+              className="animate-pulse"
+            />
+            <path
+              d={`M ${startX}% ${startY}% Q ${midX}% ${midY}% ${endX}% ${endY}%`}
+              fill="none"
+              stroke="#ffffff"
+              strokeWidth="2.5"
+            />
+            <circle cx={`${endX}%`} cy={`${endY}%`} r="7" fill="#fde047" className="animate-ping" />
+          </g>
+        );
+      })}
+    </svg>
+  );
+};
+

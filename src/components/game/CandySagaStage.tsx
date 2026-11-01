@@ -7,10 +7,14 @@ import {
   StripedCandySVG,
   WrappedCandySVG,
   ColorBombSVG,
+  LaserBeamOverlay,
+  ShockwaveBlastOverlay,
+  LightningZapOverlay,
 } from './CandyGraphics.js';
 import {
   playCandyPop,
   playCandySwapSound,
+  playInvalidSwapSound,
   playLaserBeamSound,
   playExplosionSound,
   playColorBombSound,
@@ -90,6 +94,25 @@ export const CandySagaStage: React.FC<CandySagaStageProps> = ({ onClose }) => {
   const [announcerBanner, setAnnouncerBanner] = useState<{ text: string; sub: string; color: string } | null>(null);
   const [screenShake, setScreenShake] = useState<'none' | 'light' | 'heavy'>('none');
 
+  // Animation & Motion States
+  const [swappingPair, setSwappingPair] = useState<{
+    r1: number;
+    c1: number;
+    r2: number;
+    c2: number;
+    phase: 'sliding' | 'reverting';
+  } | null>(null);
+  const [poppingCoords, setPoppingCoords] = useState<Set<string>>(new Set());
+  const [fallingTiles, setFallingTiles] = useState<Record<string, number>>({});
+  const [laserBeams, setLaserBeams] = useState<Array<{ id: string; type: 'h' | 'v'; index: number; color: string }>>([]);
+  const [shockwaves, setShockwaves] = useState<Array<{ id: string; r: number; c: number }>>([]);
+  const [lightningZaps, setLightningZaps] = useState<Array<{
+    id: string;
+    fromR: number;
+    fromC: number;
+    targets: Array<{ r: number; c: number }>;
+  }>>([]);
+
   // Swipe drag ref
   const dragStartRef = useRef<{ r: number; c: number; x: number; y: number } | null>(null);
 
@@ -127,9 +150,19 @@ export const CandySagaStage: React.FC<CandySagaStageProps> = ({ onClose }) => {
         y: cellY,
         text: `+${points}`,
         alpha: 1,
-        color: '#fde047',
+        color: points >= 300 ? '#f43f5e' : points >= 150 ? '#fbbf24' : '#38bdf8',
       });
     }
+  }, []);
+
+  const spawnFloatingScore = useCallback((cellX: number, cellY: number, points: number) => {
+    floatingTextsRef.current.push({
+      x: cellX,
+      y: cellY,
+      text: `+${points}`,
+      alpha: 1,
+      color: points >= 300 ? '#f43f5e' : points >= 150 ? '#fbbf24' : '#38bdf8',
+    });
   }, []);
 
   // Particle loop
@@ -178,12 +211,14 @@ export const CandySagaStage: React.FC<CandySagaStageProps> = ({ onClose }) => {
         }
 
         ctx.save();
-        ctx.globalAlpha = ft.alpha;
-        ctx.font = 'bold 16px sans-serif';
+        ctx.globalAlpha = Math.max(0, ft.alpha);
+        ctx.font = '900 22px "Arial Black", Impact, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#000000';
+        ctx.strokeText(ft.text, ft.x, ft.y);
         ctx.fillStyle = ft.color;
-        ctx.shadowColor = '#000000';
-        ctx.shadowBlur = 4;
-        ctx.fillText(ft.text, ft.x - 12, ft.y);
+        ctx.fillText(ft.text, ft.x, ft.y);
         ctx.restore();
       }
 
@@ -259,97 +294,262 @@ export const CandySagaStage: React.FC<CandySagaStageProps> = ({ onClose }) => {
     setViewMode('victory');
   };
 
-  // Execute Swap on board
-  const handlePerformSwap = (r1: number, c1: number, r2: number, c2: number) => {
-    if (isProcessing || movesLeft <= 0) return;
+  // Execute Sequential Cascade Waves with Full Visual Kinematics
+  const runCascadeLoop = async (
+    currentBoard: CandyTileData[][],
+    focusCoord: { r: number; c: number },
+    currentMoves: number,
+    isSpecialCombo: boolean,
+    r1: number,
+    c1: number,
+    r2: number,
+    c2: number
+  ) => {
+    let cascadeCombo = 0;
+    let totalScoreGained = 0;
+    let currentScore = score;
+    const currentJelly = jellyMap.map((row) => [...row]);
+    const currentOrders = { ...collectedOrders };
 
-    playCandySwapSound();
-    setIsProcessing(true);
-    const newBoard = board.map((row) => row.map((cell) => ({ ...cell })));
-    const res = CandyCrushEngine.executeSwap(newBoard, r1, c1, r2, c2);
+    // 1. Handle Special Combo Pre-Explosions (Color Bomb, Striped+Striped, etc.)
+    if (isSpecialCombo) {
+      const tile1 = currentBoard[r1][c1];
+      const tile2 = currentBoard[r2][c2];
 
-    if (!res.success) {
-      setIsProcessing(false);
-      return;
-    }
+      if (tile1.special === 'color_bomb' || tile2.special === 'color_bomb') {
+        const colorBombCoord = tile1.special === 'color_bomb' ? { r: r1, c: c1 } : { r: r2, c: c2 };
+        const otherTile = tile1.special === 'color_bomb' ? tile2 : tile1;
+        playColorBombSound();
+        setScreenShake('heavy');
 
-    playCandyPop(res.comboCount);
-    if (res.comboType === 'striped_h' || res.comboType === 'striped_v' || res.comboType === 'combo_cross') {
-      playLaserBeamSound();
-    } else if (res.comboType === 'wrapped' || res.comboType === 'combo_giant' || res.comboType === 'combo_wipe') {
-      playExplosionSound();
-    } else if (res.comboType === 'color_bomb' || res.comboType === 'combo_color_striped') {
-      playColorBombSound();
-    }
-
-    const newMoves = movesLeft - 1;
-    setMovesLeft(newMoves);
-
-    // Points calculation
-    const pointsGained = res.totalDamage * 45;
-    const newScore = score + pointsGained;
-    setScore(newScore);
-
-    // Trigger Particle Bursts on Canvas
-    if (canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const cellSize = rect.width / 8;
-      spawnSugarBurst(c2 * cellSize + cellSize / 2, r2 * cellSize + cellSize / 2, '#f59e0b', pointsGained);
-    }
-
-    // Clear jelly where matches occurred
-    const newJelly = jellyMap.map((row) => [...row]);
-    if (activeLevel.type === 'jelly') {
-      for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-          if (newBoard[r][c].id.includes('del') || newBoard[r][c].id.includes('spawn')) {
-            newJelly[r][c] = false;
+        const targets: Array<{ r: number; c: number }> = [];
+        for (let r = 0; r < 8; r++) {
+          for (let c = 0; c < 8; c++) {
+            if (currentBoard[r][c].type === otherTile.type && (r !== colorBombCoord.r || c !== colorBombCoord.c)) {
+              targets.push({ r, c });
+            }
           }
         }
+
+        setLightningZaps([{ id: `zap-${Date.now()}`, fromR: colorBombCoord.r, fromC: colorBombCoord.c, targets }]);
+        await new Promise((resolve) => setTimeout(resolve, 450));
+        setLightningZaps([]);
+      } else if (
+        (tile1.special === 'striped_h' || tile1.special === 'striped_v') &&
+        (tile2.special === 'striped_h' || tile2.special === 'striped_v')
+      ) {
+        playLaserBeamSound();
+        setScreenShake('heavy');
+        setLaserBeams([
+          { id: `lh-${Date.now()}`, type: 'h', index: r2, color: '#38bdf8' },
+          { id: `lv-${Date.now()}`, type: 'v', index: c2, color: '#ec4899' },
+        ]);
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        setLaserBeams([]);
+      } else if (tile1.special === 'wrapped' && tile2.special === 'wrapped') {
+        playExplosionSound();
+        setScreenShake('heavy');
+        setShockwaves([{ id: `sw-${Date.now()}`, r: r2, c: c2 }]);
+        await new Promise((resolve) => setTimeout(resolve, 420));
+        setShockwaves([]);
       }
-      setJellyMap(newJelly);
     }
 
-    // Orders tracking
-    const newOrders = { ...collectedOrders };
-    if (activeLevel.targetOrders) {
-      activeLevel.targetOrders.forEach((ord) => {
-        newOrders[ord.type] = (newOrders[ord.type] || 0) + Math.round(res.totalDamage / 4);
+    // 2. Sequential Cascade Loop
+    while (true) {
+      const { matchedCoords, specialsToSpawn } = CandyCrushEngine.findMatches(currentBoard, focusCoord);
+      if (matchedCoords.size === 0) break;
+
+      cascadeCombo++;
+      playCandyPop(cascadeCombo);
+
+      // Announcer voice check
+      if (cascadeCombo >= 3) {
+        const voiceKeys = ['sweet', 'tasty', 'delicious', 'divine'] as const;
+        const v = voiceKeys[Math.min(cascadeCombo - 3, voiceKeys.length - 1)];
+        playAnnouncerVoice(v);
+        setScreenShake(cascadeCombo >= 5 ? 'heavy' : 'light');
+        setTimeout(() => setScreenShake('none'), 600);
+
+        const voiceMap: Record<string, { text: string; sub: string; color: string }> = {
+          sweet: { text: 'SWEET!', sub: '3x COMBO', color: 'from-amber-400 via-yellow-300 to-amber-500' },
+          tasty: { text: 'TASTY!', sub: '4x COMBO', color: 'from-orange-500 via-amber-400 to-yellow-400' },
+          delicious: { text: 'DELICIOUS!', sub: '5x SUPER COMBO', color: 'from-pink-500 via-purple-400 to-indigo-500' },
+          divine: { text: 'DIVINE!', sub: '6x MEGA COMBO', color: 'from-cyan-400 via-sky-300 to-blue-500' },
+        };
+        setAnnouncerBanner(voiceMap[v]);
+        setTimeout(() => setAnnouncerBanner(null), 1600);
+      }
+
+      // Check special detonations within matched tiles
+      const destroyed = new Set<string>(matchedCoords);
+      const newBeams: Array<{ id: string; type: 'h' | 'v'; index: number; color: string }> = [];
+      const newShockwaves: Array<{ id: string; r: number; c: number }> = [];
+
+      matchedCoords.forEach((coord) => {
+        const [r, c] = coord.split(',').map(Number);
+        const tile = currentBoard[r][c];
+        if (tile.special === 'striped_h') {
+          playLaserBeamSound();
+          for (let col = 0; col < 8; col++) destroyed.add(`${r},${col}`);
+          newBeams.push({ id: `lh-${r}-${Date.now()}`, type: 'h', index: r, color: '#38bdf8' });
+        } else if (tile.special === 'striped_v') {
+          playLaserBeamSound();
+          for (let row = 0; row < 8; row++) destroyed.add(`${row},${c}`);
+          newBeams.push({ id: `lv-${c}-${Date.now()}`, type: 'v', index: c, color: '#f43f5e' });
+        } else if (tile.special === 'wrapped') {
+          playExplosionSound();
+          newShockwaves.push({ id: `sw-${r}-${c}`, r, c });
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              const nr = r + dr;
+              const nc = c + dc;
+              if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) destroyed.add(`${nr},${nc}`);
+            }
+          }
+        }
       });
-      setCollectedOrders(newOrders);
-    }
 
-    setBoard(newBoard);
+      if (newBeams.length > 0) {
+        setLaserBeams(newBeams);
+        setScreenShake('light');
+      }
+      if (newShockwaves.length > 0) {
+        setShockwaves(newShockwaves);
+        setScreenShake('heavy');
+      }
 
-    // Announcer & Screen Shake
-    if (res.announcer) {
-      playAnnouncerVoice(res.announcer);
-      setScreenShake('heavy');
-      setTimeout(() => setScreenShake('none'), 650);
+      // Highlight popping tiles (scale up & glow white-hot)
+      setPoppingCoords(new Set(destroyed));
 
-      const voiceMap: Record<string, { text: string; sub: string; color: string }> = {
-        sweet: { text: 'SWEET!', sub: '3x COMBO', color: 'from-amber-400 via-yellow-300 to-amber-500' },
-        tasty: { text: 'TASTY!', sub: '4x COMBO', color: 'from-orange-500 via-amber-400 to-yellow-400' },
-        delicious: { text: 'DELICIOUS!', sub: '5x SUPER COMBO', color: 'from-pink-500 via-purple-400 to-indigo-500' },
-        divine: { text: 'DIVINE!', sub: '6x MEGA COMBO', color: 'from-cyan-400 via-sky-300 to-blue-500' },
-        sugar_crush: { text: 'SUGAR CRUSH!', sub: 'LEVEL CLEAR', color: 'from-rose-500 via-amber-300 to-fuchsia-500' },
-      };
+      // Particle Bursts on Canvas & Floating Score text
+      if (canvasRef.current) {
+        const rect = canvasRef.current.getBoundingClientRect();
+        const cellSize = rect.width / 8;
+        const wavePoints = Math.round(destroyed.size * 25 * (1 + cascadeCombo * 0.4));
+        totalScoreGained += wavePoints;
+        currentScore += wavePoints;
+        setScore(currentScore);
 
-      setAnnouncerBanner(voiceMap[res.announcer]);
-      setTimeout(() => setAnnouncerBanner(null), 1800);
+        destroyed.forEach((coord) => {
+          const [r, c] = coord.split(',').map(Number);
+          const tile = currentBoard[r][c];
+          const candyColors = ['#ef233c', '#9333ea', '#eab308', '#22c55e', '#f97316', '#0284c7'];
+          const color = tile.type >= 0 ? candyColors[tile.type] : '#ffd700';
+          spawnSugarBurst(c * cellSize + cellSize / 2, r * cellSize + cellSize / 2, color);
+        });
+
+        const coordsArr = Array.from(destroyed);
+        const midCoord = coordsArr[Math.floor(coordsArr.length / 2)].split(',').map(Number);
+        spawnFloatingScore(midCoord[1] * cellSize + cellSize / 2, midCoord[0] * cellSize + cellSize / 2, wavePoints);
+      }
+
+      // Clear jelly on destroyed coords
+      if (activeLevel.type === 'jelly') {
+        destroyed.forEach((coord) => {
+          const [r, c] = coord.split(',').map(Number);
+          currentJelly[r][c] = false;
+        });
+        setJellyMap(currentJelly.map((row) => [...row]));
+      }
+
+      // Orders tracking
+      if (activeLevel.targetOrders) {
+        activeLevel.targetOrders.forEach((ord) => {
+          currentOrders[ord.type] = (currentOrders[ord.type] || 0) + Math.round(destroyed.size / 4);
+        });
+        setCollectedOrders({ ...currentOrders });
+      }
+
+      // Wait for pop celebration & laser beam
+      await new Promise((resolve) => setTimeout(resolve, 220));
+      setLaserBeams([]);
+      setShockwaves([]);
+      setPoppingCoords(new Set());
+
+      // Mark destroyed tiles as -1
+      destroyed.forEach((coord) => {
+        const [r, c] = coord.split(',').map(Number);
+        currentBoard[r][c] = { id: `del-${r}-${c}`, type: -1, special: 'none', hasItem: false };
+      });
+
+      // Place newly created specials into board
+      specialsToSpawn.forEach((spec, coord) => {
+        const [r, c] = coord.split(',').map(Number);
+        currentBoard[r][c] = {
+          id: `spec-${r}-${c}-${Date.now()}`,
+          type: spec.type,
+          special: spec.special,
+          hasItem: false,
+        };
+      });
+
+      // Gravity Drop & Refill with physical tracking
+      const { dropMap } = CandyCrushEngine.refillBoardWithTracking(currentBoard);
+      setFallingTiles(dropMap);
+      setBoard(currentBoard.map((row) => row.map((cell) => ({ ...cell }))));
+
+      // Wait for candies to physically drop and bounce down into place
+      await new Promise((resolve) => setTimeout(resolve, 260));
+      setFallingTiles({});
+      await new Promise((resolve) => setTimeout(resolve, 60));
     }
 
     setIsProcessing(false);
 
     // Check Victory
-    const isTargetMet = checkLevelProgress(newScore, newJelly, newOrders);
+    const isTargetMet = checkLevelProgress(currentScore, currentJelly, currentOrders);
     if (isTargetMet) {
-      // Sugar Crush bonus for remaining moves
-      const sugarBonus = newMoves * 250;
-      handleLevelWin(newScore + sugarBonus);
-    } else if (newMoves <= 0) {
+      const sugarBonus = currentMoves * 250;
+      handleLevelWin(currentScore + sugarBonus);
+    } else if (currentMoves <= 0) {
       setViewMode('gameover');
     }
+  };
+
+  // Perform Swap with Visual Sliding & Invalid Bounce-Back
+  const handlePerformSwap = async (r1: number, c1: number, r2: number, c2: number) => {
+    if (isProcessing || movesLeft <= 0) return;
+    setIsProcessing(true);
+    setSelectedCell(null);
+
+    // 1. Check Swap Validity
+    const { valid, isSpecialCombo } = CandyCrushEngine.validateSwap(board, r1, c1, r2, c2);
+
+    if (!valid) {
+      // INVALID: Slide halfway towards each other, then bounce back with a dull thud!
+      playCandySwapSound();
+      setSwappingPair({ r1, c1, r2, c2, phase: 'sliding' });
+
+      await new Promise((resolve) => setTimeout(resolve, 180));
+      playInvalidSwapSound();
+      setSwappingPair({ r1, c1, r2, c2, phase: 'reverting' });
+
+      await new Promise((resolve) => setTimeout(resolve, 180));
+      setSwappingPair(null);
+      setIsProcessing(false);
+      return;
+    }
+
+    // VALID: Smoothly slide past each other
+    playCandySwapSound();
+    setSwappingPair({ r1, c1, r2, c2, phase: 'sliding' });
+
+    const newMoves = movesLeft - 1;
+    setMovesLeft(newMoves);
+
+    await new Promise((resolve) => setTimeout(resolve, 190));
+
+    // Update board state with swapped tiles
+    const curBoard = board.map((row) => row.map((cell) => ({ ...cell })));
+    const temp = curBoard[r1][c1];
+    curBoard[r1][c1] = curBoard[r2][c2];
+    curBoard[r2][c2] = temp;
+    setBoard(curBoard.map((row) => row.map((cell) => ({ ...cell }))));
+    setSwappingPair(null);
+
+    // Execute sequential cascade animation loop
+    await runCascadeLoop(curBoard, { r: r2, c: c2 }, newMoves, isSpecialCombo, r1, c1, r2, c2);
   };
 
   // Hammer booster
@@ -670,31 +870,82 @@ export const CandySagaStage: React.FC<CandySagaStageProps> = ({ onClose }) => {
           width: 'min(48vh, 390px)',
         }}
       >
-        {/* Background Candy Grid Slot Holes */}
+        {/* Dynamic Visual FX Overlays: Laser Beams, Shockwaves, Lightning Zaps */}
+        {laserBeams.map((beam) => (
+          <LaserBeamOverlay key={beam.id} type={beam.type} index={beam.index} color={beam.color} />
+        ))}
+        {shockwaves.map((sw) => (
+          <ShockwaveBlastOverlay key={sw.id} r={sw.r} c={sw.c} />
+        ))}
+        {lightningZaps.map((zap) => (
+          <LightningZapOverlay key={zap.id} fromR={zap.fromR} fromC={zap.fromC} targets={zap.targets} />
+        ))}
+
+        {/* 8x8 Candy Grid with Fixed Biscuit Slots and Kinematic Candy Transforms */}
         <div className="w-full h-full grid grid-cols-8 gap-0.5 relative z-10">
           {board.map((row, r) =>
             row.map((cell, c) => {
               const isSelected = selectedCell?.r === r && selectedCell?.c === c;
               const hasJelly = jellyMap[r]?.[c];
-              // Checkerboard pattern (alternating chocolate cookie slots)
               const isLightSlot = (r + c) % 2 === 0;
 
+              // Sliding swap animation check
+              const isSwapping =
+                swappingPair &&
+                ((swappingPair.r1 === r && swappingPair.c1 === c) ||
+                  (swappingPair.r2 === r && swappingPair.c2 === c));
+
+              let swapTransform = '';
+              let swapTransition = '';
+              let zIndex = isSelected ? 40 : 10;
+
+              if (isSwapping) {
+                zIndex = 50;
+                const isFirst = swappingPair.r1 === r && swappingPair.c1 === c;
+                const targetR = isFirst ? swappingPair.r2 : swappingPair.r1;
+                const targetC = isFirst ? swappingPair.c2 : swappingPair.c1;
+                const dX = (targetC - c) * 100;
+                const dY = (targetR - r) * 100;
+
+                if (swappingPair.phase === 'sliding') {
+                  swapTransform = `translate(${dX}%, ${dY}%) scale(1.15)`;
+                  swapTransition = 'transform 180ms cubic-bezier(0.25, 1, 0.5, 1)';
+                } else {
+                  swapTransform = 'translate(0%, 0%) scale(0.95)';
+                  swapTransition = 'transform 160ms cubic-bezier(0.4, 0, 0.2, 1)';
+                }
+              }
+
+              // Popping animation check
+              const isPopping = poppingCoords.has(`${r},${c}`);
+
+              // Gravity drop animation check
+              const dropDistance = fallingTiles[cell.id] || 0;
+              const isFalling = dropDistance > 0;
+
+              let tileTransform = '';
+              let tileTransition = '';
+
+              if (isSwapping) {
+                tileTransform = swapTransform;
+                tileTransition = swapTransition;
+              } else if (isPopping) {
+                tileTransform = 'scale(1.35) rotate(10deg)';
+                tileTransition = 'transform 180ms ease-out, filter 180ms ease-out';
+              } else if (isFalling) {
+                tileTransform = `translateY(${-dropDistance * 80}%)`;
+                tileTransition = 'transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1)';
+              }
+
               return (
-                <button
-                  key={cell.id || `${r}-${c}`}
-                  onPointerDown={(e) => handlePointerDown(r, c, e)}
-                  onClick={() => handleCellClick(r, c)}
-                  disabled={cell.type === -1}
-                  className={`relative rounded-xl flex items-center justify-center cursor-pointer transition-transform duration-150 active:scale-90 touch-none shadow-inner ${
-                    isLightSlot ? 'bg-white/15' : 'bg-black/25'
-                  } ${
-                    isSelected
-                      ? 'ring-4 ring-yellow-300 scale-110 z-30 shadow-[0_0_20px_rgba(253,224,71,1)]'
-                      : 'hover:scale-105'
+                <div
+                  key={`slot-${r}-${c}`}
+                  className={`relative rounded-xl flex items-center justify-center select-none ${
+                    isLightSlot ? 'bg-white/10' : 'bg-black/25'
                   }`}
                   style={{
                     aspectRatio: '1/1',
-                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.7), inset 0 -1px 2px rgba(255,255,255,0.1)',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.6), inset 0 -1px 2px rgba(255,255,255,0.08)',
                   }}
                 >
                   {/* Frosted Translucent Jelly Layer */}
@@ -702,11 +953,27 @@ export const CandySagaStage: React.FC<CandySagaStageProps> = ({ onClose }) => {
                     <div className="absolute inset-0 rounded-xl bg-cyan-400/40 border-2 border-cyan-200/80 shadow-[inset_0_0_12px_rgba(165,243,252,0.9)] pointer-events-none z-0 animate-pulse" />
                   )}
 
-                  {/* 3D Glossy Candy Sprite */}
-                  <div className="w-full h-full p-1 flex items-center justify-center relative z-10 pointer-events-none">
-                    {renderCandy(cell)}
-                  </div>
-                </button>
+                  {/* 3D Glossy Candy Sprite with Kinematic Motion */}
+                  {cell.type !== -1 && (
+                    <button
+                      onPointerDown={(e) => handlePointerDown(r, c, e)}
+                      onClick={() => handleCellClick(r, c)}
+                      disabled={isProcessing}
+                      className={`w-full h-full p-1 flex items-center justify-center relative cursor-pointer active:scale-95 touch-none ${
+                        isSelected
+                          ? 'ring-4 ring-yellow-300 rounded-xl scale-110 shadow-[0_0_20px_rgba(253,224,71,1)]'
+                          : 'hover:scale-105'
+                      } ${isPopping ? 'brightness-150 drop-shadow-[0_0_20px_white]' : ''}`}
+                      style={{
+                        zIndex,
+                        transform: tileTransform,
+                        transition: tileTransition,
+                      }}
+                    >
+                      {renderCandy(cell)}
+                    </button>
+                  )}
+                </div>
               );
             })
           )}

@@ -40,6 +40,29 @@ export function playCandySwapSound(): void {
   osc.stop(now + 0.1);
 }
 
+/** 1b. Invalid Swap Dull Thud */
+export function playInvalidSwapSound(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(140, now);
+  osc.frequency.exponentialRampToValueAtTime(65, now + 0.12);
+
+  gain.gain.setValueAtTime(0.14, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start(now);
+  osc.stop(now + 0.12);
+}
+
 /** 2. Candy Pop / Match with Ascending Pentatonic Musical Scale */
 export function playCandyPop(combo: number = 1): void {
   const ctx = getAudioContext();
