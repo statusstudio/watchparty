@@ -532,7 +532,7 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
 
   if (error || !profile) {
     return (
-      <div className={`fixed inset-0 overflow-y-auto overflow-x-hidden flex flex-col transition-colors z-50 ${
+      <div className={`fixed inset-0 w-full h-[100dvh] max-h-[100dvh] overflow-hidden flex flex-col transition-colors z-50 ${
         isLight ? 'bg-[#faf8ff] text-[#131b2e]' : 'bg-[#111319] text-[#e2e2ea]'
       }`}>
         {/* Top Header - Main Menu Style */}
@@ -565,7 +565,10 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
           unreadDmCount={unreadDmCount}
         />
 
-        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto space-y-4 pt-20">
+        <main
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto space-y-4 pt-20"
+          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+        >
           <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shadow-xs">
             <Headphones className="w-8 h-8" />
           </div>
@@ -580,7 +583,7 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
             <ArrowLeft className="w-4 h-4" />
             <span>กลับสู่หน้าแรก pleng.online</span>
           </button>
-        </div>
+        </main>
       </div>
     );
   }
@@ -590,7 +593,7 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
   const banner = profile.bannerUrl || defaultBanner;
 
   return (
-    <div className={`fixed inset-0 overflow-y-auto overflow-x-hidden flex flex-col transition-colors duration-300 z-30 ${
+    <div className={`fixed inset-0 w-full h-[100dvh] max-h-[100dvh] overflow-hidden flex flex-col transition-colors duration-300 z-30 ${
       isLight ? 'bg-[#faf8ff] text-[#131b2e]' : 'bg-[#111319] text-[#e2e2ea]'
     }`}>
       {/* 1. TOP HEADER (Exact Same Menu as Main Home Page) */}
@@ -623,8 +626,15 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
         unreadDmCount={unreadDmCount}
       />
 
-      {/* 2. MAIN PROFILE CONTAINER */}
-      <div className="flex-1 max-w-4xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-16 sm:pt-20 md:pt-22 pb-24 lg:pb-12 space-y-5">
+      {/* 2. MAIN SCROLLABLE MIDDLE CONTAINER */}
+      <main
+        className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden pt-16 sm:pt-20 md:pt-22 pb-24 lg:pb-12 overscroll-contain"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-y',
+        }}
+      >
+        <div className="max-w-4xl w-full mx-auto px-3 sm:px-6 lg:px-8 space-y-5">
         {/* Profile Card Header */}
         <div className={`rounded-3xl overflow-hidden border shadow-xs transition-colors ${
           isLight ? 'bg-white border-[#dae2fd]' : 'bg-[#191b22] border-white/[0.08]'
@@ -1552,7 +1562,8 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
             </div>
           </div>
         )}
-      </div>
+        </div>
+      </main>
 
       {/* 3. MOBILE & TABLET BOTTOM NAV (Exact Same as Home Page with Profile Active) */}
       <StitchMobileBottomNav
