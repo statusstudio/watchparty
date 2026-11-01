@@ -548,6 +548,7 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
             const myHandle = currentUser.username || currentUser.name || currentUser.id;
             if (onNavigateToProfile) onNavigateToProfile(myHandle);
           }}
+          onOpenEditProfile={onOpenEditProfile}
           onOpenAuth={onOpenAuth}
           onLogout={onLogout}
           onNavigateToPublicProfile={(targetHandle) => {
@@ -605,6 +606,7 @@ export const PublicProfileView: React.FC<PublicProfileViewProps> = ({
           const myHandle = currentUser.username || currentUser.name || currentUser.id;
           if (onNavigateToProfile) onNavigateToProfile(myHandle);
         }}
+        onOpenEditProfile={onOpenEditProfile}
         onOpenAuth={onOpenAuth}
         onLogout={onLogout}
         onNavigateToPublicProfile={(targetHandle) => {

@@ -7,6 +7,7 @@ interface StitchHeaderProps {
   onOpenCreateRoom: () => void;
   onOpenRoomCodeModal: () => void;
   onOpenProfile?: () => void;
+  onOpenEditProfile?: () => void;
   onOpenAuth?: () => void;
   onLogout?: () => void;
   onNavigateToPublicProfile?: (handle: string) => void;
@@ -27,6 +28,7 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
   onOpenCreateRoom,
   onOpenRoomCodeModal,
   onOpenProfile,
+  onOpenEditProfile,
   onOpenAuth,
   onLogout,
   onNavigateToPublicProfile,
@@ -517,7 +519,11 @@ export const StitchHeader: React.FC<StitchHeaderProps> = ({
                     <button
                       onClick={() => {
                         setIsProfileDropdownOpen(false);
-                        if (onOpenProfile) onOpenProfile();
+                        if (onOpenEditProfile) {
+                          onOpenEditProfile();
+                        } else if (onOpenProfile) {
+                          onOpenProfile();
+                        }
                       }}
                       className={`w-full p-2.5 rounded-2xl flex items-center gap-3 text-left transition-all cursor-pointer ${
                         isLight ? 'hover:bg-[#f2f3ff]' : 'hover:bg-white/[0.06]'

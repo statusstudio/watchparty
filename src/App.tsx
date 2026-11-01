@@ -2521,6 +2521,7 @@ export function App() {
               onOpenCreateRoom={() => setIsCreateRoomModalOpen(true)}
               onOpenRoomCodeModal={() => setIsStitchRoomCodeModalOpen(true)}
               onOpenProfile={handleNavigateToMyProfile}
+              onOpenEditProfile={() => setIsProfileModalOpen(true)}
               onOpenAuth={() => setIsAuthModalOpen(true)}
               onLogout={handleLogout}
               onNavigateToPublicProfile={(handle) => {
