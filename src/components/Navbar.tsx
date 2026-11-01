@@ -320,16 +320,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Candy Battle Royale 3D Game Button */}
+            {/* Candy Crush Saga Game Button */}
             {onToggleCandyGame && (
               <button
                 type="button"
                 onClick={onToggleCandyGame}
                 className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer shrink-0 shadow-xs active:scale-95 border ${isCandyGameActive ? 'bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse' : 'bg-gradient-to-r from-pink-500/15 via-purple-500/15 to-indigo-500/15 hover:brightness-110 text-purple-700 dark:text-purple-300 border-purple-400/40 shadow-xs'}`}
-                title="เปิด/ปิดเกม แคนดี้ 3D (Candy Master Battle Royale)"
+                title="เปิด/ปิดเกม แคนดี้ ซาก้า (Candy Crush Saga)"
               >
                 <span className="text-sm">🍬</span>
-                <span className="hidden xs:inline">{isCandyGameActive ? 'ปิดเกมแคนดี้' : 'แคนดี้ 3D'}</span>
+                <span className="hidden xs:inline">{isCandyGameActive ? 'ปิดเกมแคนดี้' : 'แคนดี้ ซาก้า'}</span>
               </button>
             )}
           </>
@@ -599,7 +599,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
                   )}
 
-                  {/* Candy Battle Royale 3D Game */}
+                  {/* Candy Crush Saga Game */}
                   {currentView === 'room' && onToggleCandyGame && (
                     <button
                       onClick={() => {
@@ -613,7 +613,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       }`}
                     >
                       <span className="text-sm">🍬</span>
-                      <span>{isCandyGameActive ? 'ออกจากเกมแคนดี้ 3D' : 'เล่นเกม Candy Battle Royale 3D (4 ผู้เล่น)'}</span>
+                      <span>{isCandyGameActive ? 'ออกจากเกมแคนดี้ ซาก้า' : 'เล่นเกม Candy Crush Saga (4 ผู้เล่น)'}</span>
                     </button>
                   )}
 

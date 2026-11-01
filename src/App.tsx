@@ -60,6 +60,7 @@ const PublicProfileView = React.lazy(() => import('./components/PublicProfileVie
 const SuperAdminDashboardModal = React.lazy(() => import('./components/SuperAdminDashboardModal.js').then((m) => ({ default: m.SuperAdminDashboardModal })));
 const DrawAndGuessStage = React.lazy(() => import('./components/DrawAndGuessStage.js').then((m) => ({ default: m.DrawAndGuessStage })));
 const CandyBattleStage = React.lazy(() => import('./components/game/CandyBattleStage.js').then((m) => ({ default: m.CandyBattleStage })));
+const CandySagaStage = React.lazy(() => import('./components/game/CandySagaStage.js').then((m) => ({ default: m.CandySagaStage })));
 import { FloatingItem, GiftEvent, LiveReactionsDock } from './components/FloatingReactions.js';
 import { ToastContainer, ToastItem } from './components/Toast.js';
 import { StitchHeader } from './components/stitch/StitchHeader.js';
@@ -247,6 +248,7 @@ export function App() {
   const [myRole, setMyRole] = useState<UserRole>('member');
   const [gameState, setGameState] = useState<DrawAndGuessGameState | null>(null);
   const [candyGameState, setCandyGameState] = useState<CandyBattleGameState | null>(null);
+  const [isCandySagaOpen, setIsCandySagaOpen] = useState<boolean>(false);
 
   // Password Gate
   const [isPasswordGateOpen, setIsPasswordGateOpen] = useState(false);
@@ -2489,19 +2491,9 @@ export function App() {
           isRefreshing={isRefreshing}
           isFavoriteRoom={favoriteRoomIds.has(roomId)}
           isGameActive={Boolean(gameState?.isActive)}
-          isCandyGameActive={Boolean(candyGameState?.isActive)}
+          isCandyGameActive={isCandySagaOpen}
           onToggleCandyGame={() => {
-            if (candyGameState?.isActive) {
-              if (isAdminOrOwner) {
-                if (window.confirm('คุณต้องการยุติเกม Candy Battle ใช่หรือไม่?')) {
-                  handleStopCandyGame();
-                }
-              } else {
-                handleLeaveCandyLobby();
-              }
-            } else {
-              handleJoinCandyLobby();
-            }
+            setIsCandySagaOpen((prev) => !prev);
           }}
           onToggleGame={() => {
             if (gameState?.isActive) {
@@ -2783,7 +2775,7 @@ export function App() {
             <div
               id="video-player-container"
               className={`w-full aspect-video max-h-[25vh] sm:max-h-[30vh] md:max-h-[32vh] lg:max-h-none lg:flex-1 min-h-0 flex items-center justify-center bg-black rounded-xl overflow-hidden border border-[#e6e6e6] dark:border-white/[0.08] shadow-[0_4px_12px_rgba(0,0,0,0.06)] relative shrink-0 ${
-                (gameState?.isActive || candyGameState?.isActive) ? 'fixed -left-[9999px] top-0 w-1 h-1 opacity-0 pointer-events-none' : ''
+                (gameState?.isActive || candyGameState?.isActive || isCandySagaOpen) ? 'fixed -left-[9999px] top-0 w-1 h-1 opacity-0 pointer-events-none' : ''
               }`}
             >
               <VideoPlayer
@@ -2820,6 +2812,16 @@ export function App() {
                 onShowToast={showToast}
               />
             </div>
+
+            
+            {/* Candy Crush Saga Progression Stage */}
+            {isCandySagaOpen && (
+              <div className="w-full flex-1 flex flex-col items-center justify-center min-h-[580px] sm:min-h-[620px] md:min-h-[660px] h-[75vh] max-h-[85vh] shrink-0 z-20">
+                <React.Suspense fallback={<div className="flex-1 flex items-center justify-center text-zinc-400 text-sm">กำลังโหลด Candy Crush Saga...</div>}>
+                  <CandySagaStage onClose={() => setIsCandySagaOpen(false)} />
+                </React.Suspense>
+              </div>
+            )}
 
             {/* Candy Battle Royale 3D Game Stage */}
             {candyGameState?.isActive && (
@@ -2977,28 +2979,16 @@ export function App() {
                   {/* Candy Battle Royale 3D Quick Button */}
                   <button
                     type="button"
-                    onClick={() => {
-                      if (candyGameState?.isActive) {
-                        if (isAdminOrOwner) {
-                          if (window.confirm('คุณต้องการยุติเกม Candy Battle ใช่หรือไม่?')) {
-                            handleStopCandyGame();
-                          }
-                        } else {
-                          handleLeaveCandyLobby();
-                        }
-                      } else {
-                        handleJoinCandyLobby();
-                      }
-                    }}
-                    title="แคนดี้ ปาร์ตี้ 3D (Candy Battle Royale)"
+                    onClick={() => setIsCandySagaOpen((prev) => !prev)}
+                    title="แคนดี้ ซาก้า ผจญภัยผ่านด่าน (Candy Crush Saga)"
                     className={`p-1 sm:p-1.5 rounded-lg border transition-all cursor-pointer active:scale-95 flex items-center gap-1 ${
-                      candyGameState?.isActive
-                        ? 'bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse'
+                      isCandySagaOpen
+                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 ring-1 ring-amber-400 animate-pulse'
                         : 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/20'
                     }`}
                   >
                     <span className="text-xs">🍬</span>
-                    <span className="hidden sm:inline text-[11px] font-bold">แคนดี้ 3D</span>
+                    <span className="hidden sm:inline text-[11px] font-bold">แคนดี้ ซาก้า</span>
                   </button>
 
                   {/* Karaoke & Synced Lyrics */}
